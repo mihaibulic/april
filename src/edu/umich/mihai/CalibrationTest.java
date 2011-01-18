@@ -10,6 +10,10 @@ import javax.swing.JFrame;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
+import april.tag.CameraUtil;
+import april.tag.Tag36h11;
+import april.tag.TagDetection;
+import april.tag.TagDetector;
 import april.util.GetOpt;
 import april.util.ParameterGUI;
 import april.util.ParameterListener;
@@ -18,7 +22,7 @@ import april.vis.VisImage;
 import april.vis.VisTexture;
 import april.vis.VisWorld;
 
-public class BasicCameraGUI implements ParameterListener
+public class CalibrationTest implements ParameterListener
 {
     private ParameterGUI pg;
     private JFrame jf;
@@ -28,10 +32,14 @@ public class BasicCameraGUI implements ParameterListener
     private VisWorld.Buffer vbImage = vw.getBuffer("images");
     private boolean toggle = true;
     
-    public BasicCameraGUI(String url, boolean hiRes, boolean gray8, int fps)
+    private BufferedImage image;
+    private double[] r = {1,1}; // calibration perameters to remove radial distortion
+    
+    public CalibrationTest(String url, boolean hiRes, boolean gray8, int fps)
     {
         pg = new ParameterGUI();
-        pg.addButtons("Reset", "toggle image source");
+        pg.addButtons("reset", "toggle image source", "tags", "get tag numbers", "calibrate", "generate r matrix to undestort image");
+        pg.addDoubleSlider("r1", "radial distortion1", 0, 1, 1);
         pg.addListener(this);
 
         queue = new ArrayBlockingQueue<BufferedImage>(60);
@@ -113,7 +121,6 @@ public class BasicCameraGUI implements ParameterListener
                 }
                 
                 byte imageBuffer[] = null;
-                BufferedImage image = null;
 
                 imageBuffer = isrc.getFrame();
                 if (imageBuffer == null)
@@ -123,8 +130,11 @@ public class BasicCameraGUI implements ParameterListener
                     continue;
                 }
 
+                imageBuffer = rectify(imageBuffer);
+                
                 image = ImageConvert.convertToImage(ifmt.format, ifmt.width,
                         ifmt.height, imageBuffer);
+
 
                 if (image == null)
                 {
@@ -160,6 +170,103 @@ public class BasicCameraGUI implements ParameterListener
 
             isrc.start();
         }
+
+        private byte[] rectify(byte[] image)
+        {
+            byte[] rectifiedImage = new byte[image.length];
+            
+            for(int x = (int)(-0.5*ifmt.width); x < ifmt.width/2; x++)
+            {
+                for(int y = (int)(-0.5*ifmt.height); y < ifmt.height/2; y++)
+                {
+                    if(y*r[1] < ifmt.height && x*r[0]<ifmt.width)
+                    {
+                        rectifiedImage[(int)((y*r[1]+ifmt.height/2))*ifmt.width + (int)(x*r[0]+ifmt.width/2)] = image[(y+ifmt.height/2)*ifmt.width + (x+ifmt.width/2)];
+                    }
+                }
+            }
+            
+            return rectifiedImage;
+        }
+    }
+
+    public void setCalibrationPerameters() throws Exception
+    {
+        TagDetector detector = new TagDetector(new Tag36h11());
+        int tags = 27;
+        double tagsize = 0.216; // meters
+        double focal = 485.6; // pixels
+        ArrayList<TagDetection> detections = detector.process(image, new double[] {image.getWidth()/2.0, image.getHeight()/2.0});
+        double[][] uv = new double[tags][2]; // 2D estimate of upper left hand corner of tags
+
+        double[][] xyz = new double[tags][3]; // actual location of upper left hand corner of tags in 3D plane (without distortion)
+        
+        double[] abcU = {0,0,0}; // ax^2 + bx + x coefficients for solving over-determined system for U using least-squares 
+        double[] abcV = {0,0,0}; // ax^2 + bx + x coefficients for solving over-determined system for V using least-squares
+
+//        if(tags == detections.size())
+        if(true)
+        {
+            for(int i = 0; i < detections.size(); i++)
+            {
+                
+                // upper left hand corner of tag
+                uv[i] = detections.get(i).interpolate(-1,-1);
+                uv[i][0] -= 768/2;
+                uv[i][1] -= 480/2; 
+                double M[][]= CameraUtil.homographyToPose(focal, focal, tagsize, detections.get(i).homography);
+                xyz[i] = new double[] {M[0][3], M[1][3], M[2][3]};
+
+                abcU[0] += uv[i][0];
+                abcU[1] += -2*uv[i][0]*(focal*xyz[i][0]/xyz[i][2]);
+                abcU[2] += sq((focal*xyz[i][0]/xyz[i][2]));
+                
+                abcV[0] += uv[i][1];
+                abcV[1] += -2*uv[i][1]*(focal*xyz[i][1]/xyz[i][2]);
+                abcV[2] += sq((focal*xyz[i][1]/xyz[i][2]));
+            }
+            
+            if(sq(abcU[1])-(4*abcU[0]*abcU[2]) >= 0)
+            {
+                r[0] = (-abcU[1]+Math.sqrt(sq(abcU[1])-(4*abcU[0]*abcU[2])))/(2*abcU[0]); // does plus not minus
+            }
+            else
+            {
+                r[0] = -abcU[1]/(2*abcU[0]);
+            }
+            
+            if(sq(abcV[1])-(4*abcV[0]*abcV[2]) >= 0)
+            {
+                r[1] = (-abcV[1]-Math.sqrt(sq(abcV[1])-(4*abcV[0]*abcV[2])))/(2*abcV[0]); // does plus not minus
+            }
+            else
+            {
+                r[1] = -abcV[1]/(2*abcV[0]);
+            }
+        }
+        else
+        {
+            throw new Exception("Not enough tags seen");
+        }
+    }
+    
+    static final double sq(double v)
+    {
+        return v*v;
+    }
+
+    private String[] getDetections()
+    {
+        TagDetector detector = new TagDetector(new Tag36h11());
+        ArrayList<TagDetection> detections = detector.process(image, new double[] {image.getWidth()/2.0, image.getHeight()/2.0});
+        String[] tags = new String[detections.size()];
+        
+        for(int i = 0; i < detections.size(); i++)
+        {
+            tags[i] = "#" + i + "\t" + detections.get(i).id;
+        }
+        
+        return tags;
     }
 
     public static void main(String[] args)
@@ -199,15 +306,43 @@ public class BasicCameraGUI implements ParameterListener
             System.exit(1);
         }
 
-        new BasicCameraGUI(opts.getString("url"), opts.getString("resolution").contains("hi"), opts.getString( "colors").contains("8"), opts.getInt("fps"));
+        new CalibrationTest(opts.getString("url"), opts.getString("resolution").contains("hi"), opts.getString( "colors").contains("8"), opts.getInt("fps"));
     }
 
     @Override
     public void parameterChanged(ParameterGUI pg, String name)
     {
-        if(name == "Reset")
+        if(name == "reset")
         {
             toggle = true;
         }
+        else if(name == "calibrate")
+        {
+            try
+            {
+                setCalibrationPerameters();
+                System.out.println(r[0] + "\t" + r[1]);
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+        }
+        else if(name == "tags")
+        {
+            String[] detections = getDetections();
+            
+            for(String d : detections)
+            {
+                System.out.println(d);
+            }
+        }
+        else if(name == "r1")
+        {
+            r[0] = pg.gd("r1");
+            r[1] = pg.gd("r1");
+        }
+       
     }
+
+
 }
