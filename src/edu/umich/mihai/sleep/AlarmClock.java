@@ -35,7 +35,6 @@ public class AlarmClock implements ActionListener, ListSelectionListener
     Runtime run = Runtime.getRuntime();
     private JFrame frame;
 
-    private boolean on = false;
     private JButton set;
     private JButton snooze;
     private JTextArea hours;
@@ -51,8 +50,7 @@ public class AlarmClock implements ActionListener, ListSelectionListener
     private DefaultListModel listModel;
     private JButton add;
 
-    private String labels[] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
-    public boolean[] repeating = new boolean[labels.length];;
+    private String labels[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
     private JCheckBox[] days;
     
     ArrayList<Timer> timers = new ArrayList<Timer>();
@@ -118,7 +116,6 @@ public class AlarmClock implements ActionListener, ListSelectionListener
         constraints.gridy=0;
         for(int x = 0; x < labels.length; x++)
         {
-            System.out.println("x");
             days[x] = new JCheckBox(labels[x]);
             frame.getContentPane().add(days[x], constraints);
             constraints.gridy++;
@@ -162,16 +159,47 @@ public class AlarmClock implements ActionListener, ListSelectionListener
     {
         String song = "home/april/Desktop/play.mp3";
         Timer timer;
+        boolean[] repeat = new boolean[labels.length];
 
         public Alarm(Timer timer)
         {
             this.timer = timer;
+            for(int x = 0; x < labels.length; x++)
+            {
+                repeat[x] = days[x].isSelected();
+            }
         }
 
         public void run()
         {
+            listModel.remove(timers.indexOf(timer));
+            events = new JList(listModel);
+            timers.remove(timer);
+
             String cmd = "banshee-1 --play ";
             play(cmd);
+            
+            String day = getDayOfWeek();
+            
+            for(int x = 0; x < labels.length; x++)
+            {
+                if(day.equals(labels[x]))
+                {
+                    if((x<labels.length-1 && days[x+1].isSelected()) || (x==labels.length-1 && days[0].isSelected()))
+                    {
+                        int oneDay = 60*60*24;
+                        
+                        Timer newTimer = new Timer();
+                        start(newTimer, oneDay); // new timer 24 hours from now
+                        
+                        timers.add(newTimer);
+                        
+                        listModel.addElement((new Date(System.currentTimeMillis() + oneDay*1000)).toString());
+                        events = new JList(listModel);
+                    }
+                }
+            }
+            
         }
 
         private void play(String cmd)
@@ -190,6 +218,14 @@ public class AlarmClock implements ActionListener, ListSelectionListener
         public void setSong(String song)
         {
             this.song = song;
+        }
+        
+        private String getDayOfWeek()
+        {
+            Calendar cal = Calendar.getInstance();
+            SimpleDateFormat day = new SimpleDateFormat("E");
+            
+            return day.format(cal.getTime());
         }
     }
 
@@ -221,25 +257,13 @@ public class AlarmClock implements ActionListener, ListSelectionListener
 
         if (source == set)
         {
-            if (on)
-            {
-                set.setText("Set Alarm!");
-                stop(mainTimer, true);
-            }
-            else
-            {
-                set.setText("Stop Alarm!");
-                Timer timer = new Timer();
-                start(timer, getSeconds(hours, minutes));
-                timers.add(timer);
+            Timer timer = new Timer();
+            start(timer, getSeconds(hours, minutes));
+            timers.add(timer);
 
-                listModel.addElement(getOffsetDate(hours, minutes));
-                events = new JList(listModel);
-
-                mainTimer = timer;
-            }
-            on = !on;
-        }
+            listModel.addElement(getOffsetDate(hours, minutes));
+            events = new JList(listModel);
+}
         else if (source == snooze)
         {
             stop(mainTimer, false);
@@ -247,18 +271,12 @@ public class AlarmClock implements ActionListener, ListSelectionListener
         }
         else if (source == add)
         {
-//            if repeats
-//            {
-//                 XXX
-//            }
-            
             Timer timer = new Timer();
             start(timer, getDate(eventYear, eventMonth, eventDay, eventHr, eventMin));
             timers.add(timer);
 
             listModel.addElement(getDate(eventYear, eventMonth, eventDay, eventHr, eventMin).toString());
             events = new JList(listModel);
-            events.setSelectedIndex(0);
         }
     }
     
