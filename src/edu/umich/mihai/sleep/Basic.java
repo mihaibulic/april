@@ -9,16 +9,21 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
+import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JTextArea;
 import april.util.GetOpt;
 
 public class Basic implements ActionListener
 {
+    String[] COLUMNS = {"Month", "Year", "Date", "Time"};
+    
     private final double VERSION = 0.1;
     private final int SNOOZE = 1000;
     private final int HOURS = 0;
@@ -33,9 +38,14 @@ public class Basic implements ActionListener
     private JTextArea hours;
     private JTextArea minutes;
 
+    private JTextArea eventYear;
+    private JTextArea eventMonth;
+    private JTextArea eventDay;
     private JTextArea eventHr;
     private JTextArea eventMin;
-    private JTextArea events;
+    
+    private JList events;
+    private DefaultListModel listModel;
     private JButton add;
 
     ArrayList<Timer> timers = new ArrayList<Timer>();
@@ -54,12 +64,14 @@ public class Basic implements ActionListener
         snooze = new JButton("Snoozzzze");
         hours = new JTextArea(HOURS + "");
         minutes = new JTextArea(MINUTES + "");
+        setDate();
         eventHr = new JTextArea("09");
         eventMin = new JTextArea("00");
-        events = new JTextArea();
+        listModel = new DefaultListModel();
+        events = new JList(listModel);
         add = new JButton("Add Event");
         constraints.fill = GridBagConstraints.HORIZONTAL;
-        constraints.gridx = 0;
+        constraints.gridx = 6;
         constraints.gridy = 0;
         frame.getContentPane().add(hours, constraints);
         constraints.gridx++;
@@ -73,6 +85,18 @@ public class Basic implements ActionListener
 
         constraints.gridy += 2;
         constraints.gridx = 0;
+        frame.getContentPane().add(eventMonth, constraints);
+        constraints.gridx++;
+        frame.getContentPane().add(new JLabel("/"), constraints);
+        constraints.gridx++;
+        frame.getContentPane().add(eventDay, constraints);
+        constraints.gridx++;
+        frame.getContentPane().add(new JLabel("/"), constraints);
+        constraints.gridx++;
+        frame.getContentPane().add(eventYear, constraints);
+        constraints.gridx++;
+        frame.getContentPane().add(new JLabel(" "), constraints);
+        constraints.gridx++;
         frame.getContentPane().add(eventHr, constraints);
         constraints.gridx++;
         frame.getContentPane().add(new JLabel(":"), constraints);
@@ -82,15 +106,16 @@ public class Basic implements ActionListener
         frame.getContentPane().add(add, constraints);
         constraints.gridy += 2;
         constraints.gridx = 0;
-        constraints.gridwidth = 5;
+        constraints.gridwidth = 11;
         frame.getContentPane().add(events, constraints);
 
         hours.setColumns(2);
         minutes.setColumns(2);
+        eventYear.setColumns(4);
+        eventMonth.setColumns(2);
+        eventDay.setColumns(2);
         eventHr.setColumns(2);
         eventMin.setColumns(2);
-        events.setRows(5);
-        events.setEditable(false);
 
         set.addActionListener(this);
         snooze.addActionListener(this);
@@ -169,10 +194,13 @@ public class Basic implements ActionListener
             }
             else
             {
+                set.setText("Stop Alarm!");
                 Timer timer = new Timer();
                 start(timer, getSeconds(hours, minutes));
                 timers.add(timer);
-                events.append(getTime(hours, minutes));
+                
+                listModel.addElement(getOffsetDate(hours, minutes));
+                events = new JList(listModel);
 
                 mainTimer = timer;
             }
@@ -186,24 +214,13 @@ public class Basic implements ActionListener
         else if (source == add)
         {
             Timer timer = new Timer();
-            start(timer, getTimeDifference(eventHr, eventMin));
+            start(timer, getDate(eventYear, eventMonth, eventDay, eventHr, eventMin));
             timers.add(timer);
 
-            events.append(eventHr.getText() + ":" + eventMin.getText() + "\n");
+            listModel.addElement(getDate(eventYear, eventMonth, eventDay, eventHr, eventMin).toString());
+            events = new JList(listModel);
         }
 
-    }
-
-    private int getTimeDifference(JTextArea hours, JTextArea minutes)
-    {
-        Calendar cal = Calendar.getInstance();
-        SimpleDateFormat curHrs = new SimpleDateFormat("HH");
-        SimpleDateFormat curMin = new SimpleDateFormat("mm");
-
-        int hrs = Integer.parseInt(hours.getText()) - Integer.parseInt(curHrs.format(cal.getTime()));
-        int min = Integer.parseInt(minutes.getText()) - Integer.parseInt(curMin.format(cal.getTime()));
-
-        return (hrs * 3600) + (min * 60);
     }
 
     private int getSeconds(JTextArea hours, JTextArea minutes)
@@ -211,35 +228,48 @@ public class Basic implements ActionListener
         return (Integer.parseInt(hours.getText()) * 3600) + (Integer.parseInt(minutes.getText()) * 60);
     }
 
-    private String getTime(JTextArea hours, JTextArea minutes)
+    private Date getDate(JTextArea year, JTextArea month, JTextArea day, JTextArea hours, JTextArea minutes)
     {
         Calendar cal = Calendar.getInstance();
-        SimpleDateFormat curHrs = new SimpleDateFormat("HH");
-        SimpleDateFormat curMin = new SimpleDateFormat("mm");
+
+        cal.set(Integer.parseInt(year.getText()), 
+        Integer.parseInt(month.getText())-1, Integer.parseInt(day.getText()), 
+        Integer.parseInt(hours.getText()), Integer.parseInt(minutes.getText()));
         
-        int hrs = Integer.parseInt(hours.getText()) + Integer.parseInt(curHrs.format(cal.getTime()));
-        int min = Integer.parseInt(minutes.getText()) + Integer.parseInt(curMin.format(cal.getTime()));
+        return cal.getTime();
+    }
+
+    private Date getOffsetDate(JTextArea hours, JTextArea minutes)
+    {
+        int hrs = Integer.parseInt(hours.getText());
+        int min = Integer.parseInt(minutes.getText());
         
-        while(min>=60)
-        {
-            hrs++;
-            min-=60;
-        }
-        while(hrs>=24)
-        {
-            hrs-=24;
-        }
+        return new Date(System.currentTimeMillis()+(hrs*3600*1000)+(min*60*1000));
+    }
+    
+    private void setDate()
+    {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(System.currentTimeMillis()+(1000*60*60*24));
+        SimpleDateFormat curYr = new SimpleDateFormat("yyyy");
+        SimpleDateFormat curMo = new SimpleDateFormat("MM");
+        SimpleDateFormat curDay = new SimpleDateFormat("dd");
         
-        return (hrs+":"+min);
-        
+        eventYear = new JTextArea(curYr.format(cal.getTime()));
+        eventMonth = new JTextArea(curMo.format(cal.getTime()));
+        eventDay = new JTextArea(curDay.format(cal.getTime()));
     }
     
     private void start(Timer timer, int seconds)
     {
-        set.setText("Stop Alarm!");
         timer.schedule(new Alarm(timer), seconds * 1000);
     }
 
+    private void start(Timer timer, Date date)
+    {
+        timer.schedule(new Alarm(timer), date);
+    }
+    
     private void stop(Timer timer, boolean stopTimer)
     {
         Runtime run = Runtime.getRuntime();
