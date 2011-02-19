@@ -41,7 +41,8 @@ public class BasicCameraGUI implements ParameterListener
         jf.add(vc, BorderLayout.CENTER);
         jf.add(pg, BorderLayout.SOUTH);
         jf.setSize(1000, 500);
-
+        jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        
         new Image(url, hiRes, gray8, fps).start();
     }
 
@@ -137,7 +138,15 @@ public class BasicCameraGUI implements ParameterListener
                         new double[] {image.getWidth(), image.getHeight() }, true));
                 vbImage.switchBuffer();
 
-                queue.add(image);
+                try
+                {
+                    queue.add(image);
+                } catch (IllegalStateException ise)
+                {
+                    ise.printStackTrace();
+                    queue.clear();
+                    continue;
+                }
                 
                 // XXX move this to thread doing processing 
                 try
