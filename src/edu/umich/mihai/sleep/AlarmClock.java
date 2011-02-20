@@ -10,7 +10,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -22,15 +21,19 @@ import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
-import javax.swing.JTextArea;
+import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerDateModel;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import april.util.GetOpt;
+import april.util.TimeUtil;
 
 public class AlarmClock implements ActionListener, ListSelectionListener
 {
-    private final double VERSION = 0.1;
-    private final int SNOOZE = 10 * 60 * 1000; // in milliseconds
+    private final double VERSION = 0.2;
+    private final int SNOOZE = 10 * 60; // in seconds
     private final int HOURS = 7;
     private final int MINUTES = 30;
 
@@ -39,14 +42,12 @@ public class AlarmClock implements ActionListener, ListSelectionListener
 
     private JButton addOffset;
     private JButton snooze;
-    private JTextArea hours;
-    private JTextArea minutes;
+    private JButton stop;
+    
+    private JSpinner hours;
+    private JSpinner minutes;
 
-    private JTextArea eventYear;
-    private JTextArea eventMonth;
-    private JTextArea eventDay;
-    private JTextArea eventHr;
-    private JTextArea eventMin;
+    private JSpinner eventTime;
     private JButton add;
     private JList events;
     private DefaultListModel listModel;
@@ -70,53 +71,42 @@ public class AlarmClock implements ActionListener, ListSelectionListener
 
         addOffset = new JButton("Add Offset Alarm");
         snooze = new JButton("Snoozzzze");
-        hours = new JTextArea(HOURS + "");
-        minutes = new JTextArea(MINUTES + "");
+        stop = new JButton("Stop");
+        hours = new JSpinner(new SpinnerNumberModel(HOURS,0,23,1));;
+        minutes = new JSpinner(new SpinnerNumberModel(MINUTES,0,59,1));
         constraints.fill = GridBagConstraints.HORIZONTAL;
-        constraints.gridx = 6;
+        constraints.gridx = 0;
         constraints.gridy = 0;
+        frame.getContentPane().add(new JLabel("hours:"), constraints);
+        constraints.gridx++;
         frame.getContentPane().add(hours, constraints);
         constraints.gridx++;
-        frame.getContentPane().add(new JLabel(":"), constraints);
+        frame.getContentPane().add(new JLabel("min:"), constraints);
         constraints.gridx++;
         frame.getContentPane().add(minutes, constraints);
         constraints.gridx++;
         frame.getContentPane().add(addOffset, constraints);
         constraints.gridx++;
         frame.getContentPane().add(snooze, constraints);
-
+        constraints.gridx++;
+        frame.getContentPane().add(stop, constraints);
+        
         setDate();
-        eventHr = new JTextArea("09");
-        eventMin = new JTextArea("00");
         add = new JButton("Add Event");
         set = new JButton("Set Alarm!");
         constraints.gridy++;
         constraints.gridx = 0;
-        frame.getContentPane().add(eventMonth, constraints);
-        constraints.gridx++;
-        frame.getContentPane().add(new JLabel("/"), constraints);
-        constraints.gridx++;
-        frame.getContentPane().add(eventDay, constraints);
-        constraints.gridx++;
-        frame.getContentPane().add(new JLabel("/"), constraints);
-        constraints.gridx++;
-        frame.getContentPane().add(eventYear, constraints);
-        constraints.gridx++;
-        frame.getContentPane().add(new JLabel(" "), constraints);
-        constraints.gridx++;
-        frame.getContentPane().add(eventHr, constraints);
-        constraints.gridx++;
-        frame.getContentPane().add(new JLabel(":"), constraints);
-        constraints.gridx++;
-        frame.getContentPane().add(eventMin, constraints);
-        constraints.gridx++;
+        constraints.gridwidth=4;
+        frame.getContentPane().add(eventTime, constraints);
+        constraints.gridx+=4;
+        constraints.gridwidth=1;
         frame.getContentPane().add(add, constraints);
         constraints.gridx++;
         frame.getContentPane().add(set, constraints);
 
         days = new JCheckBox[labels.length];
         constraints.anchor = GridBagConstraints.NORTHWEST;
-        constraints.gridx += 2;
+        constraints.gridx += 3;
         constraints.gridy = 0;
         for (int x = 0; x < labels.length; x++)
         {
@@ -126,30 +116,29 @@ public class AlarmClock implements ActionListener, ListSelectionListener
         }
 
         listModel = new DefaultListModel();
+        
         events = new JList(listModel);
+        events.setVisibleRowCount(5);
         events.setCellRenderer(new CustomListCellRenderer());
-        constraints.gridy -= 5;
+        JScrollPane eventsPane = new JScrollPane(events);
+        constraints.gridy -= 4;
         constraints.gridx = 0;
-        constraints.gridwidth = 10;
+        constraints.gridwidth = 7;
         constraints.gridheight = 10;
-        frame.getContentPane().add(events, constraints);
+        frame.getContentPane().add(eventsPane, constraints);
         constraints.gridy++;
         
-        hours.setColumns(2);
-        minutes.setColumns(2);
-        eventYear.setColumns(4);
-        eventMonth.setColumns(2);
-        eventDay.setColumns(2);
-        eventHr.setColumns(2);
-        eventMin.setColumns(2);
-
         addOffset.addActionListener(this);
         snooze.addActionListener(this);
+        stop.addActionListener(this);
         add.addActionListener(this);
         set.addActionListener(this);
         events.addListSelectionListener(this);
 
-        frame.setSize(500, 250);
+        snooze.setVisible(false);
+        stop.setVisible(false);
+        
+        frame.setSize(650, 200);
         frame.setVisible(true);
 
         events.addMouseListener(new MouseAdapter()
@@ -201,7 +190,7 @@ public class AlarmClock implements ActionListener, ListSelectionListener
         String song = "home/april/Desktop/play.mp3";
         AlarmEntry entry;
         boolean[] repeat = new boolean[labels.length];
-
+        
         public Alarm(AlarmEntry entry, boolean[] repeat)
         {
             this.entry = entry;
@@ -225,32 +214,34 @@ public class AlarmClock implements ActionListener, ListSelectionListener
         {
             listModel.remove(entries.indexOf(entry));
             events = new JList(listModel);
-            events.setCellRenderer(new CustomListCellRenderer());
             entries.remove(entry);
             
             if(entry.isEnabled())
             {
+                snooze.setVisible(true);
+                stop.setVisible(true);
+
+                int day = getDayOfWeek();
+                for(int x = 1; x <= labels.length; x++)
+                {
+                    day = getNextDay(day);
+                    if(repeat[day])
+                    {
+                        Date date = getDate(x);
+                        AlarmEntry newEntry = new AlarmEntry();
+                        start(newEntry,repeat,date);
+                        entries.add(newEntry);
+                        
+                        listModel.addElement(date);
+                        events = new JList(listModel);
+                        
+                        break;
+                    }
+                }
+                
                 play();
             }
             
-            int day = getDayOfWeek();
-            for(int x = 1; x <= labels.length; x++)
-            {
-                day = getNextDay(day);
-                if(repeat[day])
-                {
-                    Date date = getDate(x);
-                    AlarmEntry newEntry = new AlarmEntry();
-                    start(newEntry,repeat,date);
-                    entries.add(newEntry);
-
-                    listModel.addElement(date);
-                    events = new JList(listModel);
-                    events.setCellRenderer(new CustomListCellRenderer());
-
-                    break;
-                }
-            }
         }
 
         private void play()
@@ -259,7 +250,16 @@ public class AlarmClock implements ActionListener, ListSelectionListener
 
             try
             {
-                run.exec("banshee-1 --play " + song);
+                run.exec("rhythmbox-client --no-start --set-volume=0 --play");
+                for(double vol = 0; vol <= 1; vol+=0.005)
+                {
+                    if(!entry.isEnabled())
+                    {
+                        break;
+                    }
+                    TimeUtil.sleep(200);
+                    run.exec("rhythmbox-client --no-start --set-volume="+vol);
+                }
             } catch (IOException e)
             {
                 e.printStackTrace();
@@ -273,21 +273,7 @@ public class AlarmClock implements ActionListener, ListSelectionListener
 
         private int getDayOfWeek()
         {
-            Calendar cal = Calendar.getInstance();
-            SimpleDateFormat dayFormat = new SimpleDateFormat("E");
-            String day = dayFormat.format(cal.getTime());
-            int dayIndex = 0;
-            
-            for (int x = 0; x < labels.length; x++)
-            {
-                if (day.equals(labels[x]))
-                {
-                    dayIndex = x;
-                    break;
-                }
-            }
-            
-            return dayIndex;
+            return (Calendar.getInstance()).get(Calendar.DAY_OF_WEEK)-1;
         }
         
         private int getNextDay(int day)
@@ -341,22 +327,30 @@ public class AlarmClock implements ActionListener, ListSelectionListener
             entries.add(entry);
             listModel.addElement(getOffsetDate(hours, minutes));
             events = new JList(listModel);
-            events.setCellRenderer(new CustomListCellRenderer());
         }
         else if (source == snooze)
         {
             stop(mainEntry, false, true);
+            
+            entries.add(mainEntry);
+            listModel.addElement(getOffsetDate(SNOOZE));
+            events = new JList(listModel);
             start(mainEntry, SNOOZE);
+            mainEntry.setEnabled(true);
+        }
+        else if (source == stop)
+        {
+            stop(mainEntry, false, true);
         }
         else if (source == add)
         {
             AlarmEntry entry = new AlarmEntry();
-            start(entry, getDate(eventYear, eventMonth, eventDay, eventHr, eventMin));
+            
+            start(entry, ((SpinnerDateModel) eventTime.getModel()).getDate());
             entries.add(entry);
 
-            listModel.addElement(getDate(eventYear, eventMonth, eventDay, eventHr, eventMin));
+            listModel.addElement(((SpinnerDateModel) eventTime.getModel()).getDate());
             events = new JList(listModel);
-            events.setCellRenderer(new CustomListCellRenderer());
         }
         else if (source == set)
         {
@@ -377,41 +371,47 @@ public class AlarmClock implements ActionListener, ListSelectionListener
         }
     }
 
-    private int getSeconds(JTextArea hours, JTextArea minutes)
+    private int getSeconds(JSpinner hours, JSpinner minutes)
     {
-        return (Integer.parseInt(hours.getText()) * 3600) + (Integer.parseInt(minutes.getText()) * 60);
+        int hrs = ((SpinnerNumberModel) hours.getModel()).getNumber().intValue();
+        int min = ((SpinnerNumberModel) minutes.getModel()).getNumber().intValue();
+        
+        return (hrs * 60 * 60) + (min * 60);
     }
 
-    private Date getDate(JTextArea year, JTextArea month, JTextArea day, JTextArea hours, JTextArea minutes)
+    private Date getOffsetDate(JSpinner hours, JSpinner minutes)
     {
-        Calendar cal = Calendar.getInstance();
-
-        cal.set(Integer.parseInt(year.getText()), Integer.parseInt(month.getText()) - 1, Integer.parseInt(day.getText()), Integer.parseInt(hours.getText()), Integer.parseInt(minutes.getText()));
-
-        return cal.getTime();
-    }
-
-    private Date getOffsetDate(JTextArea hours, JTextArea minutes)
-    {
-        int hrs = Integer.parseInt(hours.getText());
-        int min = Integer.parseInt(minutes.getText());
+        int hrs = ((SpinnerNumberModel) hours.getModel()).getNumber().intValue();
+        int min = ((SpinnerNumberModel) minutes.getModel()).getNumber().intValue();
 
         return new Date(System.currentTimeMillis() + (hrs * 3600 * 1000) + (min * 60 * 1000));
     }
 
-    private void setDate()
+    private Date getOffsetDate(int seconds)
     {
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(System.currentTimeMillis() + (1000 * 60 * 60 * 24));
-        SimpleDateFormat curYr = new SimpleDateFormat("yyyy");
-        SimpleDateFormat curMo = new SimpleDateFormat("MM");
-        SimpleDateFormat curDay = new SimpleDateFormat("dd");
-
-        eventYear = new JTextArea(curYr.format(cal.getTime()));
-        eventMonth = new JTextArea(curMo.format(cal.getTime()));
-        eventDay = new JTextArea(curDay.format(cal.getTime()));
+        return new Date(System.currentTimeMillis() + seconds*1000);
     }
 
+    private void setDate()
+    {
+        Calendar calendar = Calendar.getInstance();
+        Date minDate = calendar.getTime();
+        
+        if(calendar.get(Calendar.HOUR_OF_DAY) > 9)
+        {
+            calendar.add(Calendar.DAY_OF_MONTH, 1);
+        }
+        calendar.set(Calendar.HOUR_OF_DAY, 9);
+        calendar.set(Calendar.MINUTE, 00);
+        Date initDate = calendar.getTime();
+                
+        calendar.add(Calendar.YEAR, 5);
+        Date latestDate = calendar.getTime();
+        
+        eventTime = new JSpinner(new SpinnerDateModel(initDate, minDate, latestDate, Calendar.YEAR));
+        eventTime.setEditor(new JSpinner.DateEditor(eventTime, "MM/dd/yyyy HH:mm"));
+    }
+    
     private void start(AlarmEntry entry, int seconds)
     {
         (entry.getTimer()).schedule(new Alarm(entry), seconds * 1000);
@@ -424,27 +424,27 @@ public class AlarmClock implements ActionListener, ListSelectionListener
 
     private void stop(AlarmEntry entry, boolean stopTimer, boolean stopMusic)
     {
-        listModel.remove(entries.indexOf(entry));
-        entries.remove(entry);
-        events = new JList(listModel);
-        events.setCellRenderer(new CustomListCellRenderer());
-        
-        Runtime run = Runtime.getRuntime();
+        if(stopTimer)
+        {
+            listModel.remove(entries.indexOf(entry));
+            entries.remove(entry);
+            events = new JList(listModel);
+            entry.getTimer().cancel();
+        }
         
         if(stopMusic)
         {
+            snooze.setVisible(false);
+            stop.setVisible(false);
+            Runtime run = Runtime.getRuntime();
+            entry.setEnabled(false);
             try
             {
-                run.exec("banshee-1 --stop");
+                run.exec("rhythmbox-client --pause");
             } catch (IOException e)
             {
                 e.printStackTrace();
             }
-        }
-
-        if (stopTimer)
-        {
-            entry.getTimer().cancel();
         }
     }
 
