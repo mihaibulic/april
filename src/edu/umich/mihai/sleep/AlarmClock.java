@@ -7,6 +7,8 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
@@ -134,30 +136,54 @@ public class AlarmClock implements ActionListener, ListSelectionListener
         add.addActionListener(this);
         set.addActionListener(this);
         events.addListSelectionListener(this);
-
+        
         snooze.setVisible(false);
         stop.setVisible(false);
         
         frame.setSize(650, 200);
         frame.setVisible(true);
 
+        events.addKeyListener(new KeyListener()
+        {
+            @Override
+            public void keyPressed(KeyEvent kv)
+            {}
+            
+            @Override
+            public void keyTyped(KeyEvent kv)
+            {}
+
+            @Override
+            public void keyReleased(KeyEvent kv)
+            {
+                if(kv.getKeyCode() == 32) //space bar
+                {
+                    addOffset();
+                    // fetch from google
+                    setAlarms();
+                }
+            }
+        });
         events.addMouseListener(new MouseAdapter()
         {
             public void mouseClicked(MouseEvent click)
             {
-                if (click.isShiftDown())
+                if(entries.size()>0)
                 {
-                    stop(entries.get(events.locationToIndex(click.getPoint())), true, false);
-                }
-                else
-                {
-                    if(entries.get(events.locationToIndex(click.getPoint())).isEnabled())
+                    if (click.isShiftDown())
                     {
-                        entries.get(events.locationToIndex(click.getPoint())).setEnabled(false);
+                        stop(entries.get(events.locationToIndex(click.getPoint())), true, false);
                     }
                     else
                     {
-                        entries.get(events.locationToIndex(click.getPoint())).setEnabled(true);
+                        if(entries.get(events.locationToIndex(click.getPoint())).isEnabled())
+                        {
+                            entries.get(events.locationToIndex(click.getPoint())).setEnabled(false);
+                        }
+                        else
+                        {
+                            entries.get(events.locationToIndex(click.getPoint())).setEnabled(true);
+                        }
                     }
                 }
             }
@@ -322,11 +348,7 @@ public class AlarmClock implements ActionListener, ListSelectionListener
 
         if (source == addOffset)
         {
-            AlarmEntry entry = new AlarmEntry();
-            start(entry, getSeconds(hours, minutes));
-            entries.add(entry);
-            listModel.addElement(getOffsetDate(hours, minutes));
-            events = new JList(listModel);
+            addOffset();
         }
         else if (source == snooze)
         {
@@ -354,21 +376,35 @@ public class AlarmClock implements ActionListener, ListSelectionListener
         }
         else if (source == set)
         {
-            Date date = (Date)listModel.get(0);
-            entries.get(0).setEnabled(false);
-            int earliest = 0;
-            for(int x = 1; x < entries.size(); x++)
-            {
-                entries.get(x).setEnabled(false);
-                if(date.after((Date)listModel.get(x)))
-                {
-                    date = (Date)listModel.get(x);
-                    earliest = x;
-                }
-            }
-            entries.get(earliest).setEnabled(true);
-            frame.repaint();
+            setAlarms();
         }
+    }
+
+    private void setAlarms()
+    {
+        Date date = (Date)listModel.get(0);
+        entries.get(0).setEnabled(false);
+        int earliest = 0;
+        for(int x = 1; x < entries.size(); x++)
+        {
+            entries.get(x).setEnabled(false);
+            if(date.after((Date)listModel.get(x)))
+            {
+                date = (Date)listModel.get(x);
+                earliest = x;
+            }
+        }
+        entries.get(earliest).setEnabled(true);
+        frame.repaint();
+    }
+
+    private void addOffset()
+    {
+        AlarmEntry entry = new AlarmEntry();
+        start(entry, getSeconds(hours, minutes));
+        entries.add(entry);
+        listModel.addElement(getOffsetDate(hours, minutes));
+        events = new JList(listModel);
     }
 
     private int getSeconds(JSpinner hours, JSpinner minutes)
@@ -450,6 +486,5 @@ public class AlarmClock implements ActionListener, ListSelectionListener
 
     @Override
     public void valueChanged(ListSelectionEvent arg0)
-    {}
-    
+    {}    
 }

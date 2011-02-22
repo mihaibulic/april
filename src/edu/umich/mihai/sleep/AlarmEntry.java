@@ -12,14 +12,14 @@ public class AlarmEntry
     public AlarmEntry()
     {
         timer = new Timer();
-        enabled = true;
+        enabled = false;
     }
 
     public AlarmEntry(Timer timer, Date date)
     {
         this.timer = timer;
         this.date = date;
-        enabled = true;
+        enabled = false;
     }
 
     public Date getDate()
