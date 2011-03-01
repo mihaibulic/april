@@ -36,8 +36,8 @@ public class AlarmClock implements ActionListener, ListSelectionListener
 {
     private final double VERSION = 0.2;
     private final int SNOOZE = 10 * 60; // in seconds
-    private final int HOURS = 7;
-    private final int MINUTES = 30;
+    private final int HOURS = 8;
+    private final int MINUTES = 00;
 
     Runtime run = Runtime.getRuntime();
     private JFrame frame;
@@ -276,7 +276,7 @@ public class AlarmClock implements ActionListener, ListSelectionListener
 
             try
             {
-                run.exec("rhythmbox-client --no-start --set-volume=0 --play");
+                run.exec("rhythmbox-client --set-volume=0 --play >> /tmp/AlarmClock.log");
                 for(double vol = 0; vol <= 1; vol+=0.005)
                 {
                     if(!entry.isEnabled())
@@ -284,7 +284,7 @@ public class AlarmClock implements ActionListener, ListSelectionListener
                         break;
                     }
                     TimeUtil.sleep(200);
-                    run.exec("rhythmbox-client --no-start --set-volume="+vol);
+                    run.exec("rhythmbox-client --set-volume=" + vol + " >> /tmp/AlarmClock.log");
                 }
             } catch (IOException e)
             {
@@ -476,7 +476,7 @@ public class AlarmClock implements ActionListener, ListSelectionListener
             entry.setEnabled(false);
             try
             {
-                run.exec("rhythmbox-client --pause");
+                run.exec("rhythmbox-client --pause >> /tmp/AlarmClock.log");
             } catch (IOException e)
             {
                 e.printStackTrace();
