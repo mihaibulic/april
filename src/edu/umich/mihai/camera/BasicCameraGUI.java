@@ -22,10 +22,10 @@ public class BasicCameraGUI implements ParameterListener
 {
     private ParameterGUI pg;
     private JFrame jf;
-    private BlockingQueue<BufferedImage> queue;
     private VisWorld vw = new VisWorld();
     private VisCanvas vc = new VisCanvas(vw);
     private VisWorld.Buffer vbImage = vw.getBuffer("images");
+    private BlockingQueue<BufferedImage> queue;
     private boolean toggle = true;
     
     public BasicCameraGUI(String url, boolean hiRes, boolean gray8, int fps)
@@ -34,8 +34,6 @@ public class BasicCameraGUI implements ParameterListener
         pg.addButtons("Reset", "toggle image source");
         pg.addListener(this);
 
-        queue = new ArrayBlockingQueue<BufferedImage>(60);
-
         jf = new JFrame("Basic Image GUI");
         jf.setLayout(new BorderLayout());
         jf.add(vc, BorderLayout.CENTER);
@@ -43,6 +41,7 @@ public class BasicCameraGUI implements ParameterListener
         jf.setSize(1000, 500);
         jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         
+        queue = new ArrayBlockingQueue<BufferedImage>(60);
         new Image(url, hiRes, gray8, fps).start();
     }
 

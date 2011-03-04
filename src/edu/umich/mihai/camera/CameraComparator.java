@@ -11,11 +11,11 @@ public class CameraComparator implements Comparator<Camera>
         int tagCount2 = camera2.getTagCount();
         int value = 0;
 
-        if (tagCount1 > tagCount2)
+        if (tagCount1 < tagCount2)
         {
             value = 1;
         }
-        else if (tagCount1 < tagCount2)
+        else if (tagCount1 > tagCount2)
         {
             value = -1;
         }

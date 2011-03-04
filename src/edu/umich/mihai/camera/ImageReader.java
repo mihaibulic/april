@@ -11,19 +11,17 @@ import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import april.tag.TagDetector;
 
-public class ImageReader
+public class ImageReader extends Thread
 {
-    private final BlockingQueue<BufferedImage> queue;
+    private BlockingQueue<BufferedImage> imageQueue;
+    private BlockingQueue<ArrayList<TagDetection>> tagQueue;
     private ImageSource isrc;
     private ImageSourceFormat ifmt;
 
     // private SyncErrorDetector syncDetector;
     // private String outputDir;
-    private int imCounter;
     private int imModulus;
-
-    private TagDetector td;
-    private ArrayList<TagDetection> detections;
+    
     private boolean detectionsFlag = false;
     private boolean consume;
 
@@ -39,7 +37,7 @@ public class ImageReader
     
     public ImageReader(BlockingQueue<BufferedImage> queue, String url, String outputDir, boolean loRes, boolean color16, int maxfps, boolean consume) throws Exception
     {
-        this.queue = queue;
+        this.imageQueue = queue;
         this.consume = consume;
 
         if (maxfps > (loRes ? 120 : 60))
@@ -47,8 +45,9 @@ public class ImageReader
             throw new Exception("FPS is too large.  It must be less then or equal to 120 if resolution is low, or 60 is resolution is high");
         }
 
-        imModulus = (loRes ? 120 : 60) / maxfps;
-
+//        imModulus = (loRes ? 120 : 60) / maxfps;
+        imModulus=1; // XXX
+        
         isrc = ImageSource.make(url);
 
         // 760x480 8 = 0
@@ -69,13 +68,13 @@ public class ImageReader
         isrc.setFeatureValue(11, (loRes ? 120 : 60)); // frame-rate, idx=11
 
         ifmt = isrc.getCurrentFormat();
-
     }
 
     public void run()
     {
+        int imCounter = 0;
+        TagDetector td = new TagDetector(new Tag36h11());;
         // makeSyncDetector();
-
         isrc.start();
 
         while (true)
@@ -125,18 +124,26 @@ public class ImageReader
                 {
                     if(detectionsFlag)
                     {
-                        setTagDetections(image);
+                        tagQueue.put(td.process(image, new double[] {image.getWidth()/2.0, image.getHeight()/2.0}));
                     }
                     
                     if(consume)
                     {
-                        queue.put(image);
+                        imageQueue.put(image);
                     }
                 } 
                 catch (IllegalStateException ise)
                 {
-                    System.err.println("Queue is full, emptying...");
-                    queue.clear();
+                    if(imageQueue.remainingCapacity() == 0)
+                    {
+                        System.err.println("Image queue is full, emptying...");
+                        imageQueue.clear();
+                    }
+                    if(tagQueue.remainingCapacity() == 0)
+                    {
+                        System.err.println("Tag queue is full, emptying...");
+                        tagQueue.clear();
+                    }
                     continue;
                 }
                 catch (InterruptedException ie)
@@ -175,45 +182,20 @@ public class ImageReader
 //        syncDetector = new SyncErrorDetector(10, 0.001, 0.01, 0.0, 1, false);
 //    }
 
-    private void setTagDetections(BufferedImage image) throws Exception
-    {
-        if (image == null)
-        {
-            throw new Exception("image is not ready");
-        }
-        
-        if(td == null)
-        {
-            td = new TagDetector(new Tag36h11());
-        }
-        
-        synchronized(detections)
-        {
-            detections = td.process(image, new double[] {image.getWidth()/2.0, image.getHeight()/2.0});
-            detectionsFlag = false;
-            detections.notify();
-        }
-    }
-    
     public ArrayList<TagDetection> getTagDetections(int images) throws InterruptedException
     {
+        tagQueue = new ArrayBlockingQueue<ArrayList<TagDetection>>(images);
         ArrayList<TagDetection> detections = new ArrayList<TagDetection>();
         
+        detectionsFlag = true;
         for(int x = 0; x < images; x++)
         {
-            detectionsFlag = true;
-            
-            synchronized(detections)
-            {
-                while(detectionsFlag)
-                {
-                    detections.wait();
-                }
-            }
-            this.detections.addAll(detections);
+            System.out.println("IR-getTagDetections: adding tags: " + (x+1) + "/" + images);
+            detections.addAll(tagQueue.take());
         }
+        System.out.println("IR-getTagDetections: done");
+        detectionsFlag = false;
         
-        return this.detections;
+        return detections;
     }
-    
 }

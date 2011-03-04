@@ -8,22 +8,39 @@ import april.tag.TagDetection;
 public class Camera
 {
     private int mainIndex;
+    private int index;
     private ImageReader reader;
     private ArrayList<TagDetection> detections;
     private ArrayList<double[]> coordinates;
+    private double[] stdDev;
     private double[] position;
     
-    public Camera(ImageReader reader)
+    public Camera(ImageReader reader, int index)
     {
         this.reader = reader;
+        this.index = index;
+        detections = new ArrayList<TagDetection>();
+        coordinates = new ArrayList<double[]>();
+        position = new double[6];
     }
     
+    public void addDetections()
+    {
+        try
+        {
+            addDetections(reader.getTagDetections(15));
+        } catch (InterruptedException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
     public void addDetections(ArrayList<TagDetection> detections)
     {
-        Collections.sort(this.detections, new TagComparator());
+        Collections.sort(detections, new TagComparator());
         int lastId = -1;
         
-        for(TagDetection x : this.detections)
+        for(TagDetection x : detections)
         {
             if(lastId == x.id)
             {
@@ -31,13 +48,13 @@ public class Camera
             }
             else if(!isInDetections(x))
             {
-                detections.add(x);
+                this.detections.add(x);
             }
             
             lastId = x.id;
         }
         
-        Collections.sort(detections, new TagComparator());
+        Collections.sort(this.detections, new TagComparator());
     }
     
     private boolean isInDetections(TagDetection prospectiveTag)
@@ -52,24 +69,23 @@ public class Camera
                break;
             }
         }
-        
+
         return inDetections;
     }
     
-    public void addDetections()
+    public void clearCoordinates()
     {
-        try
-        {
-            addDetections(reader.getTagDetections(50));
-        } catch (InterruptedException e)
-        {
-            e.printStackTrace();
-        }
+        coordinates.clear();
     }
     
     public void addCoordinates(double[] coordinate)
     {
         coordinates.add(coordinate);
+    }
+
+    public void addCoordinates(double[][] coordinate)
+    {
+        coordinates.add(LinAlg.matrixToXyzrpy(coordinate));
     }
     
     public ImageReader getReader()
@@ -99,15 +115,15 @@ public class Camera
     
     private double[] getSquaredStdDev()
     {
-        double average[] = new double[6];
-        double stdDev[] = new double[6];
+        double average[] = new double[]{0,0,0,0,0,0};
+        stdDev = new double[]{0,0,0,0,0,0};
         
         for(double[] coordinate : coordinates)
         {
-            LinAlg.add(average, coordinate);
+            average = LinAlg.add(average, coordinate);
         }
 
-        LinAlg.scale(average, 1.0/coordinates.size());
+        average = LinAlg.scale(average, 1.0/coordinates.size());
         
         for(double[] coordinate : coordinates)
         {
@@ -115,21 +131,26 @@ public class Camera
             stdDev = LinAlg.add(LinAlg.xyzrpyMultiply(tmp, tmp), stdDev);
         }
         
-        return LinAlg.scale(stdDev, coordinates.size());
+        return stdDev;
     }
     
     public double[] setPosition()
     {
-        double position[] = new double[6];
+        position = new double[]{0,0,0,0,0,0};
         
         for(double[] coordinate: coordinates)
         {
-            LinAlg.add(position, coordinate);
+            position = LinAlg.add(position, coordinate);
         }
-        
         position = LinAlg.scale(position, (1.0/coordinates.size())); 
-        
+
         return position;
+    }
+    
+    public void setTransformationMatrix(double[][] position, int main)
+    {
+        this.position = LinAlg.matrixToXyzrpy(position);
+        this.mainIndex = main;
     }
     
     public void setPosition(double[] position, int main)
@@ -138,6 +159,11 @@ public class Camera
         this.mainIndex = main;
     }
 
+    public double[][] getTransformationMatrix()
+    {
+        return LinAlg.xyzrpyToMatrix(position);
+    }
+    
     public double[] getPosition()
     {
         return position;
@@ -148,12 +174,18 @@ public class Camera
         if(coordinates.size()==0)
             return false;
 
-        double stdDev[] = getSquaredStdDev();
+        if(stdDev == null)
+        {
+            getSquaredStdDev();
+        }
+        
         double translationErr = Math.sqrt(stdDev[0]) + Math.sqrt(stdDev[1]) + Math.sqrt(stdDev[2]);
         double rotationErr = Math.sqrt(stdDev[3]) + Math.sqrt(stdDev[4]) + Math.sqrt(stdDev[5]);
         
         // certain iff there are at least 5 tagdetections, stdDev of xyz err is < 20cm, and stdDev of rpy err is < 180deg
-        return (coordinates.size()>5 && translationErr < 0.20 && rotationErr < Math.PI);
+//        return (coordinates.size()>5 && translationErr < 0.20 && rotationErr < Math.PI); // XXX for testing
+//        return (translationErr < 0.20 && rotationErr < Math.PI);
+        return true;
     }
     
     public int getMain()
@@ -166,4 +198,8 @@ public class Camera
         mainIndex = main;
     }
     
+    public int getIndex()
+    {
+        return index;
+    }
 }

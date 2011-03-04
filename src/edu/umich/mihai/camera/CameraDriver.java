@@ -124,7 +124,6 @@ public class CameraDriver
             {
                 byte imageBuffer[] = null;
                 BufferedImage image = null;
-                // long utime = TimeUtil.utime();
 
                 imageBuffer = isrc.getFrame();
                 if (imageBuffer == null)
