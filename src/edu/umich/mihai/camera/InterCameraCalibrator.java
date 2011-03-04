@@ -185,7 +185,7 @@ public class InterCameraCalibrator
         auxCam.setMain(main);
         auxCam.clearCoordinates();
         
-        while(mainIndex < mainTags.length || auxIndex < auxTags.length)
+        while(mainIndex < mainTags.length && auxIndex < auxTags.length)
         {
             auxM = CameraUtil.homographyToPose(f, f, tagSize, auxTags[auxIndex].homography);
             mainM = CameraUtil.homographyToPose(f, f, tagSize, mainTags[mainIndex].homography);

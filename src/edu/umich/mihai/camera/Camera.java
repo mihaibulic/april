@@ -183,9 +183,8 @@ public class Camera
         double rotationErr = Math.sqrt(stdDev[3]) + Math.sqrt(stdDev[4]) + Math.sqrt(stdDev[5]);
         
         // certain iff there are at least 5 tagdetections, stdDev of xyz err is < 20cm, and stdDev of rpy err is < 180deg
-//        return (coordinates.size()>5 && translationErr < 0.20 && rotationErr < Math.PI); // XXX for testing
-//        return (translationErr < 0.20 && rotationErr < Math.PI);
-        return true;
+//        return (coordinates.size()>5 && translationErr < 0.50 && rotationErr < Math.PI); // XXX for testing
+        return (translationErr < 0.50 && rotationErr < Math.PI);
     }
     
     public int getMain()
