@@ -113,7 +113,7 @@ public class Camera
         return detections.size();
     }
     
-    private double[] getSquaredStdDev()
+    private void setVariance()
     {
         double average[] = new double[]{0,0,0,0,0,0};
         stdDev = new double[]{0,0,0,0,0,0};
@@ -128,10 +128,50 @@ public class Camera
         for(double[] coordinate : coordinates)
         {
             double tmp[] = LinAlg.subtract(coordinate, average);
-            stdDev = LinAlg.add(LinAlg.xyzrpyMultiply(tmp, tmp), stdDev);
+
+            try
+            {
+                stdDev = LinAlg.add(elementMultiplication(tmp, tmp), stdDev);
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    private double[] elementMultiplication(double[] a, double[] b) throws Exception
+    {
+        double c[] = new double[a.length];
+        
+        if(a.length != b.length)
+        {
+            throw new Exception("Arrays not of equal size");
         }
         
-        return stdDev;
+        for(int x = 0; x < a.length; x++)
+        {
+            c[x] = a[x] * b[x];
+        }
+        
+        return c;
+    }
+    
+    public boolean isCertain()
+    {
+        if(coordinates.size()==0)
+            return false;
+        
+        if(stdDev == null)
+        {
+            setVariance();
+        }
+        
+        double translationErr = (Math.sqrt(stdDev[0]) + Math.sqrt(stdDev[1]) + Math.sqrt(stdDev[2]))/3;
+        double rotationErr = (Math.sqrt(stdDev[3]) + Math.sqrt(stdDev[4]) + Math.sqrt(stdDev[5]))/3;
+        
+        // certain iff there are at least 5 tagdetections, stdDev of xyz err is < 20cm, and stdDev of rpy err is < 180deg
+//        return (coordinates.size()>5 && translationErr < 0.50 && rotationErr < Math.PI); // XXX for testing
+        return (translationErr < 0.20 && rotationErr < Math.PI/2);
     }
     
     public double[] setPosition()
@@ -167,24 +207,6 @@ public class Camera
     public double[] getPosition()
     {
         return position;
-    }
-    
-    public boolean isCertain()
-    {
-        if(coordinates.size()==0)
-            return false;
-
-        if(stdDev == null)
-        {
-            getSquaredStdDev();
-        }
-        
-        double translationErr = Math.sqrt(stdDev[0]) + Math.sqrt(stdDev[1]) + Math.sqrt(stdDev[2]);
-        double rotationErr = Math.sqrt(stdDev[3]) + Math.sqrt(stdDev[4]) + Math.sqrt(stdDev[5]);
-        
-        // certain iff there are at least 5 tagdetections, stdDev of xyz err is < 20cm, and stdDev of rpy err is < 180deg
-//        return (coordinates.size()>5 && translationErr < 0.50 && rotationErr < Math.PI); // XXX for testing
-        return (translationErr < 0.50 && rotationErr < Math.PI);
     }
     
     public int getMain()
