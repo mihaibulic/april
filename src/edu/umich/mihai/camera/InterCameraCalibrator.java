@@ -15,6 +15,8 @@ import april.util.GetOpt;
 import april.vis.VisCamera;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
+import april.vis.VisCircle;
+import april.vis.VisDataFillStyle;
 import april.vis.VisDataLineStyle;
 import april.vis.VisRectangle;
 import april.vis.VisWorld;
@@ -86,21 +88,22 @@ public class InterCameraCalibrator
         String output="";
         for(Camera cam : cameras)
         {
+            Color color = (cam.getIndex()==11 ? Color.blue : Color.red);
             double[] pos = cam.getPosition();
             output+="camera: " + cam.getIndex() + "\n";
             output+="(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2] + "\n";
             output+="(r,p,y): " + pos[3] + ", " + pos[4] + ", " + pos[5] + "\n\n";
             double[][] camM = cam.getTransformationMatrix();
-            vbCameras.addBuffered(new VisChain(camM, new VisCamera(0.1)));
+            vbCameras.addBuffered(new VisChain(camM, new VisCamera(color, 0.08)));
             ArrayList<TagDetection> tags = cam.getDetections();
             for(TagDetection tag : tags)
             {
                 double tagM[][] = CameraUtil.homographyToPose(f, f, tagSize, tag.homography);
-                vbTags.addBuffered(new VisChain(tagM, new VisRectangle(tagSize, tagSize, 
-                        new VisDataLineStyle(Color.black, 2))));
+                vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
+                        new VisDataLineStyle(color, 2))));
             }
         }
-        
+
         vbTags.switchBuffer();
         vbCameras.switchBuffer();
         jf.setVisible(true);
@@ -153,7 +156,7 @@ public class InterCameraCalibrator
             {
                 if(main == cam) continue;
                 
-                findCoordinates(main, cameras[main].getDetections(), cameras[cam]);
+                findCoordinates(main, cameras[main], cameras[cam]);
 
                 if(cameras[cam].isCertain())
                 {
@@ -170,28 +173,36 @@ public class InterCameraCalibrator
         }
     }
 
-    private void findCoordinates(int main, ArrayList<TagDetection> tags, Camera camera)
+    private void findCoordinates(int main, Camera mainCam, Camera auxCam)
     {
-        int index = 0;
-        TagDetection auxTags[] = camera.getDetections().toArray(new TagDetection[1]);
-        TagDetection mainTags[] = tags.toArray(new TagDetection[1]);
-        double mainM[][] = CameraUtil.homographyToPose(f, f, tagSize, mainTags[index].homography);
+        int mainIndex = 0;
+        int auxIndex = 0;
+        TagDetection auxTags[] = auxCam.getDetections().toArray(new TagDetection[1]);
+        TagDetection mainTags[] = mainCam.getDetections().toArray(new TagDetection[1]);
+        double mainM[][] = CameraUtil.homographyToPose(f, f, tagSize, mainTags[mainIndex].homography);
+        double auxM[][];
         
-        camera.setMain(main);
-        camera.clearCoordinates();
+        auxCam.setMain(main);
+        auxCam.clearCoordinates();
         
-        for(int y = 0; y < auxTags.length; y++)
+        while(mainIndex < mainTags.length || auxIndex < auxTags.length)
         {
-            if(auxTags[y].id == mainTags[index].id)
+            auxM = CameraUtil.homographyToPose(f, f, tagSize, auxTags[auxIndex].homography);
+            mainM = CameraUtil.homographyToPose(f, f, tagSize, mainTags[mainIndex].homography);
+            
+            if(auxTags[auxIndex].id == mainTags[mainIndex].id)
             {
-                double auxM[][] = CameraUtil.homographyToPose(f, f, tagSize, auxTags[y].homography);
-                double[][] camToCamTransform = LinAlg.matrixAB(LinAlg.inverse(mainM), auxM);
-                camera.addCoordinates(camToCamTransform);
+                auxCam.addCoordinates(LinAlg.matrixAB(mainM, LinAlg.inverse(auxM)));
+                mainIndex++;
+                auxIndex++;
             }
-            else if (auxTags[y].id > mainTags[index].id)
+            else if (auxTags[auxIndex].id > mainTags[mainIndex].id)
             {
-                index++;
-                mainM = CameraUtil.homographyToPose(f, f, tagSize, mainTags[index].homography);
+                mainIndex++;
+            }
+            else
+            {
+                auxIndex++;
             }
         }
     }
@@ -214,7 +225,7 @@ public class InterCameraCalibrator
                 double[][] posToOldMain= cameras[cameras[cam].getMain()].getTransformationMatrix(); 
                 double[][] posToNewMain = LinAlg.matrixAB(pos, posToOldMain); 
 
-                cameras[cam].setTransformationMatrix(posToNewMain, cameras[cameras[cam].getMain()].getMain());
+                cameras[cam].setPosition(posToNewMain, cameras[cameras[cam].getMain()].getMain());
             }
         }
     }

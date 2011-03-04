@@ -147,7 +147,7 @@ public class Camera
         return position;
     }
     
-    public void setTransformationMatrix(double[][] position, int main)
+    public void setPosition(double[][] position, int main)
     {
         this.position = LinAlg.matrixToXyzrpy(position);
         this.mainIndex = main;
