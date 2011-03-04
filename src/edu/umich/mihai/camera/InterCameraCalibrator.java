@@ -15,8 +15,6 @@ import april.util.GetOpt;
 import april.vis.VisCamera;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
-import april.vis.VisCircle;
-import april.vis.VisDataFillStyle;
 import april.vis.VisDataLineStyle;
 import april.vis.VisRectangle;
 import april.vis.VisWorld;
@@ -28,26 +26,30 @@ public class InterCameraCalibrator
     private VisCanvas vc = new VisCanvas(vw);
     private VisWorld.Buffer vbCameras = vw.getBuffer("cameras");
     private VisWorld.Buffer vbTags = vw.getBuffer("tags");
-    private final double version = 0.1; 
 
-    final double f = 477.5;
-    final double tagSize = 0.1275;
-    
+    private final double version = 0.2;
+    private double fx;
+    private double fy;
+    private double tagSize;
     private HashMap<String, Integer> knownUrls = new HashMap<String, Integer>();
+
     private Camera cameras[];
-    
-    public InterCameraCalibrator(GetOpt opts) throws Exception
+
+    public InterCameraCalibrator(boolean loRes, boolean color16, int fps, double tagSize, double fx, double fy) throws Exception
     {
-        System.out.println("ICC-Constructor: starting imagereaders...");
+        this.fx = fx;
+        this.fy = fy;
+        this.tagSize = tagSize;
         ArrayList<String> currentUrls = organizeURLS();
         cameras = new Camera[currentUrls.size()];
-        
+
+        System.out.println("ICC-Constructor: starting imagereaders...");
         setKnownUrls();
         for (int x = 0; x < cameras.length; x++)
         {
             try
             {
-                ImageReader ir = new ImageReader(currentUrls.get(x), opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"));
+                ImageReader ir = new ImageReader(currentUrls.get(x), loRes, color16, fps);
                 ir.start();
                 cameras[x] = new Camera(ir, knownUrls.get(currentUrls.get(x)));
             } catch (Exception e)
@@ -55,50 +57,55 @@ public class InterCameraCalibrator
                 e.printStackTrace();
             }
         }
-
-        System.out.println("ICC-Constructor: imagereaders started. aggregating tags...");
         
-        //aggregate tag detections
-        for(Camera camera : cameras)
+        run();
+    }
+
+    public void run() throws Exception
+    {
+        System.out.println("ICC-run: imagereaders started. aggregating tags...");
+
+        // aggregate tag detections
+        for (Camera camera : cameras)
         {
-            System.out.println("ICC-Constructor: aggregating tags of camera " + camera.getIndex());
+            System.out.println("ICC-run: aggregating tags of camera " + camera.getIndex());
             camera.addDetections();
         }
-        
-        System.out.println("ICC-Constructor: tags aggregated. finding coordinates...");
-        
+
+        System.out.println("ICC-run: tags aggregated. finding coordinates...");
+
         Arrays.sort(cameras, new CameraComparator());
-        
+
         findCoordinates();
-        
-        System.out.println("ICC-Constructor: coordinates found. finding intercam pos...");
-        
+
+        System.out.println("ICC-run: coordinates found. finding intercam pos...");
+
         findInterCamPos();
-        
-        System.out.println("ICC-Constructor: intercam pos found. setting up display..."); // XXX
-        
+
+        System.out.println("ICC-run: intercam pos found. setting up display..."); // XXX
+
         jf = new JFrame("Inter Camera Calibrater v" + version);
         jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         jf.setLayout(new BorderLayout());
         jf.add(vc, BorderLayout.CENTER);
         jf.setSize(1000, 500);
 
-        System.out.println("ICC-Constructor: display set up. graphing tags/cameras..."); // XXX
-        
-        String output="";
-        for(Camera cam : cameras)
+        System.out.println("ICC-run: display set up. graphing tags/cameras..."); // XXX
+
+        String output = "";
+        for (Camera cam : cameras)
         {
-            Color color = (cam.getIndex()==11 ? Color.blue : Color.red);
+            Color color = (cam.getIndex() == 11 ? Color.blue : Color.red);
             double[] pos = cam.getPosition();
-            output+="camera: " + cam.getIndex() + "\n";
-            output+="(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2] + "\n";
-            output+="(r,p,y): " + pos[3] + ", " + pos[4] + ", " + pos[5] + "\n\n";
+            output += "camera: " + cam.getIndex() + "\n";
+            output += "(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2] + "\n";
+            output += "(r,p,y): " + pos[3] + ", " + pos[4] + ", " + pos[5] + "\n\n";
             double[][] camM = cam.getTransformationMatrix();
             vbCameras.addBuffered(new VisChain(camM, new VisCamera(color, 0.08)));
             ArrayList<TagDetection> tags = cam.getDetections();
-            for(TagDetection tag : tags)
+            for (TagDetection tag : tags)
             {
-                double tagM[][] = CameraUtil.homographyToPose(f, f, tagSize, tag.homography);
+                double tagM[][] = CameraUtil.homographyToPose(fx, fy, tagSize, tag.homography);
                 vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
                         new VisDataLineStyle(color, 2))));
             }
@@ -107,67 +114,72 @@ public class InterCameraCalibrator
         vbTags.switchBuffer();
         vbCameras.switchBuffer();
         jf.setVisible(true);
-        JOptionPane.showMessageDialog(jf,output);
-    }
-    
-    private void setKnownUrls()
-    {
-        knownUrls.put("dc1394://b09d01008b51b8", 0);
-        knownUrls.put("dc1394://b09d01008b51ab", 1);
-        knownUrls.put("dc1394://b09d01008b51b9", 2);
-        knownUrls.put("dc1394://b09d01009a46a8", 3);
-        knownUrls.put("dc1394://b09d01009a46b6", 4);
-        knownUrls.put("dc1394://b09d01009a46bd", 5);
-        
-        knownUrls.put("dc1394://b09d01008c3f62", 10); // in lab
-        knownUrls.put("dc1394://b09d01008c3f6a", 11); // has J on it
-        knownUrls.put("dc1394://b09d01008e366c", 12); // unmarked
+        JOptionPane.showMessageDialog(jf, output);
     }
 
-    private ArrayList<String> organizeURLS()
+    public static void main(String[] args) throws Exception
     {
-        ArrayList<String> urls = ImageSource.getCameraURLs();
-        
-        for(int x = 0; x < urls.size(); x++)
+        GetOpt opts = new GetOpt();
+
+        opts.addBoolean('h', "help", false, "See this help screen");
+        opts.addString('c', "colors", "gray8", "gray8 or gray16");
+        opts.addInt('f', "fps", 15, "set the max fps to publish");
+        opts.addString('l', "log", "default.log", "name of lcm log");
+        opts.addString('d', "dir", "/tmp/imageLog/", "Path to save images");
+        opts.addString('r', "resolution", "hi", "lo=380x240, hi=760x480");
+
+        if (!opts.parse(args))
         {
-            if(!urls.get(x).contains("dc1394"))
-            {
-                urls.remove(x);
-            }
+            System.out.println("option error: " + opts.getReason());
         }
-        
-        return urls;
+
+        if (opts.getBoolean("help"))
+        {
+            System.out.println("Usage: Calibrate relative positions of multiple cameras.");
+            opts.doHelp();
+            System.exit(1);
+        }
+
+        if (ImageSource.getCameraURLs().size() == 0)
+        {
+            System.out.println("No cameras found.  Are they plugged in?");
+            System.exit(1);
+        }
+
+        boolean loRes = opts.getString("resolution").contains("lo");
+        boolean color16 = opts.getString("colors").contains("16");
+        int fps = opts.getInt("fps");
+        new InterCameraCalibrator(loRes, color16, fps, 0.1275, 477.5, 477.5);
     }
-    
 
     private void findCoordinates()
     {
-        for(int cam = 1; cam < cameras.length; cam++)
+        for (int cam = 1; cam < cameras.length; cam++)
         {
-            if(cameras[cam].getTagCount() == 0)
+            if (cameras[cam].getTagCount() == 0)
             {
-                System.err.println("InterCameraCalibrator-findCoordinates: "+
-                        "Unable to calculate intercamera coordinates due to a camera."+
-                        " seeing no tags.");
+                System.err.println("InterCameraCalibrator-findCoordinates: " 
+                        + "Unable to calculate intercamera coordinates due to a camera." + " seeing no tags.");
                 System.exit(1);
             }
-            
-            for(int main = 0; main < cameras.length; main++)
+
+            for (int main = 0; main < cameras.length; main++)
             {
-                if(main == cam) continue;
-                
+                if (main == cam)
+                    continue;
+
                 findCoordinates(main, cameras[main], cameras[cam]);
 
-                if(cameras[cam].isCertain())
+                if (cameras[cam].isCertain())
                 {
                     break;
                 }
             }
-           
-            if(!cameras[cam].isCertain())
+
+            if (!cameras[cam].isCertain())
             {
-                System.err.println("InterCameraCalibrator-findCoordinates: "+
-                    "Unable to calculate intercamera coordinates due to high uncertainty.");
+                System.err.println("InterCameraCalibrator-findCoordinates: " 
+                        + "Unable to calculate intercamera coordinates due to high uncertainty.");
                 System.exit(1);
             }
         }
@@ -179,18 +191,18 @@ public class InterCameraCalibrator
         int auxIndex = 0;
         TagDetection auxTags[] = auxCam.getDetections().toArray(new TagDetection[1]);
         TagDetection mainTags[] = mainCam.getDetections().toArray(new TagDetection[1]);
-        double mainM[][] = CameraUtil.homographyToPose(f, f, tagSize, mainTags[mainIndex].homography);
+        double mainM[][] = CameraUtil.homographyToPose(fx, fy, tagSize, mainTags[mainIndex].homography);
         double auxM[][];
-        
+
         auxCam.setMain(main);
         auxCam.clearCoordinates();
-        
-        while(mainIndex < mainTags.length && auxIndex < auxTags.length)
+
+        while (mainIndex < mainTags.length && auxIndex < auxTags.length)
         {
-            auxM = CameraUtil.homographyToPose(f, f, tagSize, auxTags[auxIndex].homography);
-            mainM = CameraUtil.homographyToPose(f, f, tagSize, mainTags[mainIndex].homography);
-            
-            if(auxTags[auxIndex].id == mainTags[mainIndex].id)
+            auxM = CameraUtil.homographyToPose(fx, fy, tagSize, auxTags[auxIndex].homography);
+            mainM = CameraUtil.homographyToPose(fx, fy, tagSize, mainTags[mainIndex].homography);
+
+            if (auxTags[auxIndex].id == mainTags[mainIndex].id)
             {
                 auxCam.addCoordinates(LinAlg.matrixAB(mainM, LinAlg.inverse(auxM)));
                 mainIndex++;
@@ -209,57 +221,53 @@ public class InterCameraCalibrator
 
     private void findInterCamPos() throws Exception
     {
-        cameras[0].setPosition(new double[] {0,0,0,0,0,0}, 0);
-        for(int cam = 1; cam <cameras.length; cam++)
+        cameras[0].setPosition(new double[] { 0, 0, 0, 0, 0, 0 }, 0);
+        for (int cam = 1; cam < cameras.length; cam++)
         {
             cameras[cam].setPosition();
-            while(cameras[cam].getMain() != 0)
+            while (cameras[cam].getMain() != 0)
             {
-                if(cameras[cam].getMain() == cam) 
+                if (cameras[cam].getMain() == cam)
                 {
-                    throw new Exception("Camera to camera calibration has halted"+
-                    " due to a cycle in camera to camera positions");
+                    throw new Exception("Camera to camera calibration has halted" + 
+                            " due to a cycle in camera to camera positions");
                 }
-                
+
                 double[][] pos = cameras[cam].getTransformationMatrix();
-                double[][] posToOldMain= cameras[cameras[cam].getMain()].getTransformationMatrix(); 
-                double[][] posToNewMain = LinAlg.matrixAB(pos, posToOldMain); 
+                double[][] posToOldMain = cameras[cameras[cam].getMain()].getTransformationMatrix();
+                double[][] posToNewMain = LinAlg.matrixAB(pos, posToOldMain);
 
                 cameras[cam].setPosition(posToNewMain, cameras[cameras[cam].getMain()].getMain());
             }
         }
     }
 
-    
-    public static void main(String[] args) throws Exception
+    private ArrayList<String> organizeURLS()
     {
-        GetOpt opts = new GetOpt();
-        
-        opts.addBoolean('h', "help", false, "See this help screen");
-        opts.addString('c', "colors", "gray8", "gray8 or gray16");
-        opts.addInt('f', "fps", 15, "set the max fps to publish");
-        opts.addString('l', "log", "default.log", "name of lcm log");
-        opts.addString('d', "dir", "/tmp/imageLog/", "Path to save images");
-        opts.addString('r', "resolution", "hi", "lo=380x240, hi=760x480");
-        
-        if (!opts.parse(args))
+        ArrayList<String> urls = ImageSource.getCameraURLs();
+
+        for (int x = 0; x < urls.size(); x++)
         {
-            System.out.println("option error: " + opts.getReason());
+            if (!urls.get(x).contains("dc1394"))
+            {
+                urls.remove(x);
+            }
         }
-        
-        if (opts.getBoolean("help"))
-        {
-            System.out.println("Usage: Calibrate relative positions of multiple cameras.");
-            opts.doHelp();
-            System.exit(1);
-        }
-        
-        if(ImageSource.getCameraURLs().size() == 0)
-        {
-            System.out.println("No cameras found.  Are they plugged in?");
-            System.exit(1);
-        }
-        
-        new InterCameraCalibrator(opts);
+
+        return urls;
+    }
+
+    private void setKnownUrls()
+    {
+        knownUrls.put("dc1394://b09d01008b51b8", 0);
+        knownUrls.put("dc1394://b09d01008b51ab", 1);
+        knownUrls.put("dc1394://b09d01008b51b9", 2);
+        knownUrls.put("dc1394://b09d01009a46a8", 3);
+        knownUrls.put("dc1394://b09d01009a46b6", 4);
+        knownUrls.put("dc1394://b09d01009a46bd", 5);
+
+        knownUrls.put("dc1394://b09d01008c3f62", 10); // in lab
+        knownUrls.put("dc1394://b09d01008c3f6a", 11); // has J on it
+        knownUrls.put("dc1394://b09d01008e366c", 12); // unmarked
     }
 }

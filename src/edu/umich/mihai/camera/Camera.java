@@ -24,6 +24,16 @@ public class Camera
         position = new double[6];
     }
     
+    public void addCoordinates(double[] coordinate)
+    {
+        coordinates.add(coordinate);
+    }
+    
+    public void addCoordinates(double[][] coordinate)
+    {
+        coordinates.add(LinAlg.matrixToXyzrpy(coordinate));
+    }
+
     public void addDetections()
     {
         try
@@ -34,7 +44,7 @@ public class Camera
             e.printStackTrace();
         }
     }
-
+    
     public void addDetections(ArrayList<TagDetection> detections)
     {
         Collections.sort(detections, new TagComparator());
@@ -56,6 +66,91 @@ public class Camera
         
         Collections.sort(this.detections, new TagComparator());
     }
+
+    public void clearCoordinates()
+    {
+        coordinates.clear();
+    }
+    
+    private double[] elementMultiplication(double[] a, double[] b) throws Exception
+    {
+        double c[] = new double[a.length];
+        
+        if(a.length != b.length)
+        {
+            throw new Exception("Arrays not of equal size");
+        }
+        
+        for(int x = 0; x < a.length; x++)
+        {
+            c[x] = a[x] * b[x];
+        }
+        
+        return c;
+    }
+    
+    public ArrayList<double[]> getCoordinates()
+    {
+        return coordinates;
+    }
+    
+    public TagDetection getDetection(int index)
+    {
+        return detections.get(index);
+    }
+
+    public ArrayList<TagDetection> getDetections()
+    {
+        return detections;
+    }
+    
+    public int getIndex()
+    {
+        return index;
+    }
+    
+    public int getMain()
+    {
+        return mainIndex;
+    }
+    
+    public double[] getPosition()
+    {
+        return position;
+    }
+    
+    public ImageReader getReader()
+    {
+        return reader;
+    }
+    
+    public int getTagCount()
+    {
+        return detections.size();
+    }
+    
+    public double[][] getTransformationMatrix()
+    {
+        return LinAlg.xyzrpyToMatrix(position);
+    }
+    
+    public boolean isCertain()
+    {
+        if(coordinates.size()==0)
+            return false;
+        
+        if(stdDev == null)
+        {
+            setVariance();
+        }
+        
+        double translationErr = (Math.sqrt(stdDev[0]) + Math.sqrt(stdDev[1]) + Math.sqrt(stdDev[2]))/3;
+        double rotationErr = (Math.sqrt(stdDev[3]) + Math.sqrt(stdDev[4]) + Math.sqrt(stdDev[5]))/3;
+        
+        // certain iff there are at least 5 tagdetections, stdDev of xyz err is < 20cm, and stdDev of rpy err is < 180deg
+//        return (coordinates.size()>5 && translationErr < 0.50 && rotationErr < Math.PI); // XXX for testing
+        return (translationErr < 0.20 && rotationErr < Math.PI/2);
+    }
     
     private boolean isInDetections(TagDetection prospectiveTag)
     {
@@ -72,45 +167,35 @@ public class Camera
 
         return inDetections;
     }
-    
-    public void clearCoordinates()
-    {
-        coordinates.clear();
-    }
-    
-    public void addCoordinates(double[] coordinate)
-    {
-        coordinates.add(coordinate);
-    }
 
-    public void addCoordinates(double[][] coordinate)
+    public void setMain(int main)
     {
-        coordinates.add(LinAlg.matrixToXyzrpy(coordinate));
+        mainIndex = main;
     }
     
-    public ImageReader getReader()
+    public double[] setPosition()
     {
-        return reader;
-    }
-    
-    public ArrayList<TagDetection> getDetections()
-    {
-        return detections;
-    }
+        position = new double[]{0,0,0,0,0,0};
+        
+        for(double[] coordinate: coordinates)
+        {
+            position = LinAlg.add(position, coordinate);
+        }
+        position = LinAlg.scale(position, (1.0/coordinates.size())); 
 
-    public TagDetection getDetection(int index)
-    {
-        return detections.get(index);
+        return position;
     }
     
-    public ArrayList<double[]> getCoordinates()
+    public void setPosition(double[] position, int main)
     {
-        return coordinates;
+        this.position = position;
+        this.mainIndex = main;
     }
     
-    public int getTagCount()
+    public void setPosition(double[][] position, int main)
     {
-        return detections.size();
+        this.position = LinAlg.matrixToXyzrpy(position);
+        this.mainIndex = main;
     }
     
     private void setVariance()
@@ -137,90 +222,5 @@ public class Camera
                 e.printStackTrace();
             }
         }
-    }
-    
-    private double[] elementMultiplication(double[] a, double[] b) throws Exception
-    {
-        double c[] = new double[a.length];
-        
-        if(a.length != b.length)
-        {
-            throw new Exception("Arrays not of equal size");
-        }
-        
-        for(int x = 0; x < a.length; x++)
-        {
-            c[x] = a[x] * b[x];
-        }
-        
-        return c;
-    }
-    
-    public boolean isCertain()
-    {
-        if(coordinates.size()==0)
-            return false;
-        
-        if(stdDev == null)
-        {
-            setVariance();
-        }
-        
-        double translationErr = (Math.sqrt(stdDev[0]) + Math.sqrt(stdDev[1]) + Math.sqrt(stdDev[2]))/3;
-        double rotationErr = (Math.sqrt(stdDev[3]) + Math.sqrt(stdDev[4]) + Math.sqrt(stdDev[5]))/3;
-        
-        // certain iff there are at least 5 tagdetections, stdDev of xyz err is < 20cm, and stdDev of rpy err is < 180deg
-//        return (coordinates.size()>5 && translationErr < 0.50 && rotationErr < Math.PI); // XXX for testing
-        return (translationErr < 0.20 && rotationErr < Math.PI/2);
-    }
-    
-    public double[] setPosition()
-    {
-        position = new double[]{0,0,0,0,0,0};
-        
-        for(double[] coordinate: coordinates)
-        {
-            position = LinAlg.add(position, coordinate);
-        }
-        position = LinAlg.scale(position, (1.0/coordinates.size())); 
-
-        return position;
-    }
-    
-    public void setPosition(double[][] position, int main)
-    {
-        this.position = LinAlg.matrixToXyzrpy(position);
-        this.mainIndex = main;
-    }
-    
-    public void setPosition(double[] position, int main)
-    {
-        this.position = position;
-        this.mainIndex = main;
-    }
-
-    public double[][] getTransformationMatrix()
-    {
-        return LinAlg.xyzrpyToMatrix(position);
-    }
-    
-    public double[] getPosition()
-    {
-        return position;
-    }
-    
-    public int getMain()
-    {
-        return mainIndex;
-    }
-    
-    public void setMain(int main)
-    {
-        mainIndex = main;
-    }
-    
-    public int getIndex()
-    {
-        return index;
     }
 }
