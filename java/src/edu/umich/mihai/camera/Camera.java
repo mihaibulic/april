@@ -5,6 +5,13 @@ import java.util.Collections;
 import april.jmat.LinAlg;
 import april.tag.TagDetection;
 
+/**
+ * 
+ * Tracks a camera's tag detections and coordinates relative to the "main" camera
+ * 
+ * @author Mihai Bulic
+ *
+ */
 public class Camera
 {
     private int mainIndex;
@@ -14,6 +21,13 @@ public class Camera
     private ArrayList<double[]> coordinates;
     private double[] stdDev;
     private double[] position;
+    private String url;
+    
+    public Camera(String url, double[] position)
+    {
+        this.url = url;
+        this.position = position;
+    }
     
     public Camera(ImageReader reader, int index)
     {
@@ -22,6 +36,7 @@ public class Camera
         detections = new ArrayList<TagDetection>();
         coordinates = new ArrayList<double[]>();
         position = new double[6];
+        url = reader.getUrl();
     }
     
     public void addCoordinates(double[] coordinate)
@@ -132,6 +147,11 @@ public class Camera
     public double[][] getTransformationMatrix()
     {
         return LinAlg.xyzrpyToMatrix(position);
+    }
+    
+    public String getUrl()
+    {
+        return url;
     }
     
     public boolean isCertain()

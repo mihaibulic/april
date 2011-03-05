@@ -17,6 +17,14 @@ import april.vis.VisImage;
 import april.vis.VisWorld;
 import april.lcmtypes.image_path_t;
 
+/**
+ * 
+ * Plays back the video from a camera. Images are selected from the LCM message stream of image paths.
+ *  The images themselves are saved onto the HDD at the location specified by the messages.
+ * 
+ * @author Mihai Bulic
+ *
+ */
 public class CameraPlayer implements LCMSubscriber
 {
     static LCM lcm     = LCM.getSingleton();

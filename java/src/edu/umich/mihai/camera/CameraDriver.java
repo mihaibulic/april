@@ -16,6 +16,11 @@ import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import april.tag.TagDetector;
 
+/**
+* Gets camera images and saves them as necessary
+*
+* @deprecated use ImageReader and ImageSaver 
+*/
 public class CameraDriver
 {
     private LCM lcm = LCM.getSingleton();

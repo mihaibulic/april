@@ -19,6 +19,13 @@ import april.vis.VisDataLineStyle;
 import april.vis.VisRectangle;
 import april.vis.VisWorld;
 
+/**
+ * 
+ * Gives camera to camera coordinates given that tags are spread out in the view of multiple cameras
+ * 
+ * @author Mihai Bulic
+ *
+ */
 public class InterCameraCalibrator
 {
     private JFrame jf;
@@ -26,8 +33,9 @@ public class InterCameraCalibrator
     private VisCanvas vc = new VisCanvas(vw);
     private VisWorld.Buffer vbCameras = vw.getBuffer("cameras");
     private VisWorld.Buffer vbTags = vw.getBuffer("tags");
+    private boolean display;
 
-    private final double version = 0.2;
+    private final double version = 0.3;
     private double fx;
     private double fy;
     private double tagSize;
@@ -35,11 +43,48 @@ public class InterCameraCalibrator
 
     private Camera cameras[];
 
+    public InterCameraCalibrator()
+    {
+        // get tagsize and fx/fy from txt file 
+    }
+    
+    /**
+     * 
+     * @param tagSize - the length of the edge of a tag in meters
+     * @param fx - the x axis focal length of the cameras to be used
+     * @param fy - the y axis focal length of the cameras to be used
+     * @throws Exception - If a camera sees no tags or if there is a cycle 
+     *          i.e. camera0 and camera1 see each other; camera2 and camera3 see each other;
+     *          but camera0/1 do not see camera2/3
+     */
+    public InterCameraCalibrator(double tagSize, double fx, double fy) throws Exception
+    {
+        this(false, false, 15, tagSize, fx, fy, false);
+    }
+    
+    /**
+     * 
+     * @param loRes - true iff low resolution is desired from the cameras
+     * @param color16 - true iff 16 colors, instead of 8, are desired from the cameras
+     * @param fps - max fps from the cameras
+     * @param tagSize - the length of the edge of a tag in meters
+     * @param fx - the x axis focal length of the cameras to be used
+     * @param fy - the y axis focal length of the cameras to be used
+     * @throws Exception - If a camera sees no tags or if there is a cycle 
+     *          i.e. camera0 and camera1 see each other; camera2 and camera3 see each other;
+     *          but camera0/1 do not see camera2/3
+     */
     public InterCameraCalibrator(boolean loRes, boolean color16, int fps, double tagSize, double fx, double fy) throws Exception
+    {
+        this(loRes, color16, fps, tagSize, fx, fy, false);
+    }
+    
+    public InterCameraCalibrator(boolean loRes, boolean color16, int fps, double tagSize, double fx, double fy, boolean display) throws Exception
     {
         this.fx = fx;
         this.fy = fy;
         this.tagSize = tagSize;
+        this.display = display;
         ArrayList<String> currentUrls = organizeURLS();
         cameras = new Camera[currentUrls.size()];
 
@@ -82,35 +127,43 @@ public class InterCameraCalibrator
 
         findInterCamPos();
 
-        System.out.println("ICC-run: intercam pos found. setting up display..."); // XXX
-
-        jf = new JFrame("Inter Camera Calibrater v" + version);
-        jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        jf.setLayout(new BorderLayout());
-        jf.add(vc, BorderLayout.CENTER);
-        jf.setSize(1000, 500);
-
-        System.out.println("ICC-run: display set up. graphing tags/cameras..."); // XXX
-
-        String output = "";
-        for (Camera cam : cameras)
+        if(display)
         {
-            Color color = (cam.getIndex() == 11 ? Color.blue : Color.red);
-            double[] pos = cam.getPosition();
-            output += "camera: " + cam.getIndex() + "\n";
-            output += "(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2] + "\n";
-            output += "(r,p,y): " + pos[3] + ", " + pos[4] + ", " + pos[5] + "\n\n";
-            double[][] camM = cam.getTransformationMatrix();
-            vbCameras.addBuffered(new VisChain(camM, new VisCamera(color, 0.08)));
-            ArrayList<TagDetection> tags = cam.getDetections();
-            for (TagDetection tag : tags)
-            {
-                double tagM[][] = CameraUtil.homographyToPose(fx, fy, tagSize, tag.homography);
-                vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
-                        new VisDataLineStyle(color, 2))));
-            }
-        }
+            System.out.println("ICC-run: intercam pos found. gr..."); // XXX
+            jf = new JFrame("Inter Camera Calibrater v" + version);
+            jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            jf.setLayout(new BorderLayout());
+            jf.add(vc, BorderLayout.CENTER);
+            jf.setSize(1000, 500);
 
+            System.out.println("ICC-run: display set up. graphing tags/cameras..."); // XXX
+            
+            String output = "";
+            for (Camera cam : cameras)
+            {
+                Color color = (cam.getIndex() == 11 ? Color.blue : Color.red);
+                double[] pos = cam.getPosition();
+                output += "camera: " + cam.getIndex() + "\n";
+                output += "(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2] + "\n";
+                output += "(r,p,y): " + pos[3] + ", " + pos[4] + ", " + pos[5] + "\n\n";
+                double[][] camM = cam.getTransformationMatrix();
+                vbCameras.addBuffered(new VisChain(camM, new VisCamera(color, 0.08)));
+                ArrayList<TagDetection> tags = cam.getDetections();
+                for (TagDetection tag : tags)
+                {
+                    double tagM[][] = CameraUtil.homographyToPose(fx, fy, tagSize, tag.homography);
+                    vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
+                            new VisDataLineStyle(color, 2))));
+                }
+                cam.getReader().kill();
+            }
+
+            showGui(output);
+        }
+    }
+
+    private void showGui(String output)
+    {
         vbTags.switchBuffer();
         vbCameras.switchBuffer();
         jf.setVisible(true);
@@ -149,7 +202,7 @@ public class InterCameraCalibrator
         boolean loRes = opts.getString("resolution").contains("lo");
         boolean color16 = opts.getString("colors").contains("16");
         int fps = opts.getInt("fps");
-        new InterCameraCalibrator(loRes, color16, fps, 0.1275, 477.5, 477.5);
+        new InterCameraCalibrator(loRes, color16, fps, 0.1275, 477.5, 477.5, true); // XXX magic numbers
     }
 
     private void findCoordinates()
@@ -241,7 +294,50 @@ public class InterCameraCalibrator
             }
         }
     }
+    
+    /**
+     * Once the constructor is run, call this method to retrieve an 
+     * array of objects of type Camera
+     * 
+     * @return Camera[] - array of objects of type Camera 
+     *      (contains useful information regarding each camera
+     *      such as its relative position and url)
+     */
+    public Camera[] getCameras()
+    {
+        return cameras;
+    }
+    
+    /**
+     * 
+     * @param url - the URL of the camera in question
+     * @return - the xyzrpy coordinates of this camera relative to the main camera (index = 0)
+     */
+    public double[] getCameraPostion(String url)
+    {
+        return getCameraPostion(knownUrls.get(url));
+    }
 
+    /**
+     * 
+     * @param index - index of the camera in question as printed on it (see urls hashmap of this class)
+     * @return - the xyzrpy coordinates of this camera relative to the main camera (index = 0)
+     */
+    public double[] getCameraPostion(int index)
+    {
+        double position[] = new double[6]; 
+        
+        for(Camera cam : cameras)
+        {
+            if(index == cam.getIndex())
+            {
+                position = cam.getPosition();
+            }
+        }
+        
+        return position;
+    }
+    
     private ArrayList<String> organizeURLS()
     {
         ArrayList<String> urls = ImageSource.getCameraURLs();

@@ -1,18 +1,22 @@
 package edu.umich.mihai.camera;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import april.jcam.ImageSource;
 import april.util.GetOpt;
 
+/**
+ * 
+ * Saves images from cameras onto HDD and publishes the path via an LCM message in real time 
+ * 
+ * @author Mihai Bulic
+ *
+ */
 public class CameraRecorder
 {
-    /**
-     * @param fps
-     *            - (-f) set the max fps to publish
-     * @throws IOException
-     */
     public static void main(String[] args) throws IOException
     {
         GetOpt opts = new GetOpt();
@@ -54,7 +58,11 @@ public class CameraRecorder
         {
             try
             {
-                new CameraDriver(url, dir, opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"), true);
+                BlockingQueue<BufferedImage> queue = new ArrayBlockingQueue<BufferedImage>(100); 
+                new ImageReader(queue, url, opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"), true);
+                new ImageSaver(queue, url, dir);
+                
+//                new CameraDriver(url, dir, opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"), true);
             } catch (Exception e)
             {
                 e.printStackTrace();

@@ -8,6 +8,13 @@ import javax.imageio.ImageIO;
 import april.lcmtypes.image_path_t;
 import lcm.lcm.LCM;
 
+/**
+ * 
+ * Saves images from the queue to a specified output directory and publishes the path via an LCM message 
+ * 
+ * @author Mihai Bulic
+ *
+ */
 public class ImageSaver extends Thread
 {
     private BlockingQueue<BufferedImage> queue;
@@ -18,6 +25,8 @@ public class ImageSaver extends Thread
     
     private String outputDir = "";
     private int saveCounter = 0;
+
+    private boolean run = true;
     
     public ImageSaver(BlockingQueue<BufferedImage> queue, String url, String outputDir)
     {
@@ -40,7 +49,7 @@ public class ImageSaver extends Thread
     
     public void run()
     {
-        while (true)
+        while (run)
         {
             image_path_t imagePath = new image_path_t();
 
@@ -70,5 +79,13 @@ public class ImageSaver extends Thread
         saveCounter++;
 
         return filepath;
+    }
+    
+    /**
+     * Stops the reader in a safe way
+     */
+    public void kill()
+    {
+        run = false;
     }
 }

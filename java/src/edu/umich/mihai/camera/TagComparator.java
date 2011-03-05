@@ -3,6 +3,13 @@ package edu.umich.mihai.camera;
 import java.util.Comparator;
 import april.tag.TagDetection;
 
+/**
+ * 
+ * Returns 1 iff the ID of tag1 is greater then tag2's ID
+ * 
+ * @author Mihai Bulic
+ *
+ */
 public class TagComparator implements Comparator<TagDetection>
 {
     @Override

@@ -11,13 +11,22 @@ import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import april.tag.TagDetector;
 
+/**
+ * 
+ * Reads off images from the specified camera and places them on the queue
+ * 
+ * @author Mihai Bulic
+ *
+ */
 public class ImageReader extends Thread
 {
     private BlockingQueue<BufferedImage> imageQueue;
     private BlockingQueue<ArrayList<TagDetection>> tagQueue;
     private ImageSource isrc;
     private ImageSourceFormat ifmt;
-
+    private String url;
+    private boolean run = true;
+    
     // private SyncErrorDetector syncDetector;
     // private String outputDir;
     private int imModulus;
@@ -27,17 +36,18 @@ public class ImageReader extends Thread
 
     public ImageReader(String url) throws Exception
     {
-        this(new ArrayBlockingQueue<BufferedImage>(100), url, "", false, false, 15, false);
+        this(new ArrayBlockingQueue<BufferedImage>(100), url, false, false, 15, false);
     }
     
     public ImageReader(String url, boolean loRes,boolean color16, int maxfps) throws Exception
     {
-        this(new ArrayBlockingQueue<BufferedImage>(100), url, "", loRes, color16, maxfps, false);
+        this(new ArrayBlockingQueue<BufferedImage>(100), url, loRes, color16, maxfps, false);
     }
     
-    public ImageReader(BlockingQueue<BufferedImage> queue, String url, String outputDir, boolean loRes, boolean color16, int maxfps, boolean consume) throws Exception
+    public ImageReader(BlockingQueue<BufferedImage> queue, String url, boolean loRes, boolean color16, int maxfps, boolean consume) throws Exception
     {
         this.imageQueue = queue;
+        this.url = url;
         this.consume = consume;
 
         if (maxfps > (loRes ? 120 : 60))
@@ -77,7 +87,7 @@ public class ImageReader extends Thread
         // makeSyncDetector();
         isrc.start();
 
-        while (true)
+        while (run)
         {
             byte imageBuffer[] = null;
             BufferedImage image = null;
@@ -182,6 +192,11 @@ public class ImageReader extends Thread
 //        syncDetector = new SyncErrorDetector(10, 0.001, 0.01, 0.0, 1, false);
 //    }
 
+    public String getUrl()
+    {
+        return url;
+    }
+    
     public ArrayList<TagDetection> getTagDetections(int images) throws InterruptedException
     {
         tagQueue = new ArrayBlockingQueue<ArrayList<TagDetection>>(images);
@@ -197,5 +212,13 @@ public class ImageReader extends Thread
         detectionsFlag = false;
         
         return detections;
+    }
+    
+    /**
+     * Stops the imageReader thread in a safe way
+     */
+    public void kill()
+    {
+        run = false;
     }
 }
