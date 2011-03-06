@@ -2,6 +2,8 @@ package edu.umich.mihai.camera;
 
 public class LEDDetection
 {
+    public boolean singularity = false;
+    
     // the ID of the LED
     public int id;
     
@@ -13,6 +15,11 @@ public class LEDDetection
     
     // XYZ translation to get to LED from origin
     public double[] xyz = new double[3];
+        
+    public LEDDetection(boolean singularity)
+    {
+        this.singularity = singularity;
+    }
     
     public LEDDetection(double[] xyz, int id)
     {

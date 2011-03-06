@@ -2,6 +2,7 @@ package edu.umich.mihai.camera;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import april.jcam.ImageConvert;
@@ -25,6 +26,7 @@ public class ImageReader extends Thread
     private ImageSource isrc;
     private ImageSourceFormat ifmt;
     private String url;
+    private HashMap<String, Integer> urls = new HashMap<String, Integer>();
     private boolean run = true;
     
     // private SyncErrorDetector syncDetector;
@@ -50,6 +52,22 @@ public class ImageReader extends Thread
         this.url = url;
         this.consume = consume;
 
+        urls.put("dc1394://b09d01008b51b8", 0);
+        urls.put("dc1394://b09d01008b51ab", 1);
+        urls.put("dc1394://b09d01008b51b9", 2);
+        urls.put("dc1394://b09d01009a46a8", 3);
+        urls.put("dc1394://b09d01009a46b6", 4);
+        urls.put("dc1394://b09d01009a46bd", 5);
+        urls.put("dc1394://b09d01008c3f62", 10);
+        urls.put("dc1394://b09d01008c3f6a", 11); // has J on it
+        urls.put("dc1394://b09d01008e366c", 12); // unmarked
+        
+        if(urls.get(url) == null)
+        {
+            return;
+        }
+        
+        
         if (maxfps > (loRes ? 120 : 60))
         {
             throw new Exception("FPS is too large.  It must be less then or equal to 120 if resolution is low, or 60 is resolution is high");

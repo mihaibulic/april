@@ -141,7 +141,7 @@ public class InterCameraCalibrator
             String output = "";
             for (Camera cam : cameras)
             {
-                Color color = (cam.getIndex() == 11 ? Color.blue : Color.red);
+                Color color = (cam.getIndex() == 12 ? Color.blue : Color.red);
                 double[] pos = cam.getPosition();
                 output += "camera: " + cam.getIndex() + "\n";
                 output += "(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2] + "\n";
@@ -158,6 +158,7 @@ public class InterCameraCalibrator
                 cam.getReader().kill();
             }
 
+            System.out.println(output);
             showGui(output);
         }
     }

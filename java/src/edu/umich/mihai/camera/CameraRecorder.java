@@ -59,8 +59,8 @@ public class CameraRecorder
             try
             {
                 BlockingQueue<BufferedImage> queue = new ArrayBlockingQueue<BufferedImage>(100); 
-                new ImageReader(queue, url, opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"), true);
-                new ImageSaver(queue, url, dir);
+                new ImageReader(queue, url, opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"), true).start();
+                new ImageSaver(queue, url, dir).start();
                 
 //                new CameraDriver(url, dir, opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"), true);
             } catch (Exception e)

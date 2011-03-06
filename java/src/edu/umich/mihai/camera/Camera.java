@@ -23,8 +23,9 @@ public class Camera
     private double[] position;
     private String url;
     
-    public Camera(String url, double[] position)
+    public Camera(int index, String url, double[] position)
     {
+        this.index = index;
         this.url = url;
         this.position = position;
     }

@@ -40,6 +40,8 @@ public class ImageSaver extends Thread
         urls.put("dc1394://b09d01009a46b6", 4);
         urls.put("dc1394://b09d01009a46bd", 5);
         urls.put("dc1394://b09d01008c3f62", 10);
+        urls.put("dc1394://b09d01008c3f6a", 11); // has J on it
+        urls.put("dc1394://b09d01008e366c", 12); // unmarked
         
         this.outputDir = outputDir + "cam" + urls.get(url);
         // ensure that the directory exists

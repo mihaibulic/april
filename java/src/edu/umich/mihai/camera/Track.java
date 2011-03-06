@@ -39,6 +39,8 @@ public class Track extends Thread
     private ImageReader ir;
     private boolean run = true;
     
+    private DummyLEDFinder dlf;
+    
     public Track(BlockingQueue<ArrayList<LEDDetection>> outputQueue, String url, double[][] transformation, double[] fc, double[] cc, double[] kc, double alpha) throws Exception
     {
         this(outputQueue, url, transformation, false, false, 15, fc, cc, kc, alpha);
@@ -46,6 +48,8 @@ public class Track extends Thread
     
     public Track(BlockingQueue<ArrayList<LEDDetection>> outputQueue, String url, double[][] transformation, boolean loRes, boolean color16, int fps, double[] fc, double[] cc, double[] kc, double alpha) throws Exception
     {
+        dlf = new DummyLEDFinder();
+        
         this.transformation = transformation;
         this.fc = fc;
         this.cc = cc;
@@ -57,6 +61,7 @@ public class Track extends Thread
         
         try
         {
+            System.out.println("Track-Constructor: Starting ImageReader for camera " + url);
             ir = new ImageReader(inputQueue, url, loRes, color16, fps, true);
         } catch (Exception e)
         {
@@ -64,6 +69,7 @@ public class Track extends Thread
         }
         
         ir.start();
+        System.out.println("Track-Constructor: ImageReader started for camera " + url);
     }
 
     public void run()
@@ -72,7 +78,7 @@ public class Track extends Thread
         {
             try
             {
-                ArrayList<LEDDetection> leds = DummyLEDFinder.getLedUV(inputQueue.take());
+                ArrayList<LEDDetection> leds = dlf.getLedUV(inputQueue.take());
                 
                 for(LEDDetection led : leds)
                 {

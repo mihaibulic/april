@@ -16,19 +16,29 @@ import april.tag.TagDetector;
  */
 public class DummyLEDFinder
 {
+    private TagDetector td;
+    private ArrayList<TagDetection> tags;
+    private ArrayList<LEDDetection> detections;
+
+    
     /**
      * Finds the LEDs and returns array of coordinates in pixel space along with IDs
      * 
      * @param image - Image in which to find LEDs
      * @return arraylist of led locations
      */
-    public static ArrayList<LEDDetection> getLedUV(BufferedImage image)
+    public DummyLEDFinder()
     {
-        TagDetector td = new TagDetector(new Tag36h11());
-        ArrayList<TagDetection> tags = td.process(image, new double[] { image.getWidth() / 2, image.getHeight() / 2 });
-        ArrayList<LEDDetection> detections = new ArrayList<LEDDetection>();
+        td = new TagDetector(new Tag36h11());
+        tags = new ArrayList<TagDetection>();
+        detections = new ArrayList<LEDDetection>();
+    }
+    
+    public ArrayList<LEDDetection> getLedUV(BufferedImage image)
+    {
+        tags = td.process(image, new double[] {image.getWidth()/2, image.getHeight()/2});
         
-        for (int x = 0; x < detections.size(); x++)
+        for (int x = 0; x < tags.size(); x++)
         {
             detections.add(new LEDDetection(tags.get(x).id, tags.get(x).cxy));
         }
