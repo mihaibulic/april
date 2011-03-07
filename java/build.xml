@@ -3,10 +3,10 @@
 <project name="mihai" default="build" basedir=".">
 
   <!-- Build everything -->
-  <target name="build" depends="clean, make-src,build-java,build-jar"/>
+  <target name="build" depends="clean,generate-lcmtypes,make-src,build-java,build-jar"/>
 
   <!-- Clean everything -->
-  <target name="clean" depends="clean-src,clean-java"/>
+  <target name="clean" depends="clean-lcmtypes,clean-src,clean-java"/>
 
   <!-- Dist Clean everyting -->
   <target name="distclean" depends="clean">

@@ -3,9 +3,9 @@ package edu.umich.mihai.camera;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.util.ArrayList;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import javax.swing.JFrame;
+import edu.umich.mihai.lcmtypes.led_t;
+import lcm.lcm.LCM;
 import april.jcam.ImageSource;
 import april.jmat.LinAlg;
 import april.util.GetOpt;
@@ -19,8 +19,9 @@ import april.vis.VisDataLineStyle;
 import april.vis.VisSphere;
 import april.vis.VisWorld;
 
-public class LEDTracker extends CameraComparator
+public class LEDTracker extends CameraComparator implements Track.Listener
 {
+    private final double version = 0.1;
     private JFrame jf;
     private VisWorld vw = new VisWorld();
     private VisCanvas vc = new VisCanvas(vw);
@@ -31,12 +32,16 @@ public class LEDTracker extends CameraComparator
 
     private double[] cc;
     private double[] fc;
-    
-    private final double version = 0.1;
+
+    private Object lock = new Object();
+    private boolean ledsReady = false;
+    private int id;
+    private ArrayList<LEDDetection> newLeds;
+    private ArrayList<LEDDetection> leds[];
+
+    private LCM lcm = LCM.getSingleton();
+
     private boolean run = true;
-    private BlockingQueue<ArrayList<LEDDetection>> queues[]; 
-    private ArrayList<LEDDetection> last[];
-    private ArrayList<LEDDetection> triangulatedLEDs;
     
     public LEDTracker() throws Exception
     {
@@ -59,25 +64,23 @@ public class LEDTracker extends CameraComparator
         this.cc = cc;
         this.display = display;
         Track tracks[] = new Track[cameras.length];
-        last = new ArrayList[cameras.length];
+        leds = new ArrayList[cameras.length];
+        newLeds = new ArrayList<LEDDetection>();
         
-        triangulatedLEDs = new ArrayList<LEDDetection>();
-        
-        queues = new ArrayBlockingQueue[tracks.length];
         System.out.println("LEDTracker-Constructor: Starting tracks...");
         for (int x = 0; x < tracks.length; x++)
         {
-            queues[x] = new ArrayBlockingQueue<ArrayList<LEDDetection>>(256);
-            last[x] = new ArrayList<LEDDetection>();
+            leds[x] = new ArrayList<LEDDetection>();
             
             try
             {
-               tracks[x] = new Track(queues[x], cameras[x].getUrl(), cameras[x].getTransformationMatrix(), loRes, color16, fps, fc, cc, kc, alpha);
+               tracks[x] = new Track(x, cameras[x].getUrl(), cameras[x].getTransformationMatrix(), loRes, color16, fps, fc, cc, kc, alpha);
             } catch (Exception e)
             {
                 e.printStackTrace();
             }
             
+            tracks[x].addListener(this);
             tracks[x].start();
         }
         
@@ -90,75 +93,99 @@ public class LEDTracker extends CameraComparator
     {
         ArrayList<LEDDetection> detections = new ArrayList<LEDDetection>();
         
-        if(display)
-        {
-            System.out.println("LEDTracker-run: Display started. Tracking LEDs...");
-        }
-        else
-        {
-            System.out.println("LEDTracker-run: Tracks started. Tracking LEDs...");
-        }
+        if(display) System.out.println("LEDTracker-run: Display started. Tracking LEDs...");
+        else        System.out.println("LEDTracker-run: Tracks started. Tracking LEDs...");
         
         while(run)
         {
-            for(int x = 0; x < last.length; x++)
+            synchronized(lock)
             {
                 try
                 {
-                    last[x].clear();
-                    last[x] = queues[x].take();
+                    while(!ledsReady)
+                    {
+                        lock.wait();
+                    }
                 } catch (InterruptedException e)
                 {
                     e.printStackTrace();
                 }
+                
+                leds[id].clear();
+                leds[id].addAll(newLeds);
             }
             
-            System.out.println("LT-run: last is " + last[0].size() + " by " + last[1].size());
-            
-            for(int x = 0; x < last.length; x++)
+            for(int x = 0; x < leds.length; x++)
             {
-                for(int y = 0; y < last[x].size(); y++)
+                for(int y = 0; y < leds[x].size(); y++)
                 {
-                    detections.add(last[x].get(y));
-                    System.out.println("LT-run: added LED #" + last[x].get(y).id + "("+detections.size()+")");
-                    for(int a = x+1; a < last.length; a++)
+                    detections.clear();
+                    detections.add(leds[x].get(y));
+
+                    for(int a = x+1; a < leds.length; a++)
                     {
-                        for(int b = 0; b < last[a].size(); b++)
+                        for(int b = 0; b < leds[a].size(); b++)
                         {
-                            if(last[x].get(y).id == last[a].get(b).id)
+                            if(leds[x].get(y).id == leds[a].get(b).id)
                             {
-                                detections.add(last[a].get(b));
-                                System.out.println("LT-run: added LED #" + last[a].get(b).id + ":("+detections.size()+")");
-                                last[a].remove(b);
-                            }
-                            else
-                            {
-                                System.out.println("LT-run: skipped LED #" + last[a].get(b).id + 
-                                        ", looking for LED #"+ last[x].get(y).id);
+                                detections.add(leds[a].get(b));
+                                leds[a].remove(b);
+                                break;
                             }
                         }
                     }
                     
-                    LEDDetection tmp = triangulate(detections);
+                    LEDDetection tmp = triangulate(syncDetections(detections));
                     if(!tmp.singularity)
                     {
                         System.out.println("LEDTracker-run: Detection seen (id " + tmp.id+" @ "+tmp.xyz[0]+", "+tmp.xyz[1]+", "+tmp.xyz[2] + ")");
-                        triangulatedLEDs.add(tmp);
+                        
+                        led_t led = new led_t();
+                        led.id = tmp.id;
+                        led.xyz = tmp.xyz;
+                        
+                        lcm.publish("led"+tmp.id, led);
+                        
+                        if(display)
+                        {
+                            vbLeds.addBuffered(new VisChain(LinAlg.translate(tmp.xyz),
+                                new VisCircle(0.1, new VisDataFillStyle(Color.black)), new VisSphere(0.01, Color.green)));
+                        }
                     }
-                    detections.clear();
                 }
             }
             
             if(display)
             {
-                for(LEDDetection ld : triangulatedLEDs)
-                {
-                    vbLeds.addBuffered(new VisChain(LinAlg.translate(ld.xyz),
-                            new VisCircle(0.1, new VisDataFillStyle(Color.black)), new VisSphere(0.01, Color.green)));
-                }
                 vbLeds.switchBuffer();
             }
+            
+            ledsReady = false;
         }
+    }
+    
+    private ArrayList<LEDDetection> syncDetections(ArrayList<LEDDetection> unsynced)
+    {
+        ArrayList<LEDDetection> synced = new ArrayList<LEDDetection>();
+        double mostRecent = Double.MIN_VALUE;
+        
+        for(LEDDetection led : unsynced)
+        {
+            if(led.timeStamp > mostRecent)
+            {
+                mostRecent = led.timeStamp;
+            }
+        }
+        
+        for(LEDDetection led : unsynced)
+        {
+            if(led.timeStamp + (0.075) >= mostRecent) 
+            {
+                synced.add(led);
+            }
+        }
+        
+        return synced;
     }
     
     private void showGui(Camera cameras[])
@@ -192,14 +219,16 @@ public class LEDTracker extends CameraComparator
     private LEDDetection triangulate(ArrayList<LEDDetection> ld)
     {
         if(ld.size() < 2) return new LEDDetection(true);
-        
-        double transformations[][][] = new double[ld.size()][4][4];
+
         double theta;
         double phi; 
         
+        double transformations[][][] = new double[ld.size()][4][4];
+        double locations[][] = new double[ld.size()][3];
+        
         double distance[] = new double[ld.size()];
         double lastDistance[] = new double[ld.size()];
-        double delta[][];
+        double auxDelta[][];
         
         for(int x = 0; x < ld.size(); x++)
         {
@@ -212,35 +241,56 @@ public class LEDTracker extends CameraComparator
             ray.add(LinAlg.matrixToXyzrpy(transformations[x]));
             ray.add(LinAlg.matrixToXyzrpy(LinAlg.matrixAB(transformations[x], LinAlg.translate(0,0,-100))));
             vbRays.addBuffered(new VisData(ray, new VisDataLineStyle(Color.green, 2)));
-
-            distance[x] = LinAlg.distance(calculateAve(transformations), matrixToXyz(transformations[x]));
-            lastDistance[x] = distance[x]+1;
         }
         
-        boolean go = true;
-     // stop when the 99% of detections are within 0.01m (2.5 stddev) or when all detections are ocillating 
-        while(2.5*calculateStdDev(transformations) > 0.01 && go) 
+        for(int z = 0; z < ld.size(); z++)
         {
-            go = false;
-            
-            System.out.println(calculateStdDev(transformations));
-            for(int x = 0; x < ld.size(); x++)
+            boolean mainGo = true;
+            double mainDistance = ave(transformations, transformations[z]);
+            double oldDistance = 1 + mainDistance;
+            while(mainGo)
             {
-                delta = LinAlg.translate(0, 0, (distance[x] - lastDistance[x]));
-                transformations[x] = LinAlg.matrixAB(transformations[x], delta);
-            }
-            
-            for(int x = 0; x < ld.size(); x++)
-            {
-                double tmp = lastDistance[x];  
-                lastDistance[x] = distance[x];
-                distance[x] = LinAlg.distance(calculateAve(transformations), matrixToXyz(transformations[x]));
+                mainGo = false;
                 
-                if(tmp-lastDistance[x] != 0 && (lastDistance[x]-distance[x])/(tmp-lastDistance[x]) > 0)
+                double[][] mainDelta = LinAlg.translate(0, 0, ((mainDistance - oldDistance)>0 ? 0.001 : -0.001));
+                transformations[z] = LinAlg.matrixAB(transformations[z], mainDelta);
+                
+                double temp = oldDistance;
+                oldDistance = mainDistance;
+                mainDistance = ave(transformations, transformations[z]);
+                    
+                if(temp-oldDistance != 0 && (oldDistance-mainDistance)/(temp-oldDistance) > 0)
                 {
-                   go = true; 
+                    mainGo = true; 
                 }
+                
+                for(int x = 0; x < ld.size(); x++)
+                {
+                    boolean auxGo = true;
+                    distance[x] = LinAlg.distance(calculateAve(transformations), matrixToXyz(transformations[x]));
+                    lastDistance[x] = distance[x]+1;
+                    while(x != z && auxGo)
+                    {
+                        auxGo = false;
+
+                        auxDelta = LinAlg.translate(0, 0, ((distance[x] - lastDistance[x])>0 ? 0.001 : -0.001));
+                        transformations[x] = LinAlg.matrixAB(transformations[x], auxDelta);
+
+                        double tmp = lastDistance[x];  
+                        lastDistance[x] = distance[x];
+                        distance[x] = LinAlg.distance(matrixToXyz(transformations[z]), matrixToXyz(transformations[x]));
+                        
+                        if(tmp-lastDistance[x] != 0 && (lastDistance[x]-distance[x])/(tmp-lastDistance[x]) > 0)
+                        {
+                           auxGo = true; 
+                        }
+                        
+                    }
+                }
+                
             }
+            
+            locations[z] = matrixToXyz(transformations[z]);
         }
         
         if(display)
@@ -252,7 +302,32 @@ public class LEDTracker extends CameraComparator
             vbRays.switchBuffer();
         }
         
-        return new LEDDetection(calculateAve(transformations), ld.get(0).id);
+        return new LEDDetection(calculateAve(locations), ld.get(0).id);
+    }
+    
+    private double ave(double[][][] transformations, double[][] main)
+    {
+        double distance = 0;
+        
+        for(int x = 0; x < transformations.length; x++)
+        {
+            distance += LinAlg.distance(new double[]{main[0][3], main[1][3], main[2][3]},  
+                    new double[]{transformations[x][0][3], transformations[x][1][3], transformations[x][2][3]});
+        }
+        
+        return distance/transformations.length;
+    }
+
+    private double[] calculateAve(double[][] locs)
+    {
+        double average[] = new double[]{0,0,0};
+        
+        for(int x = 0; x < locs.length; x++)
+        {
+            average = LinAlg.add(average, locs[x]);
+        }
+        
+        return LinAlg.scale(average, 1.0/locs.length);
     }
     
     private double[] calculateAve(double[][][] transformations)
@@ -266,40 +341,6 @@ public class LEDTracker extends CameraComparator
         
         return LinAlg.scale(average, 1.0/transformations.length);
     }
-    
-    private double calculateStdDev(double[][][] transformations)
-    {
-        double average[] = new double[]{0,0,0};
-        double variance = 0;
-        
-        average = calculateAve(transformations);
-        
-        for(int x = 0; x < transformations.length; x++)
-        {
-            variance += LinAlg.squaredDistance(new double[]{transformations[x][0][3], 
-                    transformations[x][1][3], transformations[x][2][3]},average);
-        }
-        
-        return Math.sqrt(variance/transformations.length);
-    }
-    
-    private double[] elementMultiplication(double[] a, double[] b) throws Exception
-    {
-        double c[] = new double[a.length];
-        
-        if(a.length != b.length)
-        {
-            throw new Exception("Arrays not of equal size");
-        }
-        
-        for(int x = 0; x < a.length; x++)
-        {
-            c[x] = a[x] * b[x];
-        }
-        
-        return c;
-    }
-    
     
     /**
      * @param args
@@ -326,28 +367,29 @@ public class LEDTracker extends CameraComparator
             System.exit(1);
         }
 
-        if (ImageSource.getCameraURLs().size() == 0)
-        {
-            System.out.println("No cameras found.  Are they plugged in?");
-            System.exit(1);
-        }
+        if (ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
 
         boolean loRes = opts.getString("resolution").contains("lo");
         boolean color16 = opts.getString("colors").contains("16");
         int fps = opts.getInt("fps");
 
+/**
+ * camera: 0
+(x,y,z): 0.06450273846631908, -0.25507166312989354, -0.020171972628530654
+(r,p,y): -0.3129196070369205, 0.1750399043671647, -2.660501114757434
 
-
+ */
+        
+        
         // XXX ***************************** FOR TESTING
         Camera cameras[] = new Camera[2]; // TODO get this?
-        cameras[0] = new Camera(0, "dc1394://b09d01008b51b8", new double[]{0.3811802199440573, -6.312776125748099E-4, 0.11233279316811129, -0.008475163475790602, 0.3174047182526466, -0.02277840164199716}); // 0
-//        cameras[1] = new Camera("dc1394://b09d01008b51ab", new double[]{-0.70728, -0.04550, -0.32286, 0.01024, -0.79181, 0.00418}); // 12 (unmarked) 
-        cameras[1] = new Camera(12, "dc1394://b09d01008e366c", new double[]{0,0,0,0,0,0}); // 12
+        cameras[0] = new Camera(0,"dc1394://b09d01008b51b8", new double[]{0.06450273846631908, -0.25507166312989354, -0.020171972628530654, -0.3129196070369205, 0.1750399043671647, -2.660501114757434}); // 0
+        cameras[1] = new Camera(1,"dc1394://b09d01008b51ab", new double[]{0,0,0,0,0,0}); // 1
         // XXX ***************************** FOR TESTING
 
         
-        
-        new LEDTracker(cameras, loRes, color16, fps, new double[]{477.5, 477.5}, new double[]{376,240}, new double[]{0,0,0,0,0}, 0.0, true); // XXX magic numbers
+     // XXX magic numbers
+        new LEDTracker(cameras, loRes, color16, fps, new double[]{477.5, 477.5}, new double[]{376,240}, new double[]{0,0,0,0,0}, 0.0, true); 
     }
     
     public void kill()
@@ -355,4 +397,16 @@ public class LEDTracker extends CameraComparator
         run = false;
     }
 
+    @Override
+    public void handleDetections(ArrayList<LEDDetection> leds, int id)
+    {
+        synchronized(lock)
+        {
+            newLeds.clear();
+            newLeds.addAll(leds);
+            this.id = id;
+            ledsReady = true;
+            lock.notify();
+        }        
+    }
 }

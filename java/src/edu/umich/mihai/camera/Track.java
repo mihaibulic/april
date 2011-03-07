@@ -2,12 +2,12 @@ package edu.umich.mihai.camera;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import april.jmat.LinAlg;
 
-public class Track extends Thread
+public class Track extends Thread implements ImageReader.Listener
 {
+    ArrayList<Listener> listeners = new ArrayList<Listener>();
+    
     // required calibration parameter lengths
     static final public int LENGTH_FC = 2;
     static final public int LENGTH_CC = 2;
@@ -20,83 +20,91 @@ public class Track extends Thread
     static final public int KC4 = 3;//^tangential
     static final public int KC5 = 4;//^6
 
-    // Focal length, in pixels
-    private double fc[]; // [X Y]
-
-    // Principal point
-    private double cc[]; // [X Y]
-
-    // Distortion
-    private double kc[]; // [kc1 kc2 kc3 kc4 kc5 kc6]
-
-    // Skew
-    private double alpha;
+    private double fc[]; // Focal length, in pixels, [X Y]
+    private double cc[]; // Principal point, [X Y] 
+    private double kc[]; // Distortion, [kc1 kc2 kc3 kc4 kc5 kc6]
+    private double alpha; // Skew
 
     private double[][] transformation;
     
-    private BlockingQueue<BufferedImage> inputQueue;
-    private BlockingQueue<ArrayList<LEDDetection>> outputQueue;
+    private int id;
     private ImageReader ir;
-    private boolean run = true;
+    private double timeStamp;
+    private Object lock = new Object();
+    private boolean imageReady = false;
+    private BufferedImage image;
     
+    private boolean run = true;
+
     private DummyLEDFinder dlf;
     
-    public Track(BlockingQueue<ArrayList<LEDDetection>> outputQueue, String url, double[][] transformation, double[] fc, double[] cc, double[] kc, double alpha) throws Exception
+    public interface Listener
     {
-        this(outputQueue, url, transformation, false, false, 15, fc, cc, kc, alpha);
+        public void handleDetections(ArrayList<LEDDetection> leds, int index);
     }
     
-    public Track(BlockingQueue<ArrayList<LEDDetection>> outputQueue, String url, double[][] transformation, boolean loRes, boolean color16, int fps, double[] fc, double[] cc, double[] kc, double alpha) throws Exception
+    public Track(int id, String url, double[][] transformation, double[] fc, double[] cc, double[] kc, double alpha) throws Exception
+    {
+        this(id, url, transformation, false, false, 15, fc, cc, kc, alpha);
+    }
+    
+    public Track(int id, String url, double[][] transformation, boolean loRes, boolean color16, int fps, double[] fc, double[] cc, double[] kc, double alpha) throws Exception
     {
         dlf = new DummyLEDFinder();
         
+        this.id = id;
         this.transformation = transformation;
         this.fc = fc;
         this.cc = cc;
         this.kc = kc;
         this.alpha = alpha;
-        this.outputQueue = outputQueue;
         
-        inputQueue = new ArrayBlockingQueue<BufferedImage>(100);
-        
-        try
-        {
-            System.out.println("Track-Constructor: Starting ImageReader for camera " + url);
-            ir = new ImageReader(inputQueue, url, loRes, color16, fps, true);
-        } catch (Exception e)
-        {
-            e.printStackTrace();
-        }
-        
+        System.out.println("Track-Constructor: Starting ImageReader for camera " + url);
+        ir = new ImageReader(url, loRes, color16, fps);
+        ir.addListener(this);
         ir.start();
         System.out.println("Track-Constructor: ImageReader started for camera " + url);
     }
 
     public void run()
     {
+        ArrayList<LEDDetection> leds = new ArrayList<LEDDetection>();
+        
         while(run)
         {
-            try
+            synchronized(lock)
             {
-                ArrayList<LEDDetection> leds = dlf.getLedUV(inputQueue.take());
-                
-                for(LEDDetection led : leds)
+                try
                 {
-                    led.uv = undistort(led.uv);
-                    led.transformation = transformation;
+                    while(!imageReady)
+                    {
+                        lock.wait();
+                    }
+                } catch (InterruptedException e)
+                {
+                    e.printStackTrace();
                 }
-                outputQueue.put(leds);
-            } 
-            catch (InterruptedException e)
+                
+                leds.clear();
+                leds.addAll(dlf.getLedUV(image));
+            }              
+            
+            for(LEDDetection led : leds)
             {
-                e.printStackTrace();
+                led.timeStamp = timeStamp;
+                led.uv = undistort(led.uv);
+                led.transformation = transformation;
             }
-            catch (IllegalStateException ise)
+            
+            if(leds.size() > 0)
             {
-                System.err.println("Led queue is full, emptying...");
-                outputQueue.clear();
-                continue;
+                for (Listener listener : listeners)
+                {
+                    listener.handleDetections(leds, id);
+                }
             }
+                
+            imageReady = false;
         }
     }
     
@@ -133,5 +141,22 @@ public class Track extends Thread
     public void kill()
     {
         run = false;
+    }
+
+    public void addListener(Listener listener)
+    {
+        listeners.add(listener);
+    }
+    
+    @Override
+    public void handleImage(BufferedImage image, double timeStamp)
+    {
+        synchronized(lock)
+        {
+            this.image = image;
+            this.timeStamp = timeStamp;
+            imageReady = true;
+            lock.notify();
+        }        
     }
 }

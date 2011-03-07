@@ -4,6 +4,8 @@ public class LEDDetection
 {
     public boolean singularity = false;
     
+    public double timeStamp;
+    
     // the ID of the LED
     public int id;
     
@@ -16,6 +18,10 @@ public class LEDDetection
     // XYZ translation to get to LED from origin
     public double[] xyz = new double[3];
         
+    public LEDDetection()
+    {
+    }
+    
     public LEDDetection(boolean singularity)
     {
         this.singularity = singularity;

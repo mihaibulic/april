@@ -1,0 +1,8 @@
+package edu.umich.mihai.lcmtypes;
+struct led_t
+{
+    int64_t utime;
+
+    double xyz[3];
+    int32_t id;
+}

@@ -2,11 +2,12 @@ package edu.umich.mihai.camera;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
-import java.util.concurrent.BlockingQueue;
 import javax.imageio.ImageIO;
-import april.lcmtypes.image_path_t;
 import lcm.lcm.LCM;
+import april.lcmtypes.image_path_t;
+import april.util.TimeUtil;
 
 /**
  * 
@@ -15,24 +16,93 @@ import lcm.lcm.LCM;
  * @author Mihai Bulic
  *
  */
-public class ImageSaver extends Thread
+public class ImageSaver extends Thread implements ImageReader.Listener
 {
-    private BlockingQueue<BufferedImage> queue;
     private LCM lcm = LCM.getSingleton();
 
     private String url;
     private HashMap<String, Integer> urls = new HashMap<String, Integer>();
     
+    private boolean run = true;
+    private double timeStamp;
+    private Object lock = new Object();
+    private boolean imageReady = false;
+    private BufferedImage image;
     private String outputDir = "";
     private int saveCounter = 0;
-
-    private boolean run = true;
     
-    public ImageSaver(BlockingQueue<BufferedImage> queue, String url, String outputDir)
+
+    public ImageSaver(ImageReader ir, String url, String outputDir)
     {
-        this.queue = queue;
+        setUrls();
+        if(urls.get(url) == null) return;
         this.url = url;
+
+        this.outputDir = outputDir + "cam" + urls.get(url);
+        File dir = new File(this.outputDir);
+        dir.mkdirs();
         
+        ir.addListener(this);
+        ir.start();
+    }
+    
+    public void run()
+    {
+        if(url == null) return;
+        
+        while (run)
+        {
+            synchronized(lock)
+            {
+                try
+                {
+                    while(!imageReady)
+                    {
+                        lock.wait();
+                    }
+                } catch (InterruptedException e)
+                {
+                    e.printStackTrace();
+                }
+                
+                image_path_t imagePath = new image_path_t();
+    
+                try
+                {
+                    imagePath.img_path = saveImage(image);
+                    imagePath.utime = (long)timeStamp;
+                } catch (NullPointerException e)
+                {
+                    e.printStackTrace();
+                } catch (IOException e)
+                {
+                    e.printStackTrace();
+                }
+    
+                lcm.publish("cam" + urls.get(url), imagePath);
+                imageReady = false;
+            }
+        }
+    }
+
+    private String saveImage(BufferedImage image) throws NullPointerException, IOException
+    {
+        String filepath = outputDir + File.separator + "IMG" + saveCounter;
+
+        if (image == null)
+        {
+            throw new NullPointerException();
+        }
+
+        ImageIO.write(image, "png", new File(filepath));
+
+        saveCounter++;
+
+        return filepath;
+    }
+
+    private void setUrls()
+    {
         urls.put("dc1394://b09d01008b51b8", 0);
         urls.put("dc1394://b09d01008b51ab", 1);
         urls.put("dc1394://b09d01008b51b9", 2);
@@ -42,45 +112,6 @@ public class ImageSaver extends Thread
         urls.put("dc1394://b09d01008c3f62", 10);
         urls.put("dc1394://b09d01008c3f6a", 11); // has J on it
         urls.put("dc1394://b09d01008e366c", 12); // unmarked
-        
-        this.outputDir = outputDir + "cam" + urls.get(url);
-        // ensure that the directory exists
-        File dir = new File(this.outputDir);
-        dir.mkdirs();
-    }
-    
-    public void run()
-    {
-        while (run)
-        {
-            image_path_t imagePath = new image_path_t();
-
-            try
-            {
-                imagePath.img_path = saveImage(queue.take());
-            } catch (Exception e)
-            {
-                e.printStackTrace();
-            }
-
-            lcm.publish("cam" + urls.get(url), imagePath);
-        }
-    }
-
-    private String saveImage(BufferedImage image) throws Exception
-    {
-        String filepath = outputDir + File.separator + "IMG" + saveCounter;
-
-        if (image == null)
-        {
-            throw new Exception("image is not ready");
-        }
-
-        ImageIO.write(image, "png", new File(filepath));
-
-        saveCounter++;
-
-        return filepath;
     }
     
     /**
@@ -89,5 +120,17 @@ public class ImageSaver extends Thread
     public void kill()
     {
         run = false;
+    }
+
+    @Override
+    public void handleImage(BufferedImage im, double time)
+    {
+        synchronized(lock)
+        {
+            image = im;
+            timeStamp = time;
+            imageReady = true;
+            lock.notify();
+        }
     }
 }

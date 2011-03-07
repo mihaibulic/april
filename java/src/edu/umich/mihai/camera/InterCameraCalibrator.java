@@ -36,8 +36,7 @@ public class InterCameraCalibrator
     private boolean display;
 
     private final double version = 0.3;
-    private double fx;
-    private double fy;
+    private double[] fc;
     private double tagSize;
     private HashMap<String, Integer> knownUrls = new HashMap<String, Integer>();
 
@@ -45,21 +44,20 @@ public class InterCameraCalibrator
 
     public InterCameraCalibrator()
     {
-        // get tagsize and fx/fy from txt file 
+        // get tagsize and fc from txt file 
     }
     
     /**
      * 
      * @param tagSize - the length of the edge of a tag in meters
-     * @param fx - the x axis focal length of the cameras to be used
-     * @param fy - the y axis focal length of the cameras to be used
+     * @param fc - the x,y axis focal lengths of the cameras to be used
      * @throws Exception - If a camera sees no tags or if there is a cycle 
      *          i.e. camera0 and camera1 see each other; camera2 and camera3 see each other;
      *          but camera0/1 do not see camera2/3
      */
-    public InterCameraCalibrator(double tagSize, double fx, double fy) throws Exception
+    public InterCameraCalibrator(double tagSize, double[] fc) throws Exception
     {
-        this(false, false, 15, tagSize, fx, fy, false);
+        this(false, false, 15, tagSize, fc, false);
     }
     
     /**
@@ -68,21 +66,19 @@ public class InterCameraCalibrator
      * @param color16 - true iff 16 colors, instead of 8, are desired from the cameras
      * @param fps - max fps from the cameras
      * @param tagSize - the length of the edge of a tag in meters
-     * @param fx - the x axis focal length of the cameras to be used
-     * @param fy - the y axis focal length of the cameras to be used
+     * @param fc - the x,y axis focal lengths of the cameras to be used
      * @throws Exception - If a camera sees no tags or if there is a cycle 
      *          i.e. camera0 and camera1 see each other; camera2 and camera3 see each other;
      *          but camera0/1 do not see camera2/3
      */
-    public InterCameraCalibrator(boolean loRes, boolean color16, int fps, double tagSize, double fx, double fy) throws Exception
+    public InterCameraCalibrator(boolean loRes, boolean color16, int fps, double tagSize, double[] fc) throws Exception
     {
-        this(loRes, color16, fps, tagSize, fx, fy, false);
+        this(loRes, color16, fps, tagSize, fc, false);
     }
     
-    public InterCameraCalibrator(boolean loRes, boolean color16, int fps, double tagSize, double fx, double fy, boolean display) throws Exception
+    public InterCameraCalibrator(boolean loRes, boolean color16, int fps, double tagSize, double[] fc, boolean display) throws Exception
     {
-        this.fx = fx;
-        this.fy = fy;
+        this.fc = fc;
         this.tagSize = tagSize;
         this.display = display;
         ArrayList<String> currentUrls = organizeURLS();
@@ -92,21 +88,15 @@ public class InterCameraCalibrator
         setKnownUrls();
         for (int x = 0; x < cameras.length; x++)
         {
-            try
-            {
-                ImageReader ir = new ImageReader(currentUrls.get(x), loRes, color16, fps);
-                ir.start();
-                cameras[x] = new Camera(ir, knownUrls.get(currentUrls.get(x)));
-            } catch (Exception e)
-            {
-                e.printStackTrace();
-            }
+            ImageReader ir = new ImageReader(currentUrls.get(x), loRes, color16, fps);
+            ir.start();
+            cameras[x] = new Camera(ir, knownUrls.get(currentUrls.get(x)));
         }
         
         run();
     }
 
-    public void run() throws Exception
+    public void run() throws CameraException
     {
         System.out.println("ICC-run: imagereaders started. aggregating tags...");
 
@@ -151,7 +141,7 @@ public class InterCameraCalibrator
                 ArrayList<TagDetection> tags = cam.getDetections();
                 for (TagDetection tag : tags)
                 {
-                    double tagM[][] = CameraUtil.homographyToPose(fx, fy, tagSize, tag.homography);
+                    double tagM[][] = CameraUtil.homographyToPose(fc[0], fc[1], tagSize, tag.homography);
                     vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
                             new VisDataLineStyle(color, 2))));
                 }
@@ -194,48 +184,35 @@ public class InterCameraCalibrator
             System.exit(1);
         }
 
-        if (ImageSource.getCameraURLs().size() == 0)
-        {
-            System.out.println("No cameras found.  Are they plugged in?");
-            System.exit(1);
-        }
+        if (ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
 
         boolean loRes = opts.getString("resolution").contains("lo");
         boolean color16 = opts.getString("colors").contains("16");
         int fps = opts.getInt("fps");
-        new InterCameraCalibrator(loRes, color16, fps, 0.1275, 477.5, 477.5, true); // XXX magic numbers
+
+        new InterCameraCalibrator(loRes, color16, fps, 0.1275, new double[] {477.5, 477.5}, true); // XXX magic numbers
     }
 
-    private void findCoordinates()
+    private void findCoordinates() throws CameraException
     {
         for (int cam = 1; cam < cameras.length; cam++)
         {
-            if (cameras[cam].getTagCount() == 0)
-            {
-                System.err.println("InterCameraCalibrator-findCoordinates: " 
-                        + "Unable to calculate intercamera coordinates due to a camera." + " seeing no tags.");
-                System.exit(1);
-            }
+            if (cameras[cam].getTagCount() == 0) throw new CameraException(CameraException.NO_TAGS);
 
             for (int main = 0; main < cameras.length; main++)
             {
-                if (main == cam)
-                    continue;
-
-                findCoordinates(main, cameras[main], cameras[cam]);
-
-                if (cameras[cam].isCertain())
+                if (main != cam)
                 {
-                    break;
+                    findCoordinates(main, cameras[main], cameras[cam]);
+    
+                    if (cameras[cam].isCertain())
+                    {
+                        break;
+                    }
                 }
             }
 
-            if (!cameras[cam].isCertain())
-            {
-                System.err.println("InterCameraCalibrator-findCoordinates: " 
-                        + "Unable to calculate intercamera coordinates due to high uncertainty.");
-                System.exit(1);
-            }
+            if (!cameras[cam].isCertain()) throw new CameraException(CameraException.UNCERTAIN);
         }
     }
 
@@ -245,7 +222,7 @@ public class InterCameraCalibrator
         int auxIndex = 0;
         TagDetection auxTags[] = auxCam.getDetections().toArray(new TagDetection[1]);
         TagDetection mainTags[] = mainCam.getDetections().toArray(new TagDetection[1]);
-        double mainM[][] = CameraUtil.homographyToPose(fx, fy, tagSize, mainTags[mainIndex].homography);
+        double mainM[][] = CameraUtil.homographyToPose(fc[0], fc[1], tagSize, mainTags[mainIndex].homography);
         double auxM[][];
 
         auxCam.setMain(main);
@@ -253,8 +230,8 @@ public class InterCameraCalibrator
 
         while (mainIndex < mainTags.length && auxIndex < auxTags.length)
         {
-            auxM = CameraUtil.homographyToPose(fx, fy, tagSize, auxTags[auxIndex].homography);
-            mainM = CameraUtil.homographyToPose(fx, fy, tagSize, mainTags[mainIndex].homography);
+            auxM = CameraUtil.homographyToPose(fc[0], fc[1], tagSize, auxTags[auxIndex].homography);
+            mainM = CameraUtil.homographyToPose(fc[0], fc[1], tagSize, mainTags[mainIndex].homography);
 
             if (auxTags[auxIndex].id == mainTags[mainIndex].id)
             {
@@ -273,7 +250,7 @@ public class InterCameraCalibrator
         }
     }
 
-    private void findInterCamPos() throws Exception
+    private void findInterCamPos() throws CameraException
     {
         cameras[0].setPosition(new double[] { 0, 0, 0, 0, 0, 0 }, 0);
         for (int cam = 1; cam < cameras.length; cam++)
@@ -281,11 +258,7 @@ public class InterCameraCalibrator
             cameras[cam].setPosition();
             while (cameras[cam].getMain() != 0)
             {
-                if (cameras[cam].getMain() == cam)
-                {
-                    throw new Exception("Camera to camera calibration has halted" + 
-                            " due to a cycle in camera to camera positions");
-                }
+                if (cameras[cam].getMain() == cam) throw new CameraException(CameraException.CYCLE);
 
                 double[][] pos = cameras[cam].getTransformationMatrix();
                 double[][] posToOldMain = cameras[cameras[cam].getMain()].getTransformationMatrix();

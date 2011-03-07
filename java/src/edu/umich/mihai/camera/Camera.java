@@ -68,16 +68,15 @@ public class Camera
         
         for(TagDetection x : detections)
         {
-            if(lastId == x.id)
+            if(lastId != x.id)
             {
-                continue;
+                if(!isInDetections(x))
+                {
+                    this.detections.add(x);
+                }
+                
+                lastId = x.id;
             }
-            else if(!isInDetections(x))
-            {
-                this.detections.add(x);
-            }
-            
-            lastId = x.id;
         }
         
         Collections.sort(this.detections, new TagComparator());

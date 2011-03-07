@@ -1,10 +1,7 @@
 package edu.umich.mihai.camera;
 
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import april.jcam.ImageSource;
 import april.util.GetOpt;
 
@@ -17,7 +14,7 @@ import april.util.GetOpt;
  */
 public class CameraRecorder
 {
-    public static void main(String[] args) throws IOException
+    public static void main(String[] args) throws IOException, CameraException
     {
         GetOpt opts = new GetOpt();
         
@@ -41,11 +38,7 @@ public class CameraRecorder
             System.exit(1);
         }
         
-        if(ImageSource.getCameraURLs().size() == 0)
-        {
-            System.out.println("No cameras found.  Are they plugged in?");
-            System.exit(1);
-        }
+        if(ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
 
         String dir = opts.getString("dir") + (!opts.getString("dir").endsWith("/") ? "/" : "");
 
@@ -58,17 +51,16 @@ public class CameraRecorder
         {
             try
             {
-                BlockingQueue<BufferedImage> queue = new ArrayBlockingQueue<BufferedImage>(100); 
-                new ImageReader(queue, url, opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"), true).start();
-                new ImageSaver(queue, url, dir).start();
-                
-//                new CameraDriver(url, dir, opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"), true);
+                ImageReader ir = new ImageReader(url, opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"));
+                (new ImageSaver(ir, url, dir)).start();
+
+                // new CameraDriver(url, dir, opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"), true);
             } catch (Exception e)
             {
                 e.printStackTrace();
             }
+
         }
         
     }
-    
 }

@@ -17,9 +17,6 @@ import april.tag.TagDetector;
 public class DummyLEDFinder
 {
     private TagDetector td;
-    private ArrayList<TagDetection> tags;
-    private ArrayList<LEDDetection> detections;
-
     
     /**
      * Finds the LEDs and returns array of coordinates in pixel space along with IDs
@@ -30,13 +27,12 @@ public class DummyLEDFinder
     public DummyLEDFinder()
     {
         td = new TagDetector(new Tag36h11());
-        tags = new ArrayList<TagDetection>();
-        detections = new ArrayList<LEDDetection>();
     }
     
     public ArrayList<LEDDetection> getLedUV(BufferedImage image)
     {
-        tags = td.process(image, new double[] {image.getWidth()/2, image.getHeight()/2});
+        ArrayList<TagDetection> tags = td.process(image, new double[] {image.getWidth()/2, image.getHeight()/2});
+        ArrayList<LEDDetection> detections = new ArrayList<LEDDetection>();
         
         for (int x = 0; x < tags.size(); x++)
         {
