@@ -11,7 +11,7 @@ import lcm.lcm.LCM;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
-import april.lcmtypes.image_path_t;
+import edu.umich.mihai.lcmtypes.image_path_t;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import april.tag.TagDetector;

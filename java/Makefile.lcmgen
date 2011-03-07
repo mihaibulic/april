@@ -12,7 +12,7 @@ all:    $(LCMTYPES_JAVA)
 
 
 src/edu/umich/mihai/lcmtypes/%.java: ../lcmtypes/%.lcm
-	$(LCM) -j  --jpath=src --jdefaultpkg=april.lcmtypes $<
+	$(LCM) -j  --jpath=src --jdefaultpkg=edu.umich.mihai.lcmtypes $<
 
 clean:
 	rm -rf *~ src/edu/umich/mihai/lcmtypes/*

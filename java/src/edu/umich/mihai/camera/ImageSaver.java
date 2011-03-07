@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import javax.imageio.ImageIO;
 import lcm.lcm.LCM;
-import april.lcmtypes.image_path_t;
+import edu.umich.mihai.lcmtypes.image_path_t;
 import april.util.TimeUtil;
 
 /**

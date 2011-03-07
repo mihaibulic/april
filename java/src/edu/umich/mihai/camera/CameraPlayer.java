@@ -15,7 +15,7 @@ import april.util.TimeUtil;
 import april.vis.VisCanvas;
 import april.vis.VisImage;
 import april.vis.VisWorld;
-import april.lcmtypes.image_path_t;
+import edu.umich.mihai.lcmtypes.image_path_t;
 
 /**
  * 

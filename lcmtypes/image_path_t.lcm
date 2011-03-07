@@ -1,0 +1,10 @@
+package edu.umich.mihai.lcmtypes;
+struct image_path_t
+{
+    int64_t utime;
+
+    // This is the full path to the image durring logging
+    // The playback application should take an optional directory
+    // flag, which allows the image directory to be specified.
+    string img_path;
+}
