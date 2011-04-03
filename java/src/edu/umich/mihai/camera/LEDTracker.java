@@ -9,7 +9,6 @@ import lcm.lcm.LCM;
 import april.jcam.ImageSource;
 import april.jmat.LinAlg;
 import april.util.GetOpt;
-import april.vis.VisCamera;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
 import april.vis.VisCircle;

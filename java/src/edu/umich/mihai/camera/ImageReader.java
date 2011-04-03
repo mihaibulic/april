@@ -12,7 +12,6 @@ import april.jcam.ImageSourceFormat;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import april.tag.TagDetector;
-import april.util.TimeUtil;
 
 public class ImageReader extends Thread
 {
@@ -26,7 +25,6 @@ public class ImageReader extends Thread
     
     private SyncErrorDetector sync;
     private boolean firstTime = true;
-    private double initTime = 0;
     
     private int imagesToProcess;
     private boolean tagFlag = false;
@@ -63,9 +61,13 @@ public class ImageReader extends Thread
 
     public void run()
     {
-        TagDetector td = new TagDetector(new Tag36h11());;
+        TagDetector td = new TagDetector(new Tag36h11());
         isrc.start();
 
+        double initTime = 0;
+        double lastTimestamp = 0;
+        int rollOverCounter = 0;
+        
         while (run)
         {
             byte imageBuffer[] = null;
@@ -94,7 +96,12 @@ public class ImageReader extends Thread
                     if (image != null)
                     {
                         double timestamp = times[times.length-1] - initTime;
-                        timestamp += (timestamp < 0 ? 128 : 0);
+                        if(lastTimestamp > timestamp)
+                        {
+                            rollOverCounter++;
+                        }
+                        lastTimestamp = timestamp;
+                        timestamp += 128*rollOverCounter;
                         
                         for (Listener listener : Listeners)
                         {
@@ -105,7 +112,10 @@ public class ImageReader extends Thread
                         {
                             synchronized(tags)
                             {
-                                if(tags == null) tags = new ArrayList<TagDetection>();
+                                if (tags == null)
+                                {
+                                    tags = new ArrayList<TagDetection>();
+                                }
                                 
                                 tags.addAll(td.process(image, new double[] {image.getWidth()/2.0, image.getHeight()/2.0}));
                                 imagesToProcess--;

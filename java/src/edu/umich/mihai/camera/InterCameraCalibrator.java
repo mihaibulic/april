@@ -12,7 +12,6 @@ import april.jmat.LinAlg;
 import april.tag.CameraUtil;
 import april.tag.TagDetection;
 import april.util.GetOpt;
-import april.vis.VisCamera;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
 import april.vis.VisDataLineStyle;
@@ -44,7 +43,7 @@ public class InterCameraCalibrator
 
     public InterCameraCalibrator()
     {
-        // get tagsize and fc from txt file 
+        // get tagsize and fc from config file 
     }
     
     /**
@@ -119,7 +118,7 @@ public class InterCameraCalibrator
 
         if(display)
         {
-            System.out.println("ICC-run: intercam pos found. gr..."); // XXX
+            System.out.println("ICC-run: intercam positions found...");
             jf = new JFrame("Inter Camera Calibrater v" + version);
             jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             jf.setLayout(new BorderLayout());

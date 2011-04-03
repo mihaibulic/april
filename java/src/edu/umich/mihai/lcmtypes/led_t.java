@@ -5,10 +5,11 @@
 
 package edu.umich.mihai.lcmtypes;
  
-import java.io.*;
-import java.nio.*;
-import java.util.*;
-import lcm.lcm.*;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.ArrayList;
+import lcm.lcm.LCMDataInputStream;
  
 public final class led_t implements lcm.lcm.LCMEncodable
 {

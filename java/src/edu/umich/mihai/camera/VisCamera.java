@@ -1,11 +1,12 @@
-package april.vis;
+package edu.umich.mihai.camera;
 
-import javax.media.opengl.*;
-import javax.media.opengl.glu.*;
-import java.awt.*;
-import april.jmat.geom.*;
-
-import java.util.*;
+import java.awt.Color;
+import javax.media.opengl.GL;
+import javax.media.opengl.glu.GLU;
+import april.vis.GLUtil;
+import april.vis.VisContext;
+import april.vis.VisObject;
+import april.vis.VisUtil;
 
 /** VisObject representing a camera. In the camera's coordinate frame,
  * the camera will appear to be looking down the -z axis, with y

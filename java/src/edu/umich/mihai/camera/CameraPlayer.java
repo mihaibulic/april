@@ -31,6 +31,8 @@ public class CameraPlayer implements LCMSubscriber
     String     dir;
     int        camera;
     int        counter;
+    int width = 0;
+    int height = 0;
     
     public BufferedImage newImage;
     Object newImageCondition = new Object();
@@ -164,6 +166,12 @@ public class CameraPlayer implements LCMSubscriber
                 {
                     VisWorld.Buffer vb = vw.getBuffer("image");
                     vb.addBuffered(new VisImage(newImage));
+                    if(newImage.getWidth() != width || newImage.getHeight() != height)
+                    {
+                        width = newImage.getWidth();
+                        height = newImage.getHeight();
+                        vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { width, height });
+                    }
                     vb.switchBuffer();
                 }
             }
