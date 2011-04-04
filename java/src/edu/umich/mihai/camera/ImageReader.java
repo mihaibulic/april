@@ -1,16 +1,11 @@
 package edu.umich.mihai.camera;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import magic.camera.util.SyncErrorDetector;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
-import april.tag.Tag36h11;
-import april.tag.TagDetection;
-import april.tag.TagDetector;
 
 public class ImageReader extends Thread
 {
@@ -25,10 +20,6 @@ public class ImageReader extends Thread
     private SyncErrorDetector sync;
     private boolean firstTime = true;
     
-    private int imagesToProcess;
-    private boolean tagFlag = false;
-    private ArrayList<TagDetection> tags;
-
     public interface Listener
     {
         public void handleImage(byte[] image, ImageSourceFormat ifmt, double timeStamp);
@@ -60,7 +51,6 @@ public class ImageReader extends Thread
 
     public void run()
     {
-        TagDetector td = new TagDetector(new Tag36h11());
         isrc.start();
 
         double initTime = 0;
@@ -70,7 +60,6 @@ public class ImageReader extends Thread
         while (run)
         {
             byte imageBuffer[] = null;
-            BufferedImage image = null;
 
             imageBuffer = isrc.getFrame();
             if (imageBuffer != null)

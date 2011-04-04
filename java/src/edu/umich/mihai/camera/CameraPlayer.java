@@ -48,11 +48,6 @@ public class CameraPlayer implements LCMSubscriber
     HashMap<Integer, VisWorld.Buffer> buffers = new HashMap<Integer, VisWorld.Buffer>();
     JFrame jf;
     
-    /**
-     * Will notifyAll when newImage arrives.  Can either display images or not
-     * @param camera - index of camera to use
-     * @param display - do you want to see images dispalyed?
-     */
     public CameraPlayer(int rows, int columns)
     {
         this.rows = rows;
@@ -135,10 +130,6 @@ public class CameraPlayer implements LCMSubscriber
         }
     }
 
-    /**
-     * 
-     * @param args -h (Usage: displays images from camera specified) -c (index of camera for which to get images)
-     */
     public static void main(String[] args)
     {
         GetOpt opts = new GetOpt();

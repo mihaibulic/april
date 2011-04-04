@@ -201,8 +201,12 @@ public class InterCameraCalibrator
                 if (main != cam)
                 {
                     findCoordinates(main, cameras[main], cameras[cam]);
+                    
+                    if (cameras[cam].isCertain()) break;
                 }
             }
+            
+            if (!cameras[cam].isCertain()) throw new CameraException(CameraException.UNCERTAIN);
         }
     }
 
