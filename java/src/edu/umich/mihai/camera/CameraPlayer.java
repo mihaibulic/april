@@ -82,7 +82,7 @@ public class CameraPlayer implements LCMSubscriber
                     image_path_t imagePath = new image_path_t(ins);
                     byte[] buffer = new byte[752*480];
                     new FileInputStream(new File(imagePath.img_path)).read(buffer);
-                    newImage = ImageConvert.convertToImage(imagePath.format,imagePath.height, imagePath.width, buffer);
+                    newImage = ImageConvert.convertToImage(imagePath.format,imagePath.width, imagePath.height, buffer);
                     newImageCondition.notifyAll();
                 }
                 

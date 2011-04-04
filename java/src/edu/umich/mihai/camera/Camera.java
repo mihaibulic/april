@@ -68,7 +68,7 @@ public class Camera implements ImageReader.Listener
         TagDetector td = new TagDetector(new Tag36h11());
         for(byte[] buffer: imageBuffers)
         {
-            detections.addAll(td.process(ImageConvert.convertToImage(format, height, width, buffer), new double[] {width/2.0, height/2.0}));
+            detections.addAll(td.process(ImageConvert.convertToImage(format, width, height, buffer), new double[] {width/2.0, height/2.0}));
         }
         
         Collections.sort(detections, new TagComparator());

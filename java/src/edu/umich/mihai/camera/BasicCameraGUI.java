@@ -124,8 +124,7 @@ public class BasicCameraGUI implements ParameterListener
                     continue;
                 }
 
-                image = ImageConvert.convertToImage(ifmt.format, ifmt.width,
-                        ifmt.height, imageBuffer);
+                image = ImageConvert.convertToImage(ifmt.format, ifmt.width, ifmt.height, imageBuffer);
 
                 if (image == null)
                 {
