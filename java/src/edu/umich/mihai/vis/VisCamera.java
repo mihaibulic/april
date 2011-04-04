@@ -1,4 +1,4 @@
-package edu.umich.mihai.camera;
+package edu.umich.mihai.vis;
 
 import java.awt.Color;
 import javax.media.opengl.GL;

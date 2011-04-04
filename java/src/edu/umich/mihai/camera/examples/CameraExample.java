@@ -1,4 +1,4 @@
-package edu.umich.mihai.camera;
+package edu.umich.mihai.camera.examples;
 
 import java.awt.BorderLayout;
 import java.awt.image.BufferedImage;
@@ -18,8 +18,15 @@ import april.vis.VisCanvas;
 import april.vis.VisImage;
 import april.vis.VisTexture;
 import april.vis.VisWorld;
+import edu.umich.mihai.camera.ImageReader;
+import edu.umich.mihai.camera.ImageReader.Listener;
 import edu.umich.mihai.lcmtypes.image_path_t;
 
+/**
+ * This is an example on how to use both ImageReader and the lcm message for image_path
+ *      ImageReader is used for getting images directly (straight from the camera)
+ *      LCM is used to get images indirectly from a log (from the HDD)
+ */
 public class CameraExample implements LCMSubscriber, ImageReader.Listener
 {
     static LCM lcm = LCM.getSingleton();

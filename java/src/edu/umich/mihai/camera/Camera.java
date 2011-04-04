@@ -2,6 +2,7 @@ package edu.umich.mihai.camera;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import edu.umich.mihai.led.TagComparator;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;

@@ -1,13 +1,10 @@
-package edu.umich.mihai.camera;
+package edu.umich.mihai.camera.examples;
 
 import java.awt.BorderLayout;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import javax.imageio.ImageIO;
 import javax.swing.JFrame;
-import edu.umich.mihai.lcmtypes.image_path_t;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
@@ -19,6 +16,9 @@ import april.vis.VisImage;
 import april.vis.VisTexture;
 import april.vis.VisWorld;
 
+/**
+ * This is a basic template to be able to read off images from the camera and display them in a GUI 
+ */
 public class BasicCameraGUI implements ParameterListener
 {
     private ParameterGUI pg;
@@ -46,8 +46,6 @@ public class BasicCameraGUI implements ParameterListener
 
     class Image extends Thread
     {
-        private int saveCounter=0;
-        
         private ImageSource isrc;
         private ImageSourceFormat ifmt;
 
@@ -136,37 +134,7 @@ public class BasicCameraGUI implements ParameterListener
                 vbImage.addBuffered(new VisImage(new VisTexture(image),new double[] { 0., 0, }, 
                         new double[] {image.getWidth(), image.getHeight() }, true));
                 vbImage.switchBuffer();
-                
-                image_path_t imagePath = new image_path_t();
-                
-                try
-                {
-                    imagePath.img_path = saveImage(image);
-                    imagePath.utime = (long)0;
-                } catch (NullPointerException e)
-                {
-                    e.printStackTrace();
-                } catch (IOException e)
-                {
-                    e.printStackTrace();
-                }
             }
-        }
-
-        private String saveImage(BufferedImage image) throws NullPointerException, IOException
-        {
-            String filepath = "\\tmp\\" + File.separator + "IMG" + saveCounter;
-
-            if (image == null)
-            {
-                throw new NullPointerException();
-            }
-
-            ImageIO.write(image, "png", new File(filepath));
-
-            saveCounter++;
-
-            return filepath;
         }
         
         private void toggleImageSourceFormat(ImageSource isrc)

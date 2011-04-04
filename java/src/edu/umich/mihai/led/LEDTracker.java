@@ -1,10 +1,14 @@
-package edu.umich.mihai.camera;
+package edu.umich.mihai.led;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.util.ArrayList;
 import javax.swing.JFrame;
+import edu.umich.mihai.camera.Camera;
+import edu.umich.mihai.camera.CameraComparator;
+import edu.umich.mihai.camera.CameraException;
 import edu.umich.mihai.lcmtypes.led_t;
+import edu.umich.mihai.vis.VisCamera;
 import lcm.lcm.LCM;
 import april.jcam.ImageSource;
 import april.jmat.LinAlg;

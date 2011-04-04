@@ -1,8 +1,9 @@
-package edu.umich.mihai.camera;
+package edu.umich.mihai.led;
 
 import java.util.ArrayList;
 import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
+import edu.umich.mihai.camera.ImageReader;
 
 public class Track extends Thread implements ImageReader.Listener
 {

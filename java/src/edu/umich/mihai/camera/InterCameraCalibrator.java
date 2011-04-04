@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
+import edu.umich.mihai.vis.VisCamera;
 import april.jcam.ImageSource;
 import april.jmat.LinAlg;
 import april.tag.CameraUtil;
