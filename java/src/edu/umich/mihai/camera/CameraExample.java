@@ -99,6 +99,7 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
     public static void main(String[] args) throws Exception
     {
         GetOpt opts = new GetOpt();
+        opts.addBoolean('h', "help", false, "see this help screen");
         opts.addBoolean('l', "lcm", false, "use lcm for input (log)");
         opts.addBoolean('r', "reader", true, "use imageReader for input (direct)");
         opts.addString('c', "camera", "0", "camera to use for input (index if lcm, url if using imageReader)");
