@@ -4,10 +4,10 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import javax.swing.JFrame;
 import java.util.HashMap;
-import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.swing.JFrame;
 import lcm.lcm.LCM;
 import lcm.lcm.LCMDataInputStream;
 import lcm.lcm.LCMSubscriber;
@@ -85,6 +85,39 @@ public class CameraPlayer implements LCMSubscriber
         }
     }
 
+
+    public static void main(String[] args)
+    {
+        GetOpt opts = new GetOpt();
+        
+        opts.addBoolean('h', "help", false, "See this help screen");
+        opts.addInt('k', "camera", 0, "index of camera for which to get images");
+        opts.addBoolean('a', "all", true, "display images from all cameras");
+        opts.addInt('x', "rows", 3, "number of rows in which to display camera images");
+        opts.addInt('y', "columns", 3, "number of columns in which to display camera images");
+        
+        if (!opts.parse(args))
+        {
+            System.out.println("option error: " + opts.getReason());
+        }
+        
+        if (opts.getBoolean("help"))
+        {
+            System.out.println("Usage: displays images from camera specified");  
+            opts.doHelp();
+            System.exit(1);
+        }
+        
+        if(opts.getBoolean("all"))
+        {
+            new CameraPlayer(opts.getInt("rows"), opts.getInt("columns"));
+        }
+        else
+        {
+            new CameraPlayer(opts.getInt("camera"));
+        }
+    }
+    
     @Override
     public void messageReceived(LCM lcm, String channel, LCMDataInputStream ins)
     {
@@ -120,38 +153,6 @@ public class CameraPlayer implements LCMSubscriber
         } catch (IOException e)
         {
             e.printStackTrace();
-        }
-    }
-
-    public static void main(String[] args)
-    {
-        GetOpt opts = new GetOpt();
-        
-        opts.addBoolean('h', "help", false, "See this help screen");
-        opts.addInt('k', "camera", 0, "index of camera for which to get images");
-        opts.addBoolean('a', "all", true, "display images from all cameras");
-        opts.addInt('x', "rows", 3, "number of rows in which to display camera images");
-        opts.addInt('y', "columns", 3, "number of columns in which to display camera images");
-        
-        if (!opts.parse(args))
-        {
-            System.out.println("option error: " + opts.getReason());
-        }
-        
-        if (opts.getBoolean("help"))
-        {
-            System.out.println("Usage: displays images from camera specified");  
-            opts.doHelp();
-            System.exit(1);
-        }
-        
-        if(opts.getBoolean("all"))
-        {
-            new CameraPlayer(opts.getInt("rows"), opts.getInt("columns"));
-        }
-        else
-        {
-            new CameraPlayer(opts.getInt("camera"));
         }
     }
 }
