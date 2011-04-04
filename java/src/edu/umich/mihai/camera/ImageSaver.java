@@ -10,7 +10,7 @@ import edu.umich.mihai.lcmtypes.image_path_t;
 
 /**
  * 
- * Saves images from the queue to a specified output directory and publishes the path via an LCM message 
+ * Saves images (byte[]) given to it by ImageReader to a specified output directory and publishes the path via an LCM message 
  * 
  * @author Mihai Bulic
  *

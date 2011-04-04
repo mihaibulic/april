@@ -7,6 +7,12 @@ import magic.camera.util.SyncErrorDetector;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
 
+/**
+ * Sets camera to a certain resolution, color format, and framerate and reads off images (byte[]) and handles this for all subscribed listeners
+ * 
+ * @author Mihai Bulic
+ *
+ */
 public class ImageReader extends Thread
 {
     ArrayList<Listener> Listeners = new ArrayList<Listener>();

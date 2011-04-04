@@ -22,6 +22,12 @@ import april.vis.VisDataLineStyle;
 import april.vis.VisSphere;
 import april.vis.VisWorld;
 
+/**
+ * Tracks LEDs in 3d space given LEDDetections from multiple cameras and known extrinsic camera perameters
+ * 
+ * @author Mihai Bulic
+ *
+ */
 public class LEDTracker extends CameraComparator implements Track.Listener
 {
     private final double version = 0.1;

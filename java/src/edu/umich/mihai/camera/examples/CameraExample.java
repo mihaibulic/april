@@ -19,7 +19,6 @@ import april.vis.VisImage;
 import april.vis.VisTexture;
 import april.vis.VisWorld;
 import edu.umich.mihai.camera.ImageReader;
-import edu.umich.mihai.camera.ImageReader.Listener;
 import edu.umich.mihai.lcmtypes.image_path_t;
 
 /**

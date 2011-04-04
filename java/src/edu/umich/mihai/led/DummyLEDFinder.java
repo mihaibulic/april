@@ -8,7 +8,6 @@ import april.tag.TagDetection;
 import april.tag.TagDetector;
 
 /**
- * 
  * Temp replacement for LED tracker/finder (to be made by Ryan Anderson).
  * This dummy implementation uses tags and reports the center of the tag as the LED's location
  * 

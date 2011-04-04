@@ -11,8 +11,7 @@ import april.tag.TagDetection;
 import april.tag.TagDetector;
 
 /**
- * 
- * Tracks a camera's tag detections and coordinates relative to the "main" camera
+ * Tracks a camera's tag detections and coordinates relative to a "main" camera
  * 
  * @author Mihai Bulic
  *

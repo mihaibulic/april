@@ -5,6 +5,12 @@ import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
 import edu.umich.mihai.camera.ImageReader;
 
+/**
+ * Tracks a given LED in 3D space (used by LEDTracker)
+ * 
+ * @author Mihai Bulic
+ *
+ */
 public class Track extends Thread implements ImageReader.Listener
 {
     ArrayList<Listener> listeners = new ArrayList<Listener>();

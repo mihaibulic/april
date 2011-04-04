@@ -23,8 +23,7 @@ import april.vis.VisWorld.Buffer;
 import edu.umich.mihai.lcmtypes.image_path_t;
 
 /**
- * 
- * Plays back the video from a camera. Images are selected from the LCM message stream of image paths.
+ * Plays back the video from one or all cameras. Images are selected from the LCM message stream of image paths.
  *  The images themselves are saved onto the HDD at the location specified by the messages.
  * 
  * @author Mihai Bulic

@@ -1,5 +1,12 @@
 package edu.umich.mihai.led;
 
+/**
+ * id, timestamp, and uv are set by the LEDFinder (finds LEDs in image)
+ * transformation and xyz are set by the LEDTracker (triangulates leds in 3d space using multiple cameras)
+ * 
+ * @author Mihai Bulic
+ *
+ */
 public class LEDDetection
 {
     public boolean singularity = false;
