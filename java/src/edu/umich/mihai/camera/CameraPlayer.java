@@ -33,12 +33,12 @@ import edu.umich.mihai.lcmtypes.image_path_t;
 public class CameraPlayer implements LCMSubscriber
 {
     static LCM lcm = LCM.getSingleton();
-    int width = 0;
-    int height = 0;
-    int rows;
-    int columns;
+    private int width = 0;
+    private int height = 0;
+    private int rows;
+    private int columns;
     
-    public BufferedImage newImage;
+    private BufferedImage image;
     
     VisWorld vw;
     VisCanvas vc;
@@ -93,8 +93,8 @@ public class CameraPlayer implements LCMSubscriber
         opts.addBoolean('h', "help", false, "See this help screen");
         opts.addInt('k', "camera", 0, "index of camera for which to get images");
         opts.addBoolean('a', "all", true, "display images from all cameras");
-        opts.addInt('x', "rows", 3, "number of rows in which to display camera images");
-        opts.addInt('y', "columns", 3, "number of columns in which to display camera images");
+        opts.addInt('x', "rows", 2, "number of rows in which to display camera images");
+        opts.addInt('y', "columns", 2, "number of columns in which to display camera images");
         
         if (!opts.parse(args))
         {
@@ -131,16 +131,16 @@ public class CameraPlayer implements LCMSubscriber
                 int camera = Integer.parseInt(makeMatch.group());
                 
                 image_path_t imagePath = new image_path_t(ins);
-                byte[] buffer = new byte[752*480];
+                byte[] buffer = new byte[imagePath.width * imagePath.height];
                 new FileInputStream(new File(imagePath.img_path)).read(buffer);
-                newImage = ImageConvert.convertToImage(imagePath.format,imagePath.width, imagePath.height, buffer);
+                image = ImageConvert.convertToImage(imagePath.format,imagePath.width, imagePath.height, buffer);
                 
                 VisWorld.Buffer vb = (Buffer) (buffers.containsKey(camera) ? buffers.get(camera) : vw.getBuffer("cam"+camera));
-                vb.addBuffered(new VisChain(LinAlg.translate(new double[] {width*(camera%columns),-height*(camera/rows),0}), new VisImage(newImage)));
-                if(newImage.getWidth() != width || newImage.getHeight() != height)
+                vb.addBuffered(new VisChain(LinAlg.translate(new double[] {width*(camera%columns),-height*(camera/rows),0}), new VisImage(image)));
+                if(image.getWidth() != width || image.getHeight() != height)
                 {
-                    width = newImage.getWidth();
-                    height = newImage.getHeight();
+                    width = image.getWidth();
+                    height = image.getHeight();
                     vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { width, height });
                 }
                 vb.switchBuffer();

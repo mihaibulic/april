@@ -11,6 +11,7 @@ import lcm.lcm.LCMDataInputStream;
 import lcm.lcm.LCMSubscriber;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSourceFormat;
+import april.util.GetOpt;
 import april.vis.VisCanvas;
 import april.vis.VisImage;
 import april.vis.VisTexture;
@@ -36,7 +37,28 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
     private VisCanvas vc = new VisCanvas(vw);
     private VisWorld.Buffer vbImage = vw.getBuffer("images");
     
-    public CameraExample()
+    public CameraExample(String url) throws Exception
+    {
+        showGUI();
+        
+        ImageReader ir = new ImageReader(url);
+        ir.addListener(this);
+        ir.start();
+        
+        this.run();
+    }
+    
+    public CameraExample(int camera)
+    {
+        showGUI();
+        
+//      lcm.subscribeAll(this);
+        lcm.subscribe("cam"+camera, this);
+        
+        this.run();
+    }
+    
+    public void showGUI()
     {
         jf = new JFrame("Basic Image GUI");
         jf.setLayout(new BorderLayout());
@@ -44,11 +66,6 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
         jf.setSize(1000, 500);
         jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         jf.setVisible(true);
-        
-//        lcm.subscribeAll(this);
-        lcm.subscribe("cam1", this);
-        
-        this.run();
     }
     
     public void run()
@@ -79,9 +96,33 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
         }
     }
     
-    public static void main(String[] args)
+    public static void main(String[] args) throws Exception
     {
-        new CameraExample();
+        GetOpt opts = new GetOpt();
+        opts.addBoolean('l', "lcm", false, "use lcm for input (log)");
+        opts.addBoolean('r', "reader", true, "use imageReader for input (direct)");
+        opts.addString('c', "camera", "0", "camera to use for input (index if lcm, url if using imageReader)");
+        
+        if (!opts.parse(args))
+        {
+            System.out.println("option error: " + opts.getReason());
+        }
+        
+        if (opts.getBoolean("help"))
+        {
+            System.out.println("Usage: displays images from camera specified");  
+            opts.doHelp();
+            System.exit(1);
+        }
+        
+        if(opts.getBoolean("lcm"))
+        {
+            new CameraExample(Integer.parseInt(opts.getString("camera")));
+        }
+        if(opts.getBoolean("reader"))
+        {
+            new CameraExample(opts.getString("camera"));
+        }
     }
 
     public void kill()
