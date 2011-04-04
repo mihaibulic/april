@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import javax.swing.JFrame;
+import java.util.HashMap;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import lcm.lcm.LCM;
@@ -18,6 +19,7 @@ import april.vis.VisCanvas;
 import april.vis.VisChain;
 import april.vis.VisImage;
 import april.vis.VisWorld;
+import april.vis.VisWorld.Buffer;
 import edu.umich.mihai.lcmtypes.image_path_t;
 
 /**
@@ -43,6 +45,7 @@ public class CameraPlayer implements LCMSubscriber
     
     VisWorld vw;
     VisCanvas vc;
+    HashMap<Integer, VisWorld.Buffer> buffers;
     JFrame jf;
     
     /**
@@ -69,6 +72,7 @@ public class CameraPlayer implements LCMSubscriber
         if(all)
         {
             lcm.subscribeAll(this);
+            buffers = new HashMap<Integer, VisWorld.Buffer>();
         }
         else
         {
@@ -104,8 +108,9 @@ public class CameraPlayer implements LCMSubscriber
                 
                 if(display)
                 {
-                    VisWorld.Buffer vb = vw.getBuffer("image");
-                    vb.addBuffered(new VisChain(LinAlg.translate(new double[] {width*camera%3,height*camera/3,0}), new VisImage(newImage)));
+                    VisWorld.Buffer vb = (Buffer) (buffers.containsKey(camera) ? buffers.get(camera) : vw.getBuffer("cam"+camera));
+                    
+                    vb.addBuffered(new VisChain(LinAlg.translate(new double[] {width*(camera%3),height*(camera/3),0}), new VisImage(newImage)));
                     if(newImage.getWidth() != width || newImage.getHeight() != height)
                     {
                         width = newImage.getWidth();
@@ -113,6 +118,11 @@ public class CameraPlayer implements LCMSubscriber
                         vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { width, height });
                     }
                     vb.switchBuffer();
+                    
+                    if(!buffers.containsKey(camera))
+                    {
+                        buffers.put(camera, vb);
+                    }
                 }
             }
         } catch (IOException e)
