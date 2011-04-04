@@ -164,7 +164,11 @@ public class CameraPlayer implements LCMSubscriber
                 synchronized (newImageCondition)
                 {
                     image_path_t imagePath = new image_path_t(ins);
-                    newImage = ImageIO.read(new File(imagePath.img_path));
+                    FileInputStream fis = new FileInputStream(new File(imagePath.img_path));
+                    byte[] buffer = new byte[752*480];
+                    fis.read(buffer);
+                    newImage = ImageConvert.convertToImage("GRAY8",480, 752, buffer);
+//                    newImage = ImageIO.read(new File(imagePath.img_path));
                     newImageCondition.notifyAll();
                 }
                 
