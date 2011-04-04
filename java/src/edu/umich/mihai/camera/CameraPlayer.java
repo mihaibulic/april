@@ -5,13 +5,17 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import javax.swing.JFrame;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 import lcm.lcm.LCM;
 import lcm.lcm.LCMDataInputStream;
 import lcm.lcm.LCMSubscriber;
 import april.jcam.ImageConvert;
+import april.jmat.LinAlg;
 import april.util.GetOpt;
 import april.util.TimeUtil;
 import april.vis.VisCanvas;
+import april.vis.VisChain;
 import april.vis.VisImage;
 import april.vis.VisWorld;
 import edu.umich.mihai.lcmtypes.image_path_t;
@@ -46,7 +50,7 @@ public class CameraPlayer implements LCMSubscriber
      * @param camera - index of camera to use
      * @param display - do you want to see images dispalyed?
      */
-    public CameraPlayer(int camera, boolean display)
+    public CameraPlayer(int camera, boolean all, boolean display)
     {
         this.display = display;
         this.camera = camera;
@@ -62,7 +66,14 @@ public class CameraPlayer implements LCMSubscriber
             jf.setVisible(true);
         }
 
-        lcm.subscribe("cam"+camera, this);
+        if(all)
+        {
+            lcm.subscribeAll(this);
+        }
+        else
+        {
+            lcm.subscribe("cam"+camera, this);
+        }
         
         while(true)
         {
@@ -75,8 +86,13 @@ public class CameraPlayer implements LCMSubscriber
     {
         try
         {
-            if (channel.contains("cam"+camera))
+            if (channel.contains("cam"))
             {
+                Pattern intsOnly = Pattern.compile("\\d+");
+                Matcher makeMatch = intsOnly.matcher(channel);
+                makeMatch.find();
+                camera = Integer.parseInt(makeMatch.group());
+                
                 synchronized (newImageCondition)
                 {
                     image_path_t imagePath = new image_path_t(ins);
@@ -89,7 +105,7 @@ public class CameraPlayer implements LCMSubscriber
                 if(display)
                 {
                     VisWorld.Buffer vb = vw.getBuffer("image");
-                    vb.addBuffered(new VisImage(newImage));
+                    vb.addBuffered(new VisChain(LinAlg.translate(new double[] {width*camera%3,height*camera/3,0}), new VisImage(newImage)));
                     if(newImage.getWidth() != width || newImage.getHeight() != height)
                     {
                         width = newImage.getWidth();
@@ -115,6 +131,7 @@ public class CameraPlayer implements LCMSubscriber
         
         opts.addBoolean('h', "help", false, "See this help screen");
         opts.addInt('c', "camera", 0, "index of camera for which to get images");
+        opts.addBoolean('a', "all", true, "display images from all cameras");
         
         if (!opts.parse(args))
         {
@@ -128,6 +145,6 @@ public class CameraPlayer implements LCMSubscriber
             System.exit(1);
         }
         
-        new CameraPlayer(opts.getInt("camera"), true);
+        new CameraPlayer(opts.getInt("camera"), opts.getBoolean("all"), true);
     }
 }
