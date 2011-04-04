@@ -1,7 +1,13 @@
 package edu.umich.mihai.camera;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import lcm.lcm.LCM;
+import edu.umich.mihai.lcmtypes.image_path_t;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
@@ -186,6 +192,9 @@ public class Camera implements ImageReader.Listener
         this.mainIndex = main;
     }
     
+    
+    
+    private LCM lcm = LCM.getSingleton();
     @Override
     public void handleImage(byte[] image, ImageSourceFormat ifmt, double timeStamp)
     {
@@ -199,6 +208,22 @@ public class Camera implements ImageReader.Listener
         }
         else
         {
+            String filepath = File.separator + "tmp" + File.separator + "IMG";
+            try
+            {
+                new FileOutputStream(new File(filepath)).write(image);
+            } catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+            image_path_t imagePath = new image_path_t();
+            imagePath.img_path = filepath;
+            imagePath.width = ifmt.width;
+            imagePath.height = ifmt.height;
+            imagePath.format = ifmt.format;
+            imagePath.utime = 0;
+            lcm.publish("cam", imagePath);
+            
             imageBuffers.add(image);
             width = ifmt.width;
             height = ifmt.height;
