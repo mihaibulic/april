@@ -5,11 +5,13 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import javax.swing.JFrame;
 import lcm.lcm.LCM;
 import lcm.lcm.LCMDataInputStream;
 import lcm.lcm.LCMSubscriber;
 import april.jcam.ImageConvert;
+import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
 import april.util.GetOpt;
 import april.vis.VisCanvas;
@@ -100,8 +102,8 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
     {
         GetOpt opts = new GetOpt();
         opts.addBoolean('h', "help", false, "see this help screen");
-        opts.addBoolean('l', "lcm", false, "use lcm for input (log)");
-        opts.addBoolean('r', "reader", true, "use imageReader for input (direct)");
+        opts.addBoolean('l', "lcm", true, "use lcm for input (log)");
+        opts.addBoolean('r', "reader", false, "use imageReader for input (direct)");
         opts.addString('c', "camera", "0", "camera to use for input (index if lcm, url if using imageReader)");
         
         if (!opts.parse(args))
@@ -112,6 +114,13 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
         if (opts.getBoolean("help"))
         {
             System.out.println("Usage: displays images from camera specified");  
+            System.out.println("Cameras available:");
+            ArrayList<String> urls = ImageSource.getCameraURLs();
+            for(String url : urls)
+            {
+                System.out.println(url);
+            }
+
             opts.doHelp();
             System.exit(1);
         }
@@ -136,11 +145,6 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
     {
         synchronized(lock)
         {
-            if(imageBuffer == null) 
-            {
-                imageBuffer = new byte[height*width];
-            }
-            
             imageBuffer = im;
             width = ifmt.width;
             height = ifmt.height;
