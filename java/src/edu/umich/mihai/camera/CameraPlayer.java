@@ -34,18 +34,18 @@ public class CameraPlayer implements LCMSubscriber
 {
     static LCM lcm = LCM.getSingleton();
     String dir;
-    int camera;
     int counter;
     int width = 0;
     int height = 0;
+    int rows;
+    int columns;
     
     public BufferedImage newImage;
     Object newImageCondition = new Object();
-    boolean display = false;;
     
     VisWorld vw;
     VisCanvas vc;
-    HashMap<Integer, VisWorld.Buffer> buffers;
+    HashMap<Integer, VisWorld.Buffer> buffers = new HashMap<Integer, VisWorld.Buffer>();
     JFrame jf;
     
     /**
@@ -53,32 +53,39 @@ public class CameraPlayer implements LCMSubscriber
      * @param camera - index of camera to use
      * @param display - do you want to see images dispalyed?
      */
-    public CameraPlayer(int camera, boolean all, boolean display)
+    public CameraPlayer(int rows, int columns)
     {
-        this.display = display;
-        this.camera = camera;
+        this.rows = rows;
+        this.columns = columns;
         
-        if(display)
-        {
-            vw = new VisWorld();
-            vc = new VisCanvas(vw);
-            jf = new JFrame("Camera " + camera + " player");
-            
-            jf.add(vc);
-            jf.setSize(500, 500);
-            jf.setVisible(true);
-        }
+        vw = new VisWorld();
+        vc = new VisCanvas(vw);
+        jf = new JFrame("Camera player");
+        
+        jf.add(vc);
+        jf.setSize(500, 500);
+        jf.setVisible(true);
 
-        if(all)
-        {
-            lcm.subscribeAll(this);
-            buffers = new HashMap<Integer, VisWorld.Buffer>();
-        }
-        else
-        {
-            lcm.subscribe("cam"+camera, this);
-        }
+        lcm.subscribeAll(this);
         
+        while(true)
+        {
+            TimeUtil.sleep(100);
+        }
+    }
+    
+    public CameraPlayer(int camera)
+    {
+        vw = new VisWorld();
+        vc = new VisCanvas(vw);
+        jf = new JFrame("Camera " + camera + " player");
+        
+        jf.add(vc);
+        jf.setSize(500, 500);
+        jf.setVisible(true);
+
+        lcm.subscribe("cam"+camera, this);
+
         while(true)
         {
             TimeUtil.sleep(100);
@@ -95,7 +102,7 @@ public class CameraPlayer implements LCMSubscriber
                 Pattern intsOnly = Pattern.compile("\\d+");
                 Matcher makeMatch = intsOnly.matcher(channel);
                 makeMatch.find();
-                camera = Integer.parseInt(makeMatch.group());
+                int camera = Integer.parseInt(makeMatch.group());
                 
                 synchronized (newImageCondition)
                 {
@@ -106,23 +113,20 @@ public class CameraPlayer implements LCMSubscriber
                     newImageCondition.notifyAll();
                 }
                 
-                if(display)
+                VisWorld.Buffer vb = (Buffer) (buffers.containsKey(camera) ? buffers.get(camera) : vw.getBuffer("cam"+camera));
+                
+                vb.addBuffered(new VisChain(LinAlg.translate(new double[] {width*(camera%columns),-height*(camera/rows),0}), new VisImage(newImage)));
+                if(newImage.getWidth() != width || newImage.getHeight() != height)
                 {
-                    VisWorld.Buffer vb = (Buffer) (buffers.containsKey(camera) ? buffers.get(camera) : vw.getBuffer("cam"+camera));
-                    
-                    vb.addBuffered(new VisChain(LinAlg.translate(new double[] {width*(camera%3),height*(camera/3),0}), new VisImage(newImage)));
-                    if(newImage.getWidth() != width || newImage.getHeight() != height)
-                    {
-                        width = newImage.getWidth();
-                        height = newImage.getHeight();
-                        vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { width, height });
-                    }
-                    vb.switchBuffer();
-                    
-                    if(!buffers.containsKey(camera))
-                    {
-                        buffers.put(camera, vb);
-                    }
+                    width = newImage.getWidth();
+                    height = newImage.getHeight();
+                    vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { width, height });
+                }
+                vb.switchBuffer();
+                
+                if(!buffers.containsKey(camera))
+                {
+                    buffers.put(camera, vb);
                 }
             }
         } catch (IOException e)
@@ -140,8 +144,10 @@ public class CameraPlayer implements LCMSubscriber
         GetOpt opts = new GetOpt();
         
         opts.addBoolean('h', "help", false, "See this help screen");
-        opts.addInt('c', "camera", 0, "index of camera for which to get images");
+        opts.addInt('k', "camera", 0, "index of camera for which to get images");
         opts.addBoolean('a', "all", true, "display images from all cameras");
+        opts.addInt('x', "rows", 3, "number of rows in which to display camera images");
+        opts.addInt('y', "columns", 3, "number of columns in which to display camera images");
         
         if (!opts.parse(args))
         {
@@ -155,6 +161,13 @@ public class CameraPlayer implements LCMSubscriber
             System.exit(1);
         }
         
-        new CameraPlayer(opts.getInt("camera"), opts.getBoolean("all"), true);
+        if(opts.getBoolean("all"))
+        {
+            new CameraPlayer(opts.getInt("rows"), opts.getInt("columns"));
+        }
+        else
+        {
+            new CameraPlayer(opts.getInt("camera"));
+        }
     }
 }
