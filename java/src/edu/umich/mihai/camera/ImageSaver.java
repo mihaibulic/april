@@ -2,6 +2,7 @@ package edu.umich.mihai.camera;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import javax.imageio.ImageIO;
@@ -27,6 +28,7 @@ public class ImageSaver extends Thread implements ImageReader.Listener
     private Object lock = new Object();
     private boolean imageReady = false;
     private BufferedImage image;
+    private byte[] imageBuffer;
     private String outputDir = "";
     private int saveCounter = 0;
     
@@ -68,7 +70,7 @@ public class ImageSaver extends Thread implements ImageReader.Listener
     
                 try
                 {
-                    imagePath.img_path = saveImage(image);
+                    imagePath.img_path = saveImage(imageBuffer);
                     imagePath.utime = (long)timeStamp;
                 } catch (NullPointerException e)
                 {
@@ -84,6 +86,22 @@ public class ImageSaver extends Thread implements ImageReader.Listener
         }
     }
 
+    private String saveImage(byte[] image) throws NullPointerException, IOException
+    {
+        String filepath = outputDir + File.separator + "IMG" + saveCounter;
+
+        if (image == null)
+        {
+            throw new NullPointerException();
+        }
+
+        new FileOutputStream(new File(filepath)).write(image);
+
+        saveCounter++;
+
+        return filepath;
+    }
+    
     private String saveImage(BufferedImage image) throws NullPointerException, IOException
     {
         String filepath = outputDir + File.separator + "IMG" + saveCounter;
@@ -127,6 +145,17 @@ public class ImageSaver extends Thread implements ImageReader.Listener
         synchronized(lock)
         {
             image = im;
+            timeStamp = time;
+            imageReady = true;
+            lock.notify();
+        }
+    }
+    @Override
+    public void handleImage(byte[] im, double time)
+    {
+        synchronized(lock)
+        {
+            imageBuffer = im;
             timeStamp = time;
             imageReady = true;
             lock.notify();

@@ -147,7 +147,18 @@ public class Track extends Thread implements ImageReader.Listener
     {
         listeners.add(listener);
     }
-    
+
+    @Override
+    // XXX
+    public void handleImage(byte[] image, double timeStamp)
+    {
+        synchronized(lock)
+        {
+            this.timeStamp = timeStamp;
+            imageReady = true;
+            lock.notify();
+        }        
+    }
     @Override
     public void handleImage(BufferedImage image, double timeStamp)
     {

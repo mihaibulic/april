@@ -2,6 +2,7 @@ package edu.umich.mihai.camera;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 
 import javax.imageio.ImageIO;
@@ -10,6 +11,7 @@ import javax.swing.JFrame;
 import lcm.lcm.LCM;
 import lcm.lcm.LCMDataInputStream;
 import lcm.lcm.LCMSubscriber;
+import april.jcam.ImageConvert;
 import april.util.GetOpt;
 import april.util.TimeUtil;
 import april.vis.VisCanvas;
@@ -105,7 +107,11 @@ public class CameraPlayer implements LCMSubscriber
         
         try
         {
-            image = ImageIO.read(new File(dir + File.separator + "cam" + camera + File.separator + "IMG" + count));
+            FileInputStream fis = new FileInputStream(new File(dir + File.separator + "cam" + camera + File.separator + "IMG" + count));
+            byte[] buffer = new byte[752*480];
+            fis.read(buffer);
+            image = ImageConvert.convertToImage("GRAY8",480, 752, buffer);
+//            image = ImageIO.read(new File(dir + File.separator + "cam" + camera + File.separator + "IMG" + count));
         } catch (IOException e)
         {
             System.out.println("is camera null?");

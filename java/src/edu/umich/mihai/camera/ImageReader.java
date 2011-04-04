@@ -33,6 +33,7 @@ public class ImageReader extends Thread
     public interface Listener
     {
         public void handleImage(BufferedImage image, double timeStamp);
+        public void handleImage(byte[] image, double timeStamp);
     }
     
     public ImageReader(String url) throws Exception
@@ -91,9 +92,10 @@ public class ImageReader extends Thread
                 
                 if(sync.verify() == SyncErrorDetector.SYNC_GOOD)
                 {
-                    image = ImageConvert.convertToImage(ifmt.format,ifmt.width, ifmt.height, imageBuffer);
+//                    image = ImageConvert.convertToImage(ifmt.format,ifmt.width, ifmt.height, imageBuffer);
         
-                    if (image != null)
+//                    if (image != null)
+                    if(true)
                     {
                         double timestamp = times[times.length-1] - initTime;
                         if(lastTimestamp > timestamp)
@@ -105,10 +107,10 @@ public class ImageReader extends Thread
                         
                         for (Listener listener : Listeners)
                         {
-                            listener.handleImage(image, timestamp);
+                            listener.handleImage(imageBuffer, timestamp);
                         }
                         
-                        if(tagFlag)
+                        /*if(tagFlag)
                         {
                             synchronized(tags)
                             {
@@ -125,7 +127,7 @@ public class ImageReader extends Thread
                                     tags.notify();
                                 }
                             }
-                        } 
+                        }*/ 
                     }
                     else
                     {
