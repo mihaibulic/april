@@ -2,8 +2,12 @@ package edu.umich.mihai.camera;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import april.jcam.ImageConvert;
+import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
+import april.tag.Tag36h11;
 import april.tag.TagDetection;
+import april.tag.TagDetector;
 
 /**
  * 
@@ -12,16 +16,21 @@ import april.tag.TagDetection;
  * @author Mihai Bulic
  *
  */
-public class Camera
+public class Camera implements ImageReader.Listener
 {
     private int mainIndex;
     private int index;
     private ImageReader reader;
     private ArrayList<TagDetection> detections;
     private ArrayList<double[]> coordinates;
-    private double[] stdDev;
     private double[] position;
     private String url;
+
+    private int imageCount = 0;
+    private ArrayList<byte[]> imageBuffers;
+    private int width = 0;
+    private int height = 0;
+    private String format = "";
     
     public Camera(int index, String url, double[] position)
     {
@@ -40,46 +49,54 @@ public class Camera
         url = reader.getUrl();
     }
     
-    public void addCoordinates(double[] coordinate)
+    public void aggregateTags(int size) throws InterruptedException
     {
-        coordinates.add(coordinate);
-    }
-    
-    public void addCoordinates(double[][] coordinate)
-    {
-        coordinates.add(LinAlg.matrixToXyzrpy(coordinate));
-    }
-
-    public void addDetections()
-    {
-        try
-        {
-            addDetections(reader.getTagDetections(15));
-        } catch (InterruptedException e)
-        {
-            e.printStackTrace();
-        }
-    }
-    
-    public void addDetections(ArrayList<TagDetection> detections)
-    {
-        Collections.sort(detections, new TagComparator());
-        int lastId = -1;
+        imageCount = size;
+        imageBuffers = new ArrayList<byte[]>();
         
-        for(TagDetection x : detections)
+        this.reader.addListener(this);
+        reader.start();
+        
+        synchronized(imageBuffers)
         {
-            if(lastId != x.id)
+            while(imageBuffers.size() < size)
             {
-                if(!isInDetections(x))
-                {
-                    this.detections.add(x);
-                }
-                
-                lastId = x.id;
+                imageBuffers.wait();
             }
         }
         
-        Collections.sort(this.detections, new TagComparator());
+        TagDetector td = new TagDetector(new Tag36h11());
+        for(byte[] buffer: imageBuffers)
+        {
+            detections.addAll(td.process(ImageConvert.convertToImage(format, height, width, buffer), new double[] {width/2.0, height/2.0}));
+        }
+        
+        Collections.sort(detections, new TagComparator());
+        
+        int lastId = -1;
+        int x = 0;
+        while(x < detections.size())
+        {
+            if(lastId == detections.get(x).id)
+            {
+                detections.remove(x);
+            }
+            else
+            {
+                lastId = detections.get(x).id;
+                x++;
+            }
+        }
+    }
+    
+    public void addCoordinate(double[] xyzrpy)
+    {
+        coordinates.add(xyzrpy);
+    }
+    
+    public void addCoordinates(double[][] matrix)
+    {
+        coordinates.add(LinAlg.matrixToXyzrpy(matrix));
     }
 
     public void clearCoordinates()
@@ -87,23 +104,10 @@ public class Camera
         coordinates.clear();
     }
     
-    private double[] elementMultiplication(double[] a, double[] b) throws Exception
-    {
-        double c[] = new double[a.length];
-        
-        if(a.length != b.length)
-        {
-            throw new Exception("Arrays not of equal size");
-        }
-        
-        for(int x = 0; x < a.length; x++)
-        {
-            c[x] = a[x] * b[x];
-        }
-        
-        return c;
-    }
-    
+    /**
+     * 
+     * @return xyzrpy coordinates
+     */
     public ArrayList<double[]> getCoordinates()
     {
         return coordinates;
@@ -154,46 +158,12 @@ public class Camera
         return url;
     }
     
-    public boolean isCertain()
-    {
-        if(coordinates.size()==0)
-            return false;
-        
-        if(stdDev == null)
-        {
-            setVariance();
-        }
-        
-        double translationErr = (Math.sqrt(stdDev[0]) + Math.sqrt(stdDev[1]) + Math.sqrt(stdDev[2]))/3;
-        double rotationErr = (Math.sqrt(stdDev[3]) + Math.sqrt(stdDev[4]) + Math.sqrt(stdDev[5]))/3;
-        
-        // certain iff there are at least 5 tagdetections, stdDev of xyz err is < 20cm, and stdDev of rpy err is < 180deg
-//        return (coordinates.size()>5 && translationErr < 0.50 && rotationErr < Math.PI); // XXX for testing
-        return (translationErr < 0.20 && rotationErr < Math.PI/2);
-    }
-    
-    private boolean isInDetections(TagDetection prospectiveTag)
-    {
-        boolean inDetections = false;
-        
-        for(TagDetection tag : detections)
-        {
-            if(tag.id == prospectiveTag.id)
-            {
-               inDetections = true;
-               break;
-            }
-        }
-
-        return inDetections;
-    }
-
     public void setMain(int main)
     {
         mainIndex = main;
     }
     
-    public double[] setPosition()
+    public void setPosition()
     {
         position = new double[]{0,0,0,0,0,0};
         
@@ -202,45 +172,38 @@ public class Camera
             position = LinAlg.add(position, coordinate);
         }
         position = LinAlg.scale(position, (1.0/coordinates.size())); 
-
-        return position;
     }
     
-    public void setPosition(double[] position, int main)
+    public void setPosition(double[] xyzrpy, int main)
     {
-        this.position = position;
+        this.position = xyzrpy;
         this.mainIndex = main;
     }
     
-    public void setPosition(double[][] position, int main)
+    public void setPosition(double[][] matrix, int main)
     {
-        this.position = LinAlg.matrixToXyzrpy(position);
+        this.position = LinAlg.matrixToXyzrpy(matrix);
         this.mainIndex = main;
     }
     
-    private void setVariance()
+    @Override
+    public void handleImage(byte[] image, ImageSourceFormat ifmt, double timeStamp)
     {
-        double average[] = new double[]{0,0,0,0,0,0};
-        stdDev = new double[]{0,0,0,0,0,0};
-        
-        for(double[] coordinate : coordinates)
+        if(imageBuffers.size() >= imageCount)
         {
-            average = LinAlg.add(average, coordinate);
-        }
-
-        average = LinAlg.scale(average, 1.0/coordinates.size());
-        
-        for(double[] coordinate : coordinates)
-        {
-            double tmp[] = LinAlg.subtract(coordinate, average);
-
-            try
+            reader.kill();
+            synchronized(imageBuffers)
             {
-                stdDev = LinAlg.add(elementMultiplication(tmp, tmp), stdDev);
-            } catch (Exception e)
-            {
-                e.printStackTrace();
+                imageBuffers.notify();
             }
+        }
+        else
+        {
+            imageBuffers.add(image);
+            width = ifmt.width;
+            height = ifmt.height;
+            format = ifmt.format;
+            imageCount++;
         }
     }
 }

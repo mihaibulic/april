@@ -1,7 +1,7 @@
 package edu.umich.mihai.camera;
 
-import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
 
 public class Track extends Thread implements ImageReader.Listener
@@ -29,10 +29,13 @@ public class Track extends Thread implements ImageReader.Listener
     
     private int id;
     private ImageReader ir;
-    private double timeStamp;
     private Object lock = new Object();
     private boolean imageReady = false;
-    private BufferedImage image;
+    private byte[] imageBuffer;
+    private double timeStamp;
+    private int width = 0;
+    private int height = 0;
+    private String format = "";
     
     private boolean run = true;
 
@@ -86,7 +89,7 @@ public class Track extends Thread implements ImageReader.Listener
                 }
                 
                 leds.clear();
-                leds.addAll(dlf.getLedUV(image));
+                leds.addAll(dlf.getLedUV(imageBuffer, width, height, format));
             }              
             
             for(LEDDetection led : leds)
@@ -148,24 +151,15 @@ public class Track extends Thread implements ImageReader.Listener
         listeners.add(listener);
     }
 
-    @Override
-    // XXX
-    public void handleImage(byte[] image, double timeStamp)
+    public void handleImage(byte[] image, ImageSourceFormat ifmt, double time)
     {
         synchronized(lock)
         {
-            this.timeStamp = timeStamp;
-            imageReady = true;
-            lock.notify();
-        }        
-    }
-    @Override
-    public void handleImage(BufferedImage image, double timeStamp)
-    {
-        synchronized(lock)
-        {
-            this.image = image;
-            this.timeStamp = timeStamp;
+            imageBuffer = image;
+            width = ifmt.width;
+            height = ifmt.height;
+            format = ifmt.format;
+            timeStamp = time;
             imageReady = true;
             lock.notify();
         }        

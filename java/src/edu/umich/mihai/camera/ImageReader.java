@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import magic.camera.util.SyncErrorDetector;
-import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
 import april.tag.Tag36h11;
@@ -32,8 +31,7 @@ public class ImageReader extends Thread
 
     public interface Listener
     {
-        public void handleImage(BufferedImage image, double timeStamp);
-        public void handleImage(byte[] image, double timeStamp);
+        public void handleImage(byte[] image, ImageSourceFormat ifmt, double timeStamp);
     }
     
     public ImageReader(String url) throws Exception
@@ -92,47 +90,17 @@ public class ImageReader extends Thread
                 
                 if(sync.verify() == SyncErrorDetector.SYNC_GOOD)
                 {
-//                    image = ImageConvert.convertToImage(ifmt.format,ifmt.width, ifmt.height, imageBuffer);
-        
-//                    if (image != null)
-                    if(true)
+                    double timestamp = times[times.length-1] - initTime;
+                    if(lastTimestamp > timestamp)
                     {
-                        double timestamp = times[times.length-1] - initTime;
-                        if(lastTimestamp > timestamp)
-                        {
-                            rollOverCounter++;
-                        }
-                        lastTimestamp = timestamp;
-                        timestamp += 128*rollOverCounter;
-                        
-                        for (Listener listener : Listeners)
-                        {
-                            listener.handleImage(imageBuffer, timestamp);
-                        }
-                        
-                        /*if(tagFlag)
-                        {
-                            synchronized(tags)
-                            {
-                                if (tags == null)
-                                {
-                                    tags = new ArrayList<TagDetection>();
-                                }
-                                
-                                tags.addAll(td.process(image, new double[] {image.getWidth()/2.0, image.getHeight()/2.0}));
-                                imagesToProcess--;
-                                
-                                if(imagesToProcess == 0)
-                                {
-                                    tags.notify();
-                                }
-                            }
-                        }*/ 
+                        rollOverCounter++;
                     }
-                    else
+                    lastTimestamp = timestamp;
+                    timestamp += 128*rollOverCounter;
+                    
+                    for (Listener listener : Listeners)
                     {
-                        System.out.println("err converting to image");
-                        toggleImageSource(isrc);
+                        listener.handleImage(imageBuffer, ifmt, timestamp);
                     }
                 }
             }
@@ -195,41 +163,6 @@ public class ImageReader extends Thread
         return url;
     }
     
-    public ArrayList<TagDetection> getTagDetections(int images) throws InterruptedException
-    {
-        imagesToProcess = images;
-        tagFlag = true;
-        
-        if(tags==null) tags = new ArrayList<TagDetection>();
-        
-        synchronized(tags)
-        {
-            while(imagesToProcess > 0)
-            {
-                tags.wait();
-            }
-        }
-        
-        Collections.sort(tags, new TagComparator());
-        int lastId = -1;
-        
-        int x = 0;
-        while(x < tags.size())
-        {
-            if(lastId == tags.get(x).id)
-            {
-                tags.remove(x);
-            }
-            else
-            {
-                lastId = tags.get(x).id;
-                x++;
-            }
-        }
-        
-        return tags;
-    }
-
     public void addListener(Listener listener)
     {
         Listeners.add(listener);

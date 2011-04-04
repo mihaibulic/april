@@ -2,6 +2,7 @@ package edu.umich.mihai.camera;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import april.jcam.ImageConvert;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import april.tag.TagDetector;
@@ -29,8 +30,9 @@ public class DummyLEDFinder
         td = new TagDetector(new Tag36h11());
     }
     
-    public ArrayList<LEDDetection> getLedUV(BufferedImage image)
+    public ArrayList<LEDDetection> getLedUV(byte[] buffer, int width, int height, String format)
     {
+        BufferedImage image = ImageConvert.convertToImage(format, height, width, buffer);
         ArrayList<TagDetection> tags = td.process(image, new double[] {image.getWidth()/2, image.getHeight()/2});
         ArrayList<LEDDetection> detections = new ArrayList<LEDDetection>();
         

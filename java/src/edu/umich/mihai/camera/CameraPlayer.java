@@ -4,10 +4,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-
-import javax.imageio.ImageIO;
 import javax.swing.JFrame;
-
 import lcm.lcm.LCM;
 import lcm.lcm.LCMDataInputStream;
 import lcm.lcm.LCMSubscriber;
@@ -29,10 +26,10 @@ import edu.umich.mihai.lcmtypes.image_path_t;
  */
 public class CameraPlayer implements LCMSubscriber
 {
-    static LCM lcm     = LCM.getSingleton();
-    String     dir;
-    int        camera;
-    int        counter;
+    static LCM lcm = LCM.getSingleton();
+    String dir;
+    int camera;
+    int counter;
     int width = 0;
     int height = 0;
     
@@ -40,7 +37,7 @@ public class CameraPlayer implements LCMSubscriber
     Object newImageCondition = new Object();
     boolean display = false;;
     
-    VisWorld  vw;
+    VisWorld vw;
     VisCanvas vc;
     JFrame jf;
     
@@ -73,87 +70,6 @@ public class CameraPlayer implements LCMSubscriber
         }
     }
 
-    /**
-     * Will notifyAll when newImage arrives.  Can either display images or not (use iff you want to instantiate CameraPlayer for each camera)
-     * @param dir - directory that contains images (do not include cam<#> folder)
-     */
-    public CameraPlayer(String dir)
-    {
-        this.dir = dir;
-    }
-    
-    /**
-     * Will notifyAll when newImage arrives.  Can either display images or not (use iff you don't want to instantiate CameraPlayer for each camera)
-     * @param camera - index of camera to use
-     * @param dir - directory that contains images (do not include cam<#> folder)
-     */
-    public CameraPlayer(int camera, String dir)
-    {
-        counter = -1;
-        this.camera = camera;
-        this.dir = dir;
-    }
-    
-    /**
-     * returns bufferedimage saved on computer
-     * @param camera - index pf camera to use
-     * @param count - image number you want
-     * @param dir - directory that contains images (do not include cam<#> folder)
-     * @return
-     */
-    public static BufferedImage getImage(int camera, int count, String dir)
-    {
-        BufferedImage image = null;
-        
-        try
-        {
-            FileInputStream fis = new FileInputStream(new File(dir + File.separator + "cam" + camera + File.separator + "IMG" + count));
-            byte[] buffer = new byte[752*480];
-            fis.read(buffer);
-            image = ImageConvert.convertToImage("GRAY8",480, 752, buffer);
-//            image = ImageIO.read(new File(dir + File.separator + "cam" + camera + File.separator + "IMG" + count));
-        } catch (IOException e)
-        {
-            System.out.println("is camera null?");
-            e.printStackTrace();
-        }
-        
-        return image;
-    }
-    
-    /**
-     * returns bufferedimage saved on computer (use iff you specified which camera you are using via constructor or get NPE)
-     * @param count
-     * @return
-     */
-    public BufferedImage getImage(int count)
-    {
-        return getImage(camera, count, dir);
-    }
-    
-    public BufferedImage getNextImage(int camera)
-    {
-        try
-        {
-            counter++;
-        } catch (Exception e)
-        {
-            System.out.println("must instantiate class to use this method");
-            e.printStackTrace();
-        }
-        
-        return getImage(camera, counter, dir);
-    }
-
-    /**
-     * returns the next saved image (use iff you specified which camera you are using via constructor or get NPE)
-     * @return
-     */
-    public BufferedImage getNextImage()
-    {
-        return getNextImage(camera);
-    }
-    
     @Override
     public void messageReceived(LCM lcm, String channel, LCMDataInputStream ins)
     {
@@ -164,11 +80,9 @@ public class CameraPlayer implements LCMSubscriber
                 synchronized (newImageCondition)
                 {
                     image_path_t imagePath = new image_path_t(ins);
-                    FileInputStream fis = new FileInputStream(new File(imagePath.img_path));
                     byte[] buffer = new byte[752*480];
-                    fis.read(buffer);
-                    newImage = ImageConvert.convertToImage("GRAY8",480, 752, buffer);
-//                    newImage = ImageIO.read(new File(imagePath.img_path));
+                    new FileInputStream(new File(imagePath.img_path)).read(buffer);
+                    newImage = ImageConvert.convertToImage(imagePath.format,imagePath.height, imagePath.width, buffer);
                     newImageCondition.notifyAll();
                 }
                 

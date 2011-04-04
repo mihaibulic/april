@@ -88,14 +88,13 @@ public class InterCameraCalibrator
         for (int x = 0; x < cameras.length; x++)
         {
             ImageReader ir = new ImageReader(currentUrls.get(x), loRes, color16, fps);
-            ir.start();
             cameras[x] = new Camera(ir, knownUrls.get(currentUrls.get(x)));
         }
         
         run();
     }
 
-    public void run() throws CameraException
+    public void run() throws CameraException, InterruptedException
     {
         System.out.println("ICC-run: imagereaders started. aggregating tags...");
 
@@ -103,7 +102,7 @@ public class InterCameraCalibrator
         for (Camera camera : cameras)
         {
             System.out.println("ICC-run: aggregating tags of camera " + camera.getIndex());
-            camera.addDetections();
+            camera.aggregateTags(15);
         }
 
         System.out.println("ICC-run: tags aggregated. finding coordinates...");
@@ -144,7 +143,6 @@ public class InterCameraCalibrator
                     vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
                             new VisDataLineStyle(color, 2))));
                 }
-                cam.getReader().kill();
             }
 
             System.out.println(output);
@@ -203,15 +201,8 @@ public class InterCameraCalibrator
                 if (main != cam)
                 {
                     findCoordinates(main, cameras[main], cameras[cam]);
-    
-                    if (cameras[cam].isCertain())
-                    {
-                        break;
-                    }
                 }
             }
-
-            if (!cameras[cam].isCertain()) throw new CameraException(CameraException.UNCERTAIN);
         }
     }
 

@@ -14,13 +14,16 @@ public final class image_path_t implements lcm.lcm.LCMEncodable
 {
     public long utime;
     public String img_path;
+    public int width;
+    public int height;
+    public String format;
  
     public image_path_t()
     {
     }
  
     public static final long LCM_FINGERPRINT;
-    public static final long LCM_FINGERPRINT_BASE = 0xbeca41963e31dc29L;
+    public static final long LCM_FINGERPRINT_BASE = 0x00182b4f8551586aL;
  
     static {
         LCM_FINGERPRINT = _hashRecursive(new ArrayList<Class>());
@@ -51,6 +54,12 @@ public final class image_path_t implements lcm.lcm.LCMEncodable
  
         __strbuf = new char[this.img_path.length()]; this.img_path.getChars(0, this.img_path.length(), __strbuf, 0); outs.writeInt(__strbuf.length+1); for (int _i = 0; _i < __strbuf.length; _i++) outs.write(__strbuf[_i]); outs.writeByte(0); 
  
+        outs.writeInt(this.width); 
+ 
+        outs.writeInt(this.height); 
+ 
+        __strbuf = new char[this.format.length()]; this.format.getChars(0, this.format.length(), __strbuf, 0); outs.writeInt(__strbuf.length+1); for (int _i = 0; _i < __strbuf.length; _i++) outs.write(__strbuf[_i]); outs.writeByte(0); 
+ 
     }
  
     public image_path_t(byte[] data) throws IOException
@@ -80,6 +89,12 @@ public final class image_path_t implements lcm.lcm.LCMEncodable
  
         __strbuf = new char[ins.readInt()-1]; for (int _i = 0; _i < __strbuf.length; _i++) __strbuf[_i] = (char) (ins.readByte()&0xff); ins.readByte(); this.img_path = new String(__strbuf);
  
+        this.width = ins.readInt();
+ 
+        this.height = ins.readInt();
+ 
+        __strbuf = new char[ins.readInt()-1]; for (int _i = 0; _i < __strbuf.length; _i++) __strbuf[_i] = (char) (ins.readByte()&0xff); ins.readByte(); this.format = new String(__strbuf);
+ 
     }
  
     public edu.umich.mihai.lcmtypes.image_path_t copy()
@@ -88,6 +103,12 @@ public final class image_path_t implements lcm.lcm.LCMEncodable
         outobj.utime = this.utime;
  
         outobj.img_path = this.img_path;
+ 
+        outobj.width = this.width;
+ 
+        outobj.height = this.height;
+ 
+        outobj.format = this.format;
  
         return outobj;
     }

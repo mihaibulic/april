@@ -1,12 +1,11 @@
 package edu.umich.mihai.camera;
 
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
-import javax.imageio.ImageIO;
 import lcm.lcm.LCM;
+import april.jcam.ImageSourceFormat;
 import edu.umich.mihai.lcmtypes.image_path_t;
 
 /**
@@ -24,14 +23,15 @@ public class ImageSaver extends Thread implements ImageReader.Listener
     private HashMap<String, Integer> urls = new HashMap<String, Integer>();
     
     private boolean run = true;
-    private double timeStamp;
     private Object lock = new Object();
     private boolean imageReady = false;
-    private BufferedImage image;
     private byte[] imageBuffer;
+    private double timeStamp = 0;
+    private int width = 0;
+    private int height = 0;
+    private String format = "";
     private String outputDir = "";
     private int saveCounter = 0;
-    
 
     public ImageSaver(ImageReader ir, String url, String outputDir)
     {
@@ -71,6 +71,9 @@ public class ImageSaver extends Thread implements ImageReader.Listener
                 try
                 {
                     imagePath.img_path = saveImage(imageBuffer);
+                    imagePath.width = width;
+                    imagePath.height = height;
+                    imagePath.format = format;
                     imagePath.utime = (long)timeStamp;
                 } catch (NullPointerException e)
                 {
@@ -102,22 +105,6 @@ public class ImageSaver extends Thread implements ImageReader.Listener
         return filepath;
     }
     
-    private String saveImage(BufferedImage image) throws NullPointerException, IOException
-    {
-        String filepath = outputDir + File.separator + "IMG" + saveCounter;
-
-        if (image == null)
-        {
-            throw new NullPointerException();
-        }
-
-        ImageIO.write(image, "png", new File(filepath));
-
-        saveCounter++;
-
-        return filepath;
-    }
-
     private void setUrls()
     {
         urls.put("dc1394://b09d01008b51b8", 0);
@@ -140,22 +127,14 @@ public class ImageSaver extends Thread implements ImageReader.Listener
     }
 
     @Override
-    public void handleImage(BufferedImage im, double time)
-    {
-        synchronized(lock)
-        {
-            image = im;
-            timeStamp = time;
-            imageReady = true;
-            lock.notify();
-        }
-    }
-    @Override
-    public void handleImage(byte[] im, double time)
+    public void handleImage(byte[] im, ImageSourceFormat ifmt, double time)
     {
         synchronized(lock)
         {
             imageBuffer = im;
+            width = ifmt.width;
+            height = ifmt.height;
+            format = ifmt.format;
             timeStamp = time;
             imageReady = true;
             lock.notify();
