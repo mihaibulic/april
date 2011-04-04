@@ -33,15 +33,12 @@ import edu.umich.mihai.lcmtypes.image_path_t;
 public class CameraPlayer implements LCMSubscriber
 {
     static LCM lcm = LCM.getSingleton();
-    String dir;
-    int counter;
     int width = 0;
     int height = 0;
     int rows;
     int columns;
     
     public BufferedImage newImage;
-    Object newImageCondition = new Object();
     
     VisWorld vw;
     VisCanvas vc;
@@ -56,6 +53,7 @@ public class CameraPlayer implements LCMSubscriber
         vw = new VisWorld();
         vc = new VisCanvas(vw);
         jf = new JFrame("Camera player");
+        jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         
         jf.add(vc);
         jf.setSize(500, 500);
@@ -99,17 +97,12 @@ public class CameraPlayer implements LCMSubscriber
                 makeMatch.find();
                 int camera = Integer.parseInt(makeMatch.group());
                 
-                synchronized (newImageCondition)
-                {
-                    image_path_t imagePath = new image_path_t(ins);
-                    byte[] buffer = new byte[752*480];
-                    new FileInputStream(new File(imagePath.img_path)).read(buffer);
-                    newImage = ImageConvert.convertToImage(imagePath.format,imagePath.width, imagePath.height, buffer);
-                    newImageCondition.notifyAll();
-                }
+                image_path_t imagePath = new image_path_t(ins);
+                byte[] buffer = new byte[752*480];
+                new FileInputStream(new File(imagePath.img_path)).read(buffer);
+                newImage = ImageConvert.convertToImage(imagePath.format,imagePath.width, imagePath.height, buffer);
                 
                 VisWorld.Buffer vb = (Buffer) (buffers.containsKey(camera) ? buffers.get(camera) : vw.getBuffer("cam"+camera));
-                
                 vb.addBuffered(new VisChain(LinAlg.translate(new double[] {width*(camera%columns),-height*(camera/rows),0}), new VisImage(newImage)));
                 if(newImage.getWidth() != width || newImage.getHeight() != height)
                 {

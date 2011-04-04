@@ -30,6 +30,7 @@ public class ImageSaver extends Thread implements ImageReader.Listener
     private int width = 0;
     private int height = 0;
     private String format = "";
+    
     private String outputDir = "";
     private int saveCounter = 0;
 
