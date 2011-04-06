@@ -52,6 +52,8 @@ public class LEDTracker extends CameraComparator implements Track.Listener
 
     private boolean run = true;
     
+    // TODO detect boundry tags and publish under boundry channel (use int[256][3])
+    
     public LEDTracker() throws Exception
     {
         // get cal info from txt file
@@ -157,6 +159,7 @@ public class LEDTracker extends CameraComparator implements Track.Listener
                         
                         if(display)
                         {
+                            // TODO add granularity for what is displayed (only LEDs, certainty bubble, rays, etc.)
                             vbLeds.addBuffered(new VisChain(LinAlg.translate(tmp.xyz),
                                 new VisCircle(0.1, new VisDataFillStyle(Color.black)), new VisSphere(0.01, Color.green)));
                         }
@@ -225,6 +228,7 @@ public class LEDTracker extends CameraComparator implements Track.Listener
         return new double[]{matrix[0][3], matrix[1][3], matrix[2][3]};
     }
     
+    // FIXME make more statistically rigerous
     private LEDDetection triangulate(ArrayList<LEDDetection> ld)
     {
         if(ld.size() < 2) return new LEDDetection(true);
@@ -382,22 +386,12 @@ public class LEDTracker extends CameraComparator implements Track.Listener
         boolean color16 = opts.getString("colors").contains("16");
         int fps = opts.getInt("fps");
 
-/**
- * camera: 0
-(x,y,z): 0.06450273846631908, -0.25507166312989354, -0.020171972628530654
-(r,p,y): -0.3129196070369205, 0.1750399043671647, -2.660501114757434
-
- */
-        
-        
-        // XXX ***************************** FOR TESTING
-        Camera cameras[] = new Camera[2]; // TODO get this?
+        // TODO get from config file
+        Camera cameras[] = new Camera[2]; 
         cameras[0] = new Camera(0,"dc1394://b09d01008b51b8", new double[]{0.06450273846631908, -0.25507166312989354, -0.020171972628530654, -0.3129196070369205, 0.1750399043671647, -2.660501114757434}); // 0
         cameras[1] = new Camera(1,"dc1394://b09d01008b51ab", new double[]{0,0,0,0,0,0}); // 1
-        // XXX ***************************** FOR TESTING
-
         
-     // XXX magic numbers
+        // TODO get from config file
         new LEDTracker(cameras, loRes, color16, fps, new double[]{477.5, 477.5}, new double[]{376,240}, new double[]{0,0,0,0,0}, 0.0, true); 
     }
     

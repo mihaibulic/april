@@ -42,9 +42,11 @@ public class InterCameraCalibrator
 
     private Camera cameras[];
 
+    // FIXME linear algebra bug that causes misallignment
+    
+    // TODO get tagsize and fc from config file
     public InterCameraCalibrator()
     {
-        // get tagsize and fc from config file 
     }
     
     /**
@@ -99,7 +101,7 @@ public class InterCameraCalibrator
     {
         System.out.println("ICC-run: imagereaders started. aggregating tags...");
 
-        // aggregate tag detections
+        // FIXME enable simultaneous tag aggregation
         for (Camera camera : cameras)
         {
             System.out.println("ICC-run: aggregating tags of camera " + camera.getIndex());
@@ -125,7 +127,7 @@ public class InterCameraCalibrator
             jf.add(vc, BorderLayout.CENTER);
             jf.setSize(1000, 500);
 
-            System.out.println("ICC-run: display set up. graphing tags/cameras..."); // XXX
+            System.out.println("ICC-run: display set up. graphing tags/cameras...");
             
             String output = "";
             for (Camera cam : cameras)
@@ -146,6 +148,7 @@ public class InterCameraCalibrator
                 }
             }
 
+            // TODO write to config file
             System.out.println(output);
             showGui(output);
         }
@@ -188,7 +191,8 @@ public class InterCameraCalibrator
         boolean color16 = opts.getString("colors").contains("16");
         int fps = opts.getInt("fps");
 
-        new InterCameraCalibrator(loRes, color16, fps, 0.1275, new double[] {477.5, 477.5}, true); // XXX magic numbers
+        // TODO get fc from config file
+        new InterCameraCalibrator(loRes, color16, fps, 0.1275, new double[] {477.5, 477.5}, true);
     }
 
     private void findCoordinates() throws CameraException
@@ -221,7 +225,7 @@ public class InterCameraCalibrator
         double auxM[][];
 
         auxCam.setMain(main);
-        auxCam.clearCoordinates();
+        auxCam.clearPotentialPositions();
 
         while (mainIndex < mainTags.length && auxIndex < auxTags.length)
         {
@@ -230,7 +234,7 @@ public class InterCameraCalibrator
 
             if (auxTags[auxIndex].id == mainTags[mainIndex].id)
             {
-                auxCam.addCoordinates(LinAlg.matrixAB(mainM, LinAlg.inverse(auxM)));
+                auxCam.addPotentialPosition(LinAlg.matrixAB(mainM, LinAlg.inverse(auxM)));
                 mainIndex++;
                 auxIndex++;
             }

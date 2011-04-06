@@ -145,7 +145,7 @@ public class CameraDriver
                     continue;
                 }
 
-//                syncDetector.addTimePointGreyFrame(imageBuffer); // XXX
+//                syncDetector.addTimePointGreyFrame(imageBuffer);
 
 //                int syncResult = syncDetector.verify();
 //

@@ -78,6 +78,8 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
     
     public void run()
     {
+        BufferedImage image;
+        
         while(run)
         {
             synchronized(lock)
@@ -92,15 +94,19 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
                         e.printStackTrace();
                     }
                 }
+            
+                image = ImageConvert.convertToImage(format, width, height, imageBuffer);
+
+                // DO STUFF WITH IMAGE
+                System.out.println(timeStamp);
+                
+                bufferReady = false;
             }
-            
-            // DO STUFF WITH IMAGE
-            System.out.println(timeStamp);
-            
-            BufferedImage image = ImageConvert.convertToImage(format, width, height, imageBuffer);
+
             vbImage.addBuffered(new VisImage(new VisTexture(image),new double[] { 0., 0, }, 
                     new double[] {image.getWidth(), image.getHeight() }, true));
             vbImage.switchBuffer();
+            
         }
     }
     

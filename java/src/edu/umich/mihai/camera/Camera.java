@@ -20,19 +20,18 @@ public class Camera implements ImageReader.Listener
 {
     private int mainIndex;
     private int index;
+    private String url;
     private ImageReader reader;
     private ArrayList<TagDetection> detections;
-    private ArrayList<double[]> coordinates;
+    private ArrayList<double[]> potentialPositions;
     private double[] position;
-    private String url;
+    private double[] stdDev;
 
     private int imageCount = 0;
     private ArrayList<byte[]> imageBuffers;
     private int width = 0;
     private int height = 0;
     private String format = "";
-    
-    private double[] stdDev;
     
     public Camera(int index, String url, double[] position)
     {
@@ -46,7 +45,7 @@ public class Camera implements ImageReader.Listener
         this.reader = reader;
         this.index = index;
         detections = new ArrayList<TagDetection>();
-        coordinates = new ArrayList<double[]>();
+        potentialPositions = new ArrayList<double[]>();
         position = new double[6];
         url = reader.getUrl();
     }
@@ -91,28 +90,27 @@ public class Camera implements ImageReader.Listener
         }
     }
     
-    public void addCoordinate(double[] xyzrpy)
+    public void addPotentialPosition(double[] xyzrpy)
     {
-        coordinates.add(xyzrpy);
+        potentialPositions.add(xyzrpy);
     }
     
-    public void addCoordinates(double[][] matrix)
+    public void addPotentialPosition(double[][] matrix)
     {
-        coordinates.add(LinAlg.matrixToXyzrpy(matrix));
+        potentialPositions.add(LinAlg.matrixToXyzrpy(matrix));
     }
 
-    public void clearCoordinates()
+    public void clearPotentialPositions()
     {
-        coordinates.clear();
+        potentialPositions.clear();
     }
     
     /**
-     * 
      * @return xyzrpy coordinates
      */
-    public ArrayList<double[]> getCoordinates()
+    public ArrayList<double[]> getPotentialPositions()
     {
-        return coordinates;
+        return potentialPositions;
     }
     
     public TagDetection getDetection(int index)
@@ -169,11 +167,11 @@ public class Camera implements ImageReader.Listener
     {
         position = new double[]{0,0,0,0,0,0};
         
-        for(double[] coordinate: coordinates)
+        for(double[] coordinate: potentialPositions)
         {
             position = LinAlg.add(position, coordinate);
         }
-        position = LinAlg.scale(position, (1.0/coordinates.size())); 
+        position = LinAlg.scale(position, (1.0/potentialPositions.size())); 
     }
     
     public void setPosition(double[] xyzrpy, int main)
@@ -208,10 +206,11 @@ public class Camera implements ImageReader.Listener
         }
     }
     
-    //XXX
+    // FIXME use more robust method here 
+    // FIXME eliminate magic numbers/make them parameters rather then hardcoded
     public boolean isCertain()
     {
-        if(coordinates.size()==0)
+        if(potentialPositions.size()==0)
             return false;
         
         if(stdDev == null)
@@ -223,7 +222,7 @@ public class Camera implements ImageReader.Listener
         double rotationErr = (Math.sqrt(stdDev[3]) + Math.sqrt(stdDev[4]) + Math.sqrt(stdDev[5]))/3;
         
         // certain iff there are at least 5 tagdetections, stdDev of xyz err is < 20cm, and stdDev of rpy err is < 180deg
-//        return (coordinates.size()>5 && translationErr < 0.50 && rotationErr < Math.PI); // XXX for testing
+//        return (coordinates.size()>5 && translationErr < 0.50 && rotationErr < Math.PI);
         return (translationErr < 0.20 && rotationErr < Math.PI/2);
     }
     private void setVariance()
@@ -231,14 +230,14 @@ public class Camera implements ImageReader.Listener
         double average[] = new double[]{0,0,0,0,0,0};
         stdDev = new double[]{0,0,0,0,0,0};
         
-        for(double[] coordinate : coordinates)
+        for(double[] coordinate : potentialPositions)
         {
             average = LinAlg.add(average, coordinate);
         }
 
-        average = LinAlg.scale(average, 1.0/coordinates.size());
+        average = LinAlg.scale(average, 1.0/potentialPositions.size());
         
-        for(double[] coordinate : coordinates)
+        for(double[] coordinate : potentialPositions)
         {
             double tmp[] = LinAlg.subtract(coordinate, average);
 
