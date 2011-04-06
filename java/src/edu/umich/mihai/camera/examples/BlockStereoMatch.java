@@ -1,4 +1,4 @@
-package edu.umich.mihai;
+package edu.umich.mihai.camera.examples;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
