@@ -6,6 +6,7 @@ import java.util.HashMap;
 import magic.camera.util.SyncErrorDetector;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
+import april.util.TimeUtil;
 
 /**
  * Sets camera to a certain resolution, color format, and framerate and reads off images (byte[]) and handles this for all subscribed listeners
@@ -65,9 +66,8 @@ public class ImageReader extends Thread
         
         while (run)
         {
-            byte imageBuffer[] = null;
-
-            imageBuffer = isrc.getFrame();
+            byte imageBuffer[] = isrc.getFrame();
+            
             if (imageBuffer != null)
             {
                 sync.addTimePointGreyFrame(imageBuffer);
@@ -101,8 +101,7 @@ public class ImageReader extends Thread
             }
             else
             {
-                System.out.println("err getting frame");
-                toggleImageSource(isrc);
+                TimeUtil.sleep(100);
             }
         }
     }
@@ -169,5 +168,18 @@ public class ImageReader extends Thread
     public void kill()
     {
         run = false;
+    }
+    
+    public void setFramerate(int fps)
+    {
+        isrc.setFeatureValue(11, fps); // frame-rate, idx=11
+    }
+    
+    public void setFormat(boolean loRes, boolean color16)
+    {
+        isrc.stop();
+        isrc.setFormat(Integer.parseInt("" + (loRes ? 1 : 0) + (color16 ? 1 : 0), 2));
+        ifmt = isrc.getCurrentFormat();
+        isrc.start();
     }
 }
