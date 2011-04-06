@@ -27,7 +27,7 @@ import april.vis.VisTexture;
 import april.vis.VisWorld;
 import april.vis.VisText.ANCHOR;
 
-public class CorrelationTest implements ParameterListener,
+public class BlockStereoMatch implements ParameterListener,
         VisCanvasEventHandler
 {
     ParameterGUI pg;
@@ -47,7 +47,7 @@ public class CorrelationTest implements ParameterListener,
     int slide = 16;
     int window = 4;
 
-    public CorrelationTest()
+    public BlockStereoMatch()
     {
         pg = new ParameterGUI();
         pg.addIntSlider("slide", "distance to slide window", 1, 768, slide);
@@ -116,7 +116,7 @@ public class CorrelationTest implements ParameterListener,
      */
     public static void main(String[] args)
     {
-        new CorrelationTest();
+        new BlockStereoMatch();
     }
 
     private int getDisparity(int pointX, int pointY)
