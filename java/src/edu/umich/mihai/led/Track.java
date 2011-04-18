@@ -70,7 +70,7 @@ public class Track extends Thread implements ImageReader.Listener
         this.alpha = alpha;
         
         System.out.println("Track-Constructor: Starting ImageReader for camera " + url);
-        ir = new ImageReader(url, loRes, color16, fps);
+        ir = new ImageReader(loRes, color16, fps, url);
         ir.addListener(this);
         ir.start();
         System.out.println("Track-Constructor: ImageReader started for camera " + url);
@@ -158,7 +158,7 @@ public class Track extends Thread implements ImageReader.Listener
         listeners.add(listener);
     }
 
-    public void handleImage(byte[] image, ImageSourceFormat ifmt, double time)
+    public void handleImage(byte[] image, ImageSourceFormat ifmt, double time, int camera)
     {
         synchronized(lock)
         {

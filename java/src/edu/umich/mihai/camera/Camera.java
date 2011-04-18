@@ -95,7 +95,7 @@ public class Camera implements ImageReader.Listener
         potentialPositions.add(xyzrpy);
     }
     
-    public void addPotentialPosition(double[][] matrix)
+    public void addCorrespondence(double[][] matrix)
     {
         potentialPositions.add(LinAlg.matrixToXyzrpy(matrix));
     }
@@ -171,7 +171,7 @@ public class Camera implements ImageReader.Listener
         {
             position = LinAlg.add(position, coordinate);
         }
-        position = LinAlg.scale(position, (1.0/potentialPositions.size())); 
+        position = LinAlg.scale(position, (1.0/potentialPositions.size()));
     }
     
     public void setPosition(double[] xyzrpy, int main)
@@ -186,8 +186,7 @@ public class Camera implements ImageReader.Listener
         this.mainIndex = main;
     }
     
-    @Override
-    public void handleImage(byte[] image, ImageSourceFormat ifmt, double timeStamp)
+    public void handleImage(byte[] image, ImageSourceFormat ifmt, double timeStamp, int camera)
     {
         if(imageBuffers.size() >= imageCount)
         {

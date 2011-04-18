@@ -10,7 +10,6 @@ import java.util.Comparator;
  */
 public class CameraComparator implements Comparator<Camera>
 {
-    @Override
     public int compare(Camera camera1, Camera camera2)
     {
         int tagCount1 = camera1.getTagCount();

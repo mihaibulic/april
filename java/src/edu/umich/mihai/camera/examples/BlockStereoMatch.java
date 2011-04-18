@@ -173,7 +173,6 @@ public class BlockStereoMatch implements ParameterListener,
         return disparity;
     }
 
-    @Override
     public void parameterChanged(ParameterGUI pg, String name)
     {
         if (name.equals("slide"))
@@ -213,45 +212,43 @@ public class BlockStereoMatch implements ParameterListener,
         }
     }
 
-    @Override
     public void doHelp(HelpOutput houts)
     {}
 
-    @Override
     public String getName()
     {
         return null;
     }
 
-    @Override
+    
     public void hoverNotify(boolean winner)
     {}
 
-    @Override
+    
     public double hoverQuery(VisCanvas vc, GRay3D ray)
     {
         return 0;
     }
 
-    @Override
+    
     public boolean keyPressed(VisCanvas vc, KeyEvent e)
     {
         return false;
     }
 
-    @Override
+    
     public boolean keyReleased(VisCanvas vc, KeyEvent e)
     {
         return false;
     }
 
-    @Override
+    
     public boolean keyTyped(VisCanvas vc, KeyEvent e)
     {
         return false;
     }
 
-    @Override
+    
     public boolean mouseClicked(VisCanvas vc, GRay3D ray, MouseEvent e)
     {
         int x = (int) (ray.getSource()[0]);
@@ -277,42 +274,42 @@ public class BlockStereoMatch implements ParameterListener,
         return ret;
     }
 
-    @Override
+    
     public boolean mouseDragged(VisCanvas vc, GRay3D ray, MouseEvent e)
     {
         return false;
     }
 
-    @Override
+    
     public boolean mouseMoved(VisCanvas vc, GRay3D ray, MouseEvent e)
     {
         return false;
     }
 
-    @Override
+    
     public boolean mousePressed(VisCanvas vc, GRay3D ray, MouseEvent e)
     {
         return false;
     }
 
-    @Override
+    
     public boolean mouseReleased(VisCanvas vc, GRay3D ray, MouseEvent e)
     {
         return false;
     }
 
-    @Override
+    
     public boolean mouseWheelMoved(VisCanvas vc, GRay3D ray, MouseWheelEvent e)
     {
         return false;
     }
 
-    @Override
+    
     public void pickNotify(boolean winner)
     {
     }
 
-    @Override
+    
     public double pickQuery(VisCanvas vc, GRay3D ray)
     {
         return 0;

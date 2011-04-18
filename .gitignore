@@ -1,4 +1,4 @@
-.classpath
-.project
-.class
-.jar
+*.classpath
+*.project
+*.class
+*.jar

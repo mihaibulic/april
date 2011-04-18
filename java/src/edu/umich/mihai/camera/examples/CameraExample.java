@@ -152,8 +152,8 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
         run = false;
     }
     
-    @Override
-    public void handleImage(byte[] im, ImageSourceFormat ifmt, double time)
+    
+    public void handleImage(byte[] im, ImageSourceFormat ifmt, double time, int camera)
     {
         synchronized(lock)
         {
@@ -168,7 +168,7 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
     }
     
 
-    @Override
+    
     public void messageReceived(LCM lcm, String channel, LCMDataInputStream ins)
     {
         try

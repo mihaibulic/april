@@ -400,7 +400,7 @@ public class LEDTracker extends CameraComparator implements Track.Listener
         run = false;
     }
 
-    @Override
+    
     public void handleDetections(ArrayList<LEDDetection> leds, int id)
     {
         synchronized(lock)

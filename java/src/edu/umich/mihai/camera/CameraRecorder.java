@@ -1,9 +1,13 @@
 package edu.umich.mihai.camera;
 
+import java.io.Console;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+
 import april.jcam.ImageSource;
 import april.util.GetOpt;
+import april.util.TimeUtil;
 
 /**
  * 
@@ -14,7 +18,7 @@ import april.util.GetOpt;
  */
 public class CameraRecorder
 {
-    public static void main(String[] args) throws IOException, CameraException
+    public static void main(String[] args) throws IOException, CameraException, InterruptedException
     {
         GetOpt opts = new GetOpt();
         
@@ -47,12 +51,17 @@ public class CameraRecorder
         
         Runtime.getRuntime().exec("lcm-logger " + dir + opts.getString("log"));
         
-        for (String url : ImageSource.getCameraURLs())
+        ArrayList<String> urls = ImageSource.getCameraURLs();
+        ImageReader irs[] = new ImageReader[urls.size()];
+        ImageSaver iss[] = new ImageSaver[urls.size()];
+        
+        for (int x = 0; x < irs.length; x++)
         {
             try
             {
-                ImageReader ir = new ImageReader(url, opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"));
-                (new ImageSaver(ir, url, dir)).start();
+                irs[x] = new ImageReader(opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"), urls.get(x));
+                iss[x] = new ImageSaver(irs[x], urls.get(x), dir);
+                iss[x].start();
 
                 // new CameraDriver(url, dir, opts.getString("resolution").contains("lo"), opts.getString("colors").contains("16"), opts.getInt("fps"), true);
             } catch (Exception e)
@@ -62,5 +71,22 @@ public class CameraRecorder
 
         }
         
+        TimeUtil.sleep(1500);
+        Console console = System.console();
+        
+        while(true)
+        {
+	        if(console.readLine("Type q or quit to exit\t").contains("q"))
+	        {
+	        	for (int x = 0; x < irs.length; x++)
+	            {
+	        		iss[x].kill();
+	        		iss[x].join();
+	        		irs[x].kill();
+	        		irs[x].join();
+	            }
+	        	System.exit(0);
+	        }
+        }
     }
 }

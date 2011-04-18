@@ -11,7 +11,6 @@ import april.tag.TagDetection;
  */
 public class TagComparator implements Comparator<TagDetection>
 {
-    @Override
     public int compare(TagDetection tag1, TagDetection tag2)
     {
         int id1 = tag1.id;

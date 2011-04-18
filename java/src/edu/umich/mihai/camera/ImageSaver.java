@@ -66,26 +66,32 @@ public class ImageSaver extends Thread implements ImageReader.Listener
                 {
                     e.printStackTrace();
                 }
-                
-                image_path_t imagePath = new image_path_t();
-    
-                try
-                {
-                    imagePath.img_path = saveImage(imageBuffer);
-                    imagePath.width = width;
-                    imagePath.height = height;
-                    imagePath.format = format;
-                    imagePath.utime = (long)timeStamp;
-                } catch (NullPointerException e)
-                {
-                    e.printStackTrace();
-                } catch (IOException e)
-                {
-                    e.printStackTrace();
-                }
-    
-                lcm.publish("cam" + urls.get(url), imagePath);
-                imageReady = false;
+	            image_path_t imagePath = new image_path_t();
+	
+	            try
+	            {
+	                imagePath.img_path = saveImage(imageBuffer);
+	                imagePath.width = width;
+	                imagePath.height = height;
+	                imagePath.format = format;
+	                imagePath.utime = (long)timeStamp;
+	            } catch (NullPointerException e)
+	            {
+	            	if(run)
+	            	{
+	            		e.printStackTrace();
+	            	}
+	            	else
+	            	{
+	            		break;
+	            	}
+	            } catch (IOException e)
+	            {
+	                e.printStackTrace();
+	            }
+	
+	            lcm.publish("cam" + urls.get(url), imagePath);
+	            imageReady = false;
             }
         }
     }
@@ -96,7 +102,7 @@ public class ImageSaver extends Thread implements ImageReader.Listener
 
         if (image == null)
         {
-            throw new NullPointerException();
+    		throw new NullPointerException();
         }
 
         new FileOutputStream(new File(filepath)).write(image);
@@ -124,11 +130,15 @@ public class ImageSaver extends Thread implements ImageReader.Listener
      */
     public void kill()
     {
-        run = false;
+    	synchronized(lock)
+        {
+    		run = false;
+	    	imageReady = true;
+	    	lock.notify();
+        }
     }
 
-    @Override
-    public void handleImage(byte[] im, ImageSourceFormat ifmt, double time)
+    public void handleImage(byte[] im, ImageSourceFormat ifmt, double time, int camera)
     {
         synchronized(lock)
         {

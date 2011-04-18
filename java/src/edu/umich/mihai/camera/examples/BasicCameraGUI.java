@@ -189,7 +189,6 @@ public class BasicCameraGUI implements ParameterListener
         new BasicCameraGUI(opts.getString("url"), opts.getString("resolution").contains("hi"), opts.getString( "colors").contains("8"), opts.getInt("fps"));
     }
 
-    @Override
     public void parameterChanged(ParameterGUI pg, String name)
     {
         if(name == "Reset")

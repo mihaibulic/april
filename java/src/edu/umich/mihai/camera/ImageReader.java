@@ -1,8 +1,11 @@
 package edu.umich.mihai.camera;
 
+import java.io.BufferedReader;
+import java.io.Console;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+
 import magic.camera.util.SyncErrorDetector;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
@@ -22,30 +25,31 @@ public class ImageReader extends Thread
     private ImageSource isrc;
     private ImageSourceFormat ifmt;
     private String url;
-    private HashMap<String, Integer> urls = new HashMap<String, Integer>();
+    private HashMap<String, Integer> urlsAvailable = new HashMap<String, Integer>();
+    private int camera;
     
     private SyncErrorDetector sync;
-    private boolean firstTime = true;
     
     public interface Listener
     {
-        public void handleImage(byte[] image, ImageSourceFormat ifmt, double timeStamp);
+        public void handleImage(byte[] image, ImageSourceFormat ifmt, double timeStamp, int camera);
     }
     
-    public ImageReader(String url) throws Exception
+    public ImageReader(String urls) throws Exception
     {
-        this(url, false, false, 15);
+        this(false, false, 15, urls);
     }
     
-    public ImageReader(String url, boolean loRes, boolean color16, int maxfps) throws Exception
+    public ImageReader(boolean loRes, boolean color16, int maxfps, String url) throws CameraException, IOException
     {
         setUrls();
-        if(urls.get(url) == null) return;
         this.url = url;
-
+        if(urlsAvailable.get(url) == null) return;
+        camera = urlsAvailable.get(url);
+        
         if (maxfps > (loRes ? 120 : 60)) throw new CameraException(CameraException.FPS);
 
-        setIsrc(loRes, color16, maxfps, url);
+        setIsrc(loRes, color16, maxfps, this.url);
         
 //          samples         = 10;               // 20 sample history
 //          chi2Tolerance   = 0.001;            // Tolerate Chi^2 error under...
@@ -58,29 +62,28 @@ public class ImageReader extends Thread
 
     public void run()
     {
-        isrc.start();
-
+		isrc.start();
+    	
+        boolean firstTime = true;
         double initTime = 0;
         double lastTimestamp = 0;
         int rollOverCounter = 0;
+        double[] times;
         
         while (run)
         {
+        	TimeUtil.sleep(30);
             byte imageBuffer[] = isrc.getFrame();
             
             if (imageBuffer != null)
             {
                 sync.addTimePointGreyFrame(imageBuffer);
-                double[] times = sync.getTimes();
+                times = sync.getTimes();
+
                 if(firstTime)
                 {
                     firstTime = false;
                     initTime = times[times.length-1];
-                }
-                
-                if(sync.verify() == SyncErrorDetector.RECOMMEND_ACTION)
-                {
-                    toggleImageSource(isrc);
                 }
                 
                 if(sync.verify() == SyncErrorDetector.SYNC_GOOD)
@@ -95,20 +98,23 @@ public class ImageReader extends Thread
                     
                     for (Listener listener : Listeners)
                     {
-                        listener.handleImage(imageBuffer, ifmt, timestamp);
+                        listener.handleImage(imageBuffer, ifmt, timestamp, camera);
                     }
                 }
-            }
-            else
-            {
-                TimeUtil.sleep(100);
-            }
-        }
+                else if(sync.verify() == SyncErrorDetector.RECOMMEND_ACTION)
+                {
+                	toggleImageSource(isrc);
+                	firstTime = true;
+                }
+	        }
+    	}
+        
+        isrc.stop();
     }
 
-    private void setIsrc(boolean loRes, boolean color16, int fps, String url) throws IOException
+    private void setIsrc(boolean loRes, boolean color16, int fps, String urls) throws IOException
     {
-        isrc = ImageSource.make(url);
+        isrc = ImageSource.make(urls);
 
         // 760x480 8 = 0, 760x480 16 = 1, 380x240 8 = 2, 380x240 16 = 3
         // converts booleans to 1/0 and combines them into an int
@@ -123,21 +129,20 @@ public class ImageReader extends Thread
         isrc.setFeatureValue(9, 1); // timestamps-enable=1, idx=9
         isrc.setFeatureValue(10, 1); // frame-rate-manual=1, idx=10
         isrc.setFeatureValue(11, fps); // frame-rate, idx=11
-        
-        ifmt = isrc.getCurrentFormat();
+    	ifmt = isrc.getCurrentFormat();
     }
    
     private void setUrls()
     {
-        urls.put("dc1394://b09d01008b51b8", 0);
-        urls.put("dc1394://b09d01008b51ab", 1);
-        urls.put("dc1394://b09d01008b51b9", 2);
-        urls.put("dc1394://b09d01009a46a8", 3);
-        urls.put("dc1394://b09d01009a46b6", 4);
-        urls.put("dc1394://b09d01009a46bd", 5);
-        urls.put("dc1394://b09d01008c3f62", 10);
-        urls.put("dc1394://b09d01008c3f6a", 11); // has J on it
-        urls.put("dc1394://b09d01008e366c", 12); // unmarked
+        urlsAvailable.put("dc1394://b09d01008b51b8", 0);
+        urlsAvailable.put("dc1394://b09d01008b51ab", 1);
+        urlsAvailable.put("dc1394://b09d01008b51b9", 2);
+        urlsAvailable.put("dc1394://b09d01009a46a8", 3);
+        urlsAvailable.put("dc1394://b09d01009a46b6", 4);
+        urlsAvailable.put("dc1394://b09d01009a46bd", 5);
+        urlsAvailable.put("dc1394://b09d01008c3f62", 10);
+        urlsAvailable.put("dc1394://b09d01008c3f6a", 11); // has J on it
+        urlsAvailable.put("dc1394://b09d01008e366c", 12); // unmarked
     }
     
     private void toggleImageSource(ImageSource isrc)
@@ -147,9 +152,7 @@ public class ImageReader extends Thread
         isrc.setFormat(currentFormat);
 
         isrc.start();
-        
         sync = new SyncErrorDetector(10, 0.001, 0.01, 0.0, 0, false);
-        firstTime = true;
     }
 
     public String getUrl()
@@ -172,7 +175,7 @@ public class ImageReader extends Thread
     
     public void setFramerate(int fps)
     {
-        isrc.setFeatureValue(11, fps); // frame-rate, idx=11
+		isrc.setFeatureValue(11, fps); // frame-rate, idx=11
     }
     
     public void setFormat(boolean loRes, boolean color16)

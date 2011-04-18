@@ -132,7 +132,6 @@ public class DailyLearning implements ActionListener, HyperlinkListener
         new DailyLearning(new File(opts.getString("filepath")));
     }
 
-    @Override
     public void actionPerformed(ActionEvent event)
     {
         if(next.getActionCommand().equals(event.getActionCommand()))
@@ -165,7 +164,6 @@ public class DailyLearning implements ActionListener, HyperlinkListener
         back.setVisible(current>0);
     }
 
-    @Override
     public void hyperlinkUpdate(HyperlinkEvent event)
     {
         HyperlinkEvent.EventType eventType = event.getEventType();
