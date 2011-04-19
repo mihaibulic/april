@@ -12,6 +12,8 @@ import javax.swing.JFrame;
 import lcm.lcm.LCM;
 import lcm.lcm.LCMDataInputStream;
 import lcm.lcm.LCMSubscriber;
+import april.config.Config;
+import april.config.ConfigFile;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
@@ -46,10 +48,10 @@ public class CameraPlayer implements LCMSubscriber, ImageReader.Listener
     HashMap<Integer, VisWorld.Buffer> buffers = new HashMap<Integer, VisWorld.Buffer>();
     JFrame jf;
 
-    public CameraPlayer(int columns, boolean loRes, boolean color16, int fps) throws CameraException, IOException
+    public CameraPlayer(Config config, int columns) throws CameraException, IOException, ConfigException
     {
     	if(ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
-
+    	
         this.columns = columns;
         ArrayList<String> urls = ImageSource.getCameraURLs();
         ImageReader irs[] = new ImageReader[urls.size()];
@@ -58,7 +60,7 @@ public class CameraPlayer implements LCMSubscriber, ImageReader.Listener
         
         for (int x = 0; x < irs.length; x++)
         {
-        	irs[x] = new ImageReader(loRes, color16, fps, urls.get(x));
+        	irs[x] = new ImageReader(config, urls.get(x));
         	irs[x].addListener(this);
         	irs[x].start();
         }
@@ -94,16 +96,17 @@ public class CameraPlayer implements LCMSubscriber, ImageReader.Listener
     }
     
 
-    public static void main(String[] args) throws CameraException, IOException
+    public static void main(String[] args) throws CameraException, IOException, ConfigException
     {
         GetOpt opts = new GetOpt();
         
         opts.addBoolean('h', "help", false, "See this help screen");
         opts.addBoolean('a', "all", true, "LCM mode: display images from all cameras published via lcm");
         opts.addBoolean('s', "standAlone", false, "Standalone mode: will capture images from all cameras");
-        opts.addString('r', "resolution", "hi", "lo=380x240, hi=760x480 (standalone mode only)");
-        opts.addString('c', "colors", "gray8", "gray8 or gray16 (standalone mode only)");
-        opts.addInt('f', "fps", 15, "framerate to use if player (standalone mode only)");
+        opts.addString('n', "config", System.getenv("CONFIG")+"/camera.config", "location of config file (standalone mode only)");
+        opts.addString('r', "resolution", "", "lo=380x240, hi=760x480 (overrides config resolution) (standalone mode only)");
+        opts.addString('c', "colors", "", "gray8 or gray16 (overrides config color setting) (standalone mode only)");
+        opts.addString('f', "fps", "", "framerate to use if player (overrides config framerate) (standalone mode only)");
         opts.addInt('x', "columns", 2, "number of columns in which to display camera images (standalone and lcm mode)");
         
         if (!opts.parse(args))
@@ -120,8 +123,23 @@ public class CameraPlayer implements LCMSubscriber, ImageReader.Listener
         
         if(opts.getBoolean("standAlone"))
         {
-        	new CameraPlayer(opts.getInt("columns"), opts.getString("resolution").contains("lo"), 
-        			opts.getString("colors").contains("16"), opts.getInt("fps"));
+        	Config config = new ConfigFile(opts.getString("config"));
+        	if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
+
+        	if(!opts.getString("resolution").isEmpty())
+        	{
+        		config.setBoolean("loRes", opts.getString("resolution").contains("lo"));
+        	}
+        	if(!opts.getString("colors").isEmpty())
+        	{
+        		config.setBoolean("color16", opts.getString("colors").contains("16"));
+        	}
+        	if(!opts.getString("fps").isEmpty())
+        	{
+        		config.setInt("fps", Integer.parseInt(opts.getString("fps")));
+        	}
+        	
+        	new CameraPlayer(config, opts.getInt("columns"));
         }
         
         if(opts.getBoolean("all"))

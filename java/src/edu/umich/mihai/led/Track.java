@@ -1,8 +1,14 @@
 package edu.umich.mihai.led;
 
+import java.io.IOException;
 import java.util.ArrayList;
+
+import april.config.Config;
 import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
+import edu.umich.mihai.camera.CameraException;
+import edu.umich.mihai.camera.CamUtil;
+import edu.umich.mihai.camera.ConfigException;
 import edu.umich.mihai.camera.ImageReader;
 
 /**
@@ -15,25 +21,8 @@ public class Track extends Thread implements ImageReader.Listener
 {
     ArrayList<Listener> listeners = new ArrayList<Listener>();
     
-    // required calibration parameter lengths
-    static final public int LENGTH_FC = 2;
-    static final public int LENGTH_CC = 2;
-    static final public int LENGTH_KC = 5;
+    private boolean run = true;
 
-    // indices for lookup in kc[]
-    static final public int KC1 = 0;//^2
-    static final public int KC2 = 1;//^4
-    static final public int KC3 = 2;//^tangential
-    static final public int KC4 = 3;//^tangential
-    static final public int KC5 = 4;//^6
-
-    private double fc[]; // Focal length, in pixels, [X Y]
-    private double cc[]; // Principal point, [X Y] 
-    private double kc[]; // Distortion, [kc1 kc2 kc3 kc4 kc5 kc6]
-    private double alpha; // Skew
-
-    private double[][] transformation;
-    
     private int id;
     private ImageReader ir;
     private Object lock = new Object();
@@ -44,41 +33,54 @@ public class Track extends Thread implements ImageReader.Listener
     private int height = 0;
     private String format = "";
     
-    private boolean run = true;
-
     private DummyLEDFinder dlf;
+
+    private double[][] transformation;
+    
+    // required calibration parameter lengths
+    private int lengthFC;
+    private int lengthCC;
+    private int lengthKC;
+    
+    // indices for lookup in kc[]
+    private int KC1 = 0;//^2
+    private int KC2 = 1;//^4
+    private int KC3 = 2;//^tangential
+    private int KC4 = 3;//^tangential
+    private int KC5 = 4;//^6
+    
+    private double fc[]; // Focal length, in pixels, [X Y]
+    private double cc[]; // Principal point, [X Y] 
+    private double kc[]; // Distortion, [kc1 kc2 kc3 kc4 kc5 kc6]
+    private double alpha; // Skew
     
     public interface Listener
     {
         public void handleDetections(ArrayList<LEDDetection> leds, int index);
     }
     
-    public Track(int id, String url, double[][] transformation, double[] fc, double[] cc, double[] kc, double alpha) throws Exception
+    public Track(Config config, String url) throws ConfigException, CameraException, IOException
     {
-        this(id, url, transformation, false, false, 15, fc, cc, kc, alpha);
-    }
-    
-    public Track(int id, String url, double[][] transformation, boolean loRes, boolean color16, int fps, double[] fc, double[] cc, double[] kc, double alpha) throws Exception
-    {
-        dlf = new DummyLEDFinder();
-        
-        this.id = id;
-        this.transformation = transformation;
-        this.fc = fc;
-        this.cc = cc;
-        this.kc = kc;
-        this.alpha = alpha;
-        
-        System.out.println("Track-Constructor: Starting ImageReader for camera " + url);
-        ir = new ImageReader(loRes, color16, fps, url);
-        ir.addListener(this);
-        ir.start();
-        System.out.println("Track-Constructor: ImageReader started for camera " + url);
+    	if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
+
+    	lengthFC = config.requireInt("LENGTH_FC");
+    	lengthCC = config.requireInt("LENGTH_CC");
+    	lengthKC = config.requireInt("LENGTH_KC");
+    	
+    	id = CamUtil.getIntProperty(config, url, "indices");
+    	transformation = LinAlg.xyzrpyToMatrix(CamUtil.getDoubleProperty(config, url, "xyzrpy", config.requireInt("LENGTH_X")));
+    	fc = CamUtil.getDoubleProperty(config, url, "fc", lengthFC);
+    	cc = CamUtil.getDoubleProperty(config, url, "cc", lengthCC);
+    	kc = CamUtil.getDoubleProperty(config, url, "kc", lengthKC);
+    	dlf = new DummyLEDFinder(fc, cc, kc);
+        ir = new ImageReader(config, url);
     }
 
     public void run()
     {
         ArrayList<LEDDetection> leds = new ArrayList<LEDDetection>();
+        ir.addListener(this);
+        ir.start();
         
         while(run)
         {
@@ -116,6 +118,21 @@ public class Track extends Thread implements ImageReader.Listener
                 
             imageReady = false;
         }
+    }
+    
+    public int getIndex()
+    {
+    	return ir.getIndex();
+    }
+    
+    public double[][] getTransformationMatrix()
+    {
+    	return transformation;
+    }
+    
+    public boolean isGood()
+    {
+    	return ir.isGood();
     }
     
     private double[] undistort(double pixel[])

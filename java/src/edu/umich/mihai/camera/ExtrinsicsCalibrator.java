@@ -3,12 +3,12 @@ package edu.umich.mihai.camera;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Random;
-
 import javax.swing.JFrame;
-
+import april.config.Config;
+import april.config.ConfigFile;
 import april.jcam.ImageSource;
 import april.jmat.LinAlg;
 import april.tag.CameraUtil;
@@ -28,7 +28,7 @@ import edu.umich.mihai.vis.VisCamera;
  * @author Mihai Bulic
  *
  */
-public class InterCameraCalibrator
+public class ExtrinsicsCalibrator
 {
     private JFrame jf;
     private VisWorld vw = new VisWorld();
@@ -40,57 +40,25 @@ public class InterCameraCalibrator
     private double tagSize;
     private HashMap<String, Integer> knownUrls = new HashMap<String, Integer>();
 
-    private Camera cameras[];
+    private ArrayList <Camera> cameras;
 
     // FIXME linear algebra bug that causes misallignment
     
-    // TODO get tagsize and fc from config file
-    public InterCameraCalibrator()
+    public ExtrinsicsCalibrator(Config config, boolean display) throws Exception
     {
-    }
-    
-    /**
-     * 
-     * @param tagSize - the length of the edge of a tag in meters
-     * @param fc - the x,y axis focal lengths of the cameras to be used
-     * @throws Exception - If a camera sees no tags or if there is a cycle 
-     *          i.e. camera0 and camera1 see each other; camera2 and camera3 see each other;
-     *          but camera0/1 do not see camera2/3
-     */
-    public InterCameraCalibrator(double tagSize, double[] fc) throws Exception
-    {
-        this(false, false, 15, tagSize, fc, false);
-    }
-    
-    /**
-     * 
-     * @param loRes - true iff low resolution is desired from the cameras
-     * @param color16 - true iff 16 colors, instead of 8, are desired from the cameras
-     * @param fps - max fps from the cameras
-     * @param tagSize - the length of the edge of a tag in meters
-     * @param fc - the x,y axis focal lengths of the cameras to be used
-     * @throws Exception - If a camera sees no tags or if there is a cycle 
-     *          i.e. camera0 and camera1 see each other; camera2 and camera3 see each other;
-     *          but camera0/1 do not see camera2/3
-     */
-    public InterCameraCalibrator(boolean loRes, boolean color16, int fps, double tagSize, double[] fc) throws Exception
-    {
-        this(loRes, color16, fps, tagSize, fc, false);
-    }
-    
-    public InterCameraCalibrator(boolean loRes, boolean color16, int fps, double tagSize, double[] fc, boolean display) throws Exception
-    {
-        this.fc = fc;
-        this.tagSize = tagSize;
-        ArrayList<String> currentUrls = organizeURLS();
-        cameras = new Camera[currentUrls.size()];
+    	tagSize = config.requireDouble("tagSize");
+    	
+        ArrayList<String> urls = ImageSource.getCameraURLs();
+        cameras = new ArrayList<Camera>();
 
         System.out.println("ICC-Constructor: starting imagereaders...");
-        setKnownUrls();
-        for (int x = 0; x < cameras.length; x++)
+        for(String url : urls)
         {
-            ImageReader ir = new ImageReader(loRes, color16, fps, currentUrls.get(x));
-            cameras[x] = new Camera(ir, knownUrls.get(currentUrls.get(x)));
+        	Camera test = new Camera(config, url);
+        	if(test.isGood())
+        	{
+        		cameras.add(test);
+        	}
         }
         
         // FIXME enable simultaneous tag aggregation
@@ -98,10 +66,10 @@ public class InterCameraCalibrator
         for (Camera camera : cameras)
         {
             System.out.println("ICC-run: aggregating tags of camera " + camera.getIndex());
-            camera.aggregateTags(15);
+            camera.aggregateTags(5);
         }
 
-        Arrays.sort(cameras, new CameraComparator());
+        Collections.sort(cameras, new CameraComparator());
         getAllCorrespondences();
         resolveExtrinsics();
         
@@ -121,6 +89,7 @@ public class InterCameraCalibrator
                 double[][] camM = cam.getTransformationMatrix();
                 vbCameras.addBuffered(new VisChain(camM, new VisCamera(color, 0.08)));
                 
+                fc = CamUtil.getDoubleProperty(config, cam.getUrl(), "fc", config.requireInt("LENGTH_FC"));
                 ArrayList<TagDetection> tags = cam.getDetections();
                 for (TagDetection tag : tags)
                 {
@@ -153,12 +122,14 @@ public class InterCameraCalibrator
     public static void main(String[] args) throws Exception
     {
         GetOpt opts = new GetOpt();
-
+        
         opts.addBoolean('h', "help", false, "See this help screen");
-        opts.addString('r', "resolution", "hi", "lo=380x240, hi=760x480");
-        opts.addString('c', "colors", "gray8", "gray8 or gray16");
-        opts.addInt('f', "fps", 15, "set the max fps to publish");
-        opts.addDouble('t', "tagSize", 0.1275, "size of tags used in meters");
+        opts.addString('n', "config", System.getenv("CONFIG")+"/camera.config", "location of config file");
+        opts.addString('r', "resolution", "", "lo=380x240, hi=760x480 (overrides config resolution)");
+        opts.addString('c', "colors", "", "gray8 or gray16 (overrides config color setting)");
+        opts.addString('f', "fps", "", "framerate to use if player (overrides config framerate) ");
+        opts.addString('t', "tagSize", "", "size of tags used in meters (overrides config framerate)");
+
         if (!opts.parse(args))
         {
             System.out.println("option error: " + opts.getReason());
@@ -170,37 +141,50 @@ public class InterCameraCalibrator
             opts.doHelp();
             System.exit(1);
         }
+        
+        Config config = new ConfigFile(opts.getString("config"));
+        if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
+    	if(!opts.getString("resolution").isEmpty())
+    	{
+    		config.setBoolean("loRes", opts.getString("resolution").contains("lo"));
+    	}
+    	if(!opts.getString("colors").isEmpty())
+    	{
+    		config.setBoolean("color16", opts.getString("colors").contains("16"));
+    	}
+    	if(!opts.getString("fps").isEmpty())
+    	{
+    		config.setInt("fps", Integer.parseInt(opts.getString("fps")));
+    	}
+    	if(!opts.getString("tagSize").isEmpty())
+    	{
+    		config.setDouble("tagSize", Double.parseDouble(opts.getString("tagSize")));
+    	}
 
         if (ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
 
-        boolean loRes = opts.getString("resolution").contains("lo");
-        boolean color16 = opts.getString("colors").contains("16");
-        double tagSize = opts.getDouble("tagSize");
-        int fps = opts.getInt("fps");
-
-        // TODO get fc from config file
-        new InterCameraCalibrator(loRes, color16, fps, tagSize, new double[] {477.5, 477.5}, true);
+        new ExtrinsicsCalibrator(config, true);
     }
 
     private void getAllCorrespondences() throws CameraException
     {
-    	if(cameras[0].getTagCount() == 0) throw new CameraException(CameraException.NO_TAGS);
+    	if(cameras.get(0).getTagCount() == 0) throw new CameraException(CameraException.NO_TAGS);
     	
-        for (int cam = 1; cam < cameras.length; cam++)
+        for (int cam = 1; cam < cameras.size(); cam++)
         {
-            if (cameras[cam].getTagCount() == 0) throw new CameraException(CameraException.NO_TAGS);
+            if (cameras.get(cam).getTagCount() == 0) throw new CameraException(CameraException.NO_TAGS);
 
-            for (int main = 0; main < cameras.length; main++)
+            for (int main = 0; main < cameras.size(); main++)
             {
                 if (main != cam)
                 {
-                    getCorrespondence(main, cameras[main], cameras[cam]);
+                    getCorrespondence(main, cameras.get(main), cameras.get(cam));
                     
-                    if (cameras[cam].isCertain()) break;
+                    if (cameras.get(cam).isCertain()) break;
                 }
             }
             
-            if (!cameras[cam].isCertain()) throw new CameraException(CameraException.UNCERTAIN);
+            if (!cameras.get(cam).isCertain()) throw new CameraException(CameraException.UNCERTAIN);
         }
     }
 
@@ -213,13 +197,16 @@ public class InterCameraCalibrator
         TagDetection mainTags[] = mainCam.getDetections().toArray(new TagDetection[1]);
         TagDetection auxTags[] = auxCam.getDetections().toArray(new TagDetection[1]);
 
+        double mainFc[] = mainCam.getFocal();
+        double auxFc[] = auxCam.getFocal();
+        
         auxCam.setMain(main);
         auxCam.clearPotentialPositions();
 
         while (mainIndex < mainTags.length && auxIndex < auxTags.length)
         {
-        	mainM = CameraUtil.homographyToPose(fc[0], fc[1], tagSize, mainTags[mainIndex].homography);
-            auxM = CameraUtil.homographyToPose(fc[0], fc[1], tagSize, auxTags[auxIndex].homography);
+        	mainM = CameraUtil.homographyToPose(mainFc[0], mainFc[1], tagSize, mainTags[mainIndex].homography);
+            auxM = CameraUtil.homographyToPose(auxFc[0], auxFc[1], tagSize, auxTags[auxIndex].homography);
 
             if (auxTags[auxIndex].id == mainTags[mainIndex].id)
             {
@@ -240,20 +227,20 @@ public class InterCameraCalibrator
 
     private void resolveExtrinsics() throws CameraException
     {
-        cameras[0].setPosition(new double[] { 0, 0, 0, 0, 0, 0 }, 0);
+        cameras.get(0).setPosition(new double[] { 0, 0, 0, 0, 0, 0 }, 0);
         
-        for (int cam = 1; cam < cameras.length; cam++)
+        for (int cam = 1; cam < cameras.size(); cam++)
         {
-            cameras[cam].setPosition();
-            while (cameras[cam].getMain() != 0)
+            cameras.get(cam).setPosition();
+            while (cameras.get(cam).getMain() != 0)
             {
-                if (cameras[cam].getMain() == cam) throw new CameraException(CameraException.CYCLE);
+                if (cameras.get(cam).getMain() == cam) throw new CameraException(CameraException.CYCLE);
 
-                double[][] pos = cameras[cam].getTransformationMatrix();
-                double[][] posToOldMain = cameras[cameras[cam].getMain()].getTransformationMatrix();
+                double[][] pos = cameras.get(cam).getTransformationMatrix();
+                double[][] posToOldMain = cameras.get(cameras.get(cam).getMain()).getTransformationMatrix();
                 double[][] posToNewMain = LinAlg.matrixAB(pos, posToOldMain);
 
-                cameras[cam].setPosition(posToNewMain, cameras[cameras[cam].getMain()].getMain());
+                cameras.get(cam).setPosition(posToNewMain, cameras.get(cameras.get(cam).getMain()).getMain());
             }
         }
     }
@@ -266,7 +253,7 @@ public class InterCameraCalibrator
      *      (contains useful information regarding each camera
      *      such as its relative position and url)
      */
-    public Camera[] getCameras()
+    public ArrayList<Camera> getCameras()
     {
         return cameras;
     }
@@ -299,34 +286,5 @@ public class InterCameraCalibrator
         }
         
         return position;
-    }
-    
-    private ArrayList<String> organizeURLS()
-    {
-        ArrayList<String> urls = ImageSource.getCameraURLs();
-
-        for (int x = 0; x < urls.size(); x++)
-        {
-            if (!urls.get(x).contains("dc1394"))
-            {
-                urls.remove(x);
-            }
-        }
-
-        return urls;
-    }
-
-    private void setKnownUrls()
-    {
-        knownUrls.put("dc1394://b09d01008b51b8", 0);
-        knownUrls.put("dc1394://b09d01008b51ab", 1);
-        knownUrls.put("dc1394://b09d01008b51b9", 2);
-        knownUrls.put("dc1394://b09d01009a46a8", 3);
-        knownUrls.put("dc1394://b09d01009a46b6", 4);
-        knownUrls.put("dc1394://b09d01009a46bd", 5);
-
-        knownUrls.put("dc1394://b09d01008c3f62", 10); // in lab
-        knownUrls.put("dc1394://b09d01008c3f6a", 11); // has J on it
-        knownUrls.put("dc1394://b09d01008e366c", 12); // unmarked
     }
 }

@@ -25,6 +25,9 @@ public class LEDDetection
     // XYZ translation to get to LED from origin
     public double[] xyz = new double[3];
         
+    public double[] fc;
+    public double[] cc;
+    
     public LEDDetection()
     {
     }
@@ -40,9 +43,11 @@ public class LEDDetection
         this.id = id;
     }
     
-    public LEDDetection(int id, double[] uv)
+    public LEDDetection(int id, double[] uv, double[] fc, double[] cc)
     {
         this.id = id;
         this.uv = uv;
+        this.fc = fc;
+        this.cc = cc;
     }
 }

@@ -2,14 +2,14 @@ package edu.umich.mihai.led;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.io.IOException;
 import java.util.ArrayList;
+
 import javax.swing.JFrame;
-import edu.umich.mihai.camera.Camera;
-import edu.umich.mihai.camera.CameraComparator;
-import edu.umich.mihai.camera.CameraException;
-import edu.umich.mihai.lcmtypes.led_t;
-import edu.umich.mihai.vis.VisCamera;
+
 import lcm.lcm.LCM;
+import april.config.Config;
+import april.config.ConfigFile;
 import april.jcam.ImageSource;
 import april.jmat.LinAlg;
 import april.util.GetOpt;
@@ -21,6 +21,11 @@ import april.vis.VisDataFillStyle;
 import april.vis.VisDataLineStyle;
 import april.vis.VisSphere;
 import april.vis.VisWorld;
+import edu.umich.mihai.camera.CameraComparator;
+import edu.umich.mihai.camera.CameraException;
+import edu.umich.mihai.camera.ConfigException;
+import edu.umich.mihai.lcmtypes.led_t;
+import edu.umich.mihai.vis.VisCamera;
 
 /**
  * Tracks LEDs in 3d space given LEDDetections from multiple cameras and known extrinsic camera perameters
@@ -30,7 +35,6 @@ import april.vis.VisWorld;
  */
 public class LEDTracker extends CameraComparator implements Track.Listener
 {
-    private final double version = 0.1;
     private JFrame jf;
     private VisWorld vw = new VisWorld();
     private VisCanvas vc = new VisCanvas(vw);
@@ -39,14 +43,11 @@ public class LEDTracker extends CameraComparator implements Track.Listener
     private VisWorld.Buffer vbLeds = vw.getBuffer("leds");
     private boolean display;
 
-    private double[] cc;
-    private double[] fc;
-
     private Object lock = new Object();
     private boolean ledsReady = false;
     private int id;
-    private ArrayList<LEDDetection> newLeds;
-    private ArrayList<LEDDetection> leds[];
+    private ArrayList<LEDDetection> newLeds = new ArrayList<LEDDetection>();
+    private ArrayList<ArrayList<LEDDetection> > leds = new ArrayList<ArrayList<LEDDetection> >();
 
     private LCM lcm = LCM.getSingleton();
 
@@ -54,48 +55,29 @@ public class LEDTracker extends CameraComparator implements Track.Listener
     
     // TODO detect boundry tags and publish under boundry channel (use int[256][3])
     
-    public LEDTracker() throws Exception
+    public LEDTracker(Config config, boolean display) throws ConfigException, CameraException, IOException 
     {
-        // get cal info from txt file
-    }
-    
-    public LEDTracker(Camera cameras[], double[] fc, double[] cc, double[] kc, double alpha) throws Exception
-    {
-        this(cameras, false, false, 15, fc, cc, kc, alpha, false);
-    }
-    
-    public LEDTracker(Camera cameras[], boolean loRes, boolean color16, int fps, double[] fc, double[] cc, double[] kc, double alpha) throws Exception
-    {
-        this(cameras, loRes, color16, fps, fc, cc, kc, alpha, false);
-    }
-    
-    public LEDTracker(Camera cameras[], boolean loRes, boolean color16, int fps, double[] fc, double[] cc, double[] kc, double alpha, boolean display) throws Exception
-    {
-        this.fc = fc;
-        this.cc = cc;
+    	if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
+
         this.display = display;
-        Track tracks[] = new Track[cameras.length];
-        leds = new ArrayList[cameras.length];
-        newLeds = new ArrayList<LEDDetection>();
-        
-        System.out.println("LEDTracker-Constructor: Starting tracks...");
-        for (int x = 0; x < tracks.length; x++)
+    	
+        ArrayList<String> urls = ImageSource.getCameraURLs();
+        ArrayList<Track> tracks = new ArrayList<Track>();
+
+        System.out.println("ICC-Constructor: starting imagereaders...");
+        for(String url : urls)
         {
-            leds[x] = new ArrayList<LEDDetection>();
-            
-            try
-            {
-               tracks[x] = new Track(x, cameras[x].getUrl(), cameras[x].getTransformationMatrix(), loRes, color16, fps, fc, cc, kc, alpha);
-            } catch (Exception e)
-            {
-                e.printStackTrace();
-            }
-            
-            tracks[x].addListener(this);
-            tracks[x].start();
+        	Track test = new Track(config, url);
+        	if(test.isGood())
+        	{
+        		leds.add(new ArrayList<LEDDetection>());
+        		test.addListener(this);
+        		test.start();
+        		tracks.add(test);
+        	}
         }
         
-        showGui(cameras);
+        showGui(tracks);
         
         run();
     }
@@ -122,25 +104,25 @@ public class LEDTracker extends CameraComparator implements Track.Listener
                     e.printStackTrace();
                 }
                 
-                leds[id].clear();
-                leds[id].addAll(newLeds);
+                leds.get(id).clear();
+                leds.get(id).addAll(newLeds);
             }
             
-            for(int x = 0; x < leds.length; x++)
+            for(int x = 0; x < leds.size(); x++)
             {
-                for(int y = 0; y < leds[x].size(); y++)
+                for(int y = 0; y < leds.get(x).size(); y++)
                 {
                     detections.clear();
-                    detections.add(leds[x].get(y));
+                    detections.add(leds.get(x).get(y));
 
-                    for(int a = x+1; a < leds.length; a++)
+                    for(int a = x+1; a < leds.size(); a++)
                     {
-                        for(int b = 0; b < leds[a].size(); b++)
+                        for(int b = 0; b < leds.get(a).size(); b++)
                         {
-                            if(leds[x].get(y).id == leds[a].get(b).id)
+                            if(leds.get(x).get(y).id == leds.get(a).get(b).id)
                             {
-                                detections.add(leds[a].get(b));
-                                leds[a].remove(b);
+                                detections.add(leds.get(a).get(b));
+                                leds.get(a).remove(b);
                                 break;
                             }
                         }
@@ -200,23 +182,23 @@ public class LEDTracker extends CameraComparator implements Track.Listener
         return synced;
     }
     
-    private void showGui(Camera cameras[])
+    private void showGui(ArrayList<Track> tracks)
     {
         if(display)
         {
             System.out.println("LEDTracker-showGUI: Tracks started. Starting display...");
             
-            jf = new JFrame("LEDTracker v" + version);
+            jf = new JFrame("LEDTracker");
             jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             jf.setLayout(new BorderLayout());
             jf.add(vc, BorderLayout.CENTER);
             jf.setSize(1000, 500);
             jf.setVisible(true);
             
-            for (Camera cam : cameras)
+            for (Track track : tracks)
             {
-                Color color = (cam.getIndex() == 0 ? Color.blue : Color.red);
-                double[][] camM = cam.getTransformationMatrix();
+                Color color = (track.getIndex() == 0 ? Color.blue : Color.red);
+                double[][] camM = track.getTransformationMatrix();
                 vbCameras.addBuffered(new VisChain(camM, new VisCamera(color, 0.08)));
             }
             vbCameras.switchBuffer();
@@ -245,9 +227,10 @@ public class LEDTracker extends CameraComparator implements Track.Listener
         
         for(int x = 0; x < ld.size(); x++)
         {
-            theta = -1*Math.atan((ld.get(x).uv[0]-cc[0])/fc[0]);
-            phi = -1*Math.atan((ld.get(x).uv[1]-cc[1])/fc[1]);
-            transformations[x] = LinAlg.matrixAB(ld.get(x).transformation, LinAlg.rotateY(theta));
+        	LEDDetection led = ld.get(x);
+            theta = -1*Math.atan((led.uv[0]-led.cc[0])/led.fc[0]);
+            phi = -1*Math.atan((led.uv[1]-led.cc[1])/led.fc[1]);
+            transformations[x] = LinAlg.matrixAB(led.transformation, LinAlg.rotateY(theta));
             transformations[x] = LinAlg.matrixAB(transformations[x], LinAlg.rotateX(phi));
             
             ArrayList<double[]> ray = new ArrayList<double[]>();
@@ -364,9 +347,7 @@ public class LEDTracker extends CameraComparator implements Track.Listener
         GetOpt opts = new GetOpt();
 
         opts.addBoolean('h', "help", false, "See this help screen");
-        opts.addString('c', "colors", "gray8", "gray8 or gray16");
-        opts.addInt('f', "fps", 15, "set the max fps to publish");
-        opts.addString('r', "resolution", "hi", "lo=380x240, hi=760x480");
+        opts.addString('c', "config", System.getenv("CONFIG")+"/camera.config", "Location of config file to use for settings");
 
         if (!opts.parse(args))
         {
@@ -382,17 +363,7 @@ public class LEDTracker extends CameraComparator implements Track.Listener
 
         if (ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
 
-        boolean loRes = opts.getString("resolution").contains("lo");
-        boolean color16 = opts.getString("colors").contains("16");
-        int fps = opts.getInt("fps");
-
-        // TODO get from config file
-        Camera cameras[] = new Camera[2]; 
-        cameras[0] = new Camera(0,"dc1394://b09d01008b51b8", new double[]{0.06450273846631908, -0.25507166312989354, -0.020171972628530654, -0.3129196070369205, 0.1750399043671647, -2.660501114757434}); // 0
-        cameras[1] = new Camera(1,"dc1394://b09d01008b51ab", new double[]{0,0,0,0,0,0}); // 1
-        
-        // TODO get from config file
-        new LEDTracker(cameras, loRes, color16, fps, new double[]{477.5, 477.5}, new double[]{376,240}, new double[]{0,0,0,0,0}, 0.0, true); 
+        new LEDTracker(new ConfigFile(opts.getString("config")), true); 
     }
     
     public void kill()

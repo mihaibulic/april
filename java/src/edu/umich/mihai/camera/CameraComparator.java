@@ -2,6 +2,7 @@ package edu.umich.mihai.camera;
 
 import java.util.Comparator;
 
+
 /**
  * Compares two Cameras and returns 1 if camera1 has more tagdetections then camera2
  * 

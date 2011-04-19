@@ -1,14 +1,17 @@
 package edu.umich.mihai.camera;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import edu.umich.mihai.led.TagComparator;
+
+import april.config.Config;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import april.tag.TagDetector;
+import edu.umich.mihai.led.TagComparator;
 
 /**
  * Tracks a camera's tag detections and coordinates relative to a "main" camera
@@ -19,9 +22,7 @@ import april.tag.TagDetector;
 public class Camera implements ImageReader.Listener
 {
     private int mainIndex;
-    private int index;
-    private String url;
-    private ImageReader reader;
+    private ImageReader ir;
     private ArrayList<TagDetection> detections;
     private ArrayList<double[]> potentialPositions;
     private double[] position;
@@ -33,21 +34,24 @@ public class Camera implements ImageReader.Listener
     private int height = 0;
     private String format = "";
     
-    public Camera(int index, String url, double[] position)
-    {
-        this.index = index;
-        this.url = url;
-        this.position = position;
-    }
+    private double fc[]; // Focal length, in pixels, [X Y]
     
-    public Camera(ImageReader reader, int index)
+    public Camera(Config config, String url) throws CameraException, IOException, ConfigException
     {
-        this.reader = reader;
-        this.index = index;
+        ir = new ImageReader(config, url);
+        fc = CamUtil.getDoubleProperty(config, url, "fc", config.requireInt("LENGTH_FC"));
+        position = CamUtil.getDoubleProperty(config, url, "xyzrpy", config.requireInt("LENGTH_X"));
+        
+        if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
+    	config = config.getChild("Image_reader").getChild("intrinsics");
+    	
         detections = new ArrayList<TagDetection>();
         potentialPositions = new ArrayList<double[]>();
-        position = new double[6];
-        url = reader.getUrl();
+    }
+    
+    public boolean isGood()
+    {
+    	return ir.isGood();
     }
     
     public void aggregateTags(int size) throws InterruptedException
@@ -55,8 +59,8 @@ public class Camera implements ImageReader.Listener
         imageCount = size;
         imageBuffers = new ArrayList<byte[]>();
         
-        this.reader.addListener(this);
-        reader.start();
+        this.ir.addListener(this);
+        ir.start();
         
         synchronized(imageBuffers)
         {
@@ -123,9 +127,14 @@ public class Camera implements ImageReader.Listener
         return detections;
     }
     
+    public double[] getFocal()
+    {
+    	return fc;
+    }
+    
     public int getIndex()
     {
-        return index;
+        return ir.getIndex();
     }
     
     public int getMain()
@@ -140,7 +149,7 @@ public class Camera implements ImageReader.Listener
     
     public ImageReader getReader()
     {
-        return reader;
+        return ir;
     }
     
     public int getTagCount()
@@ -155,7 +164,7 @@ public class Camera implements ImageReader.Listener
     
     public String getUrl()
     {
-        return url;
+        return ir.getUrl();
     }
     
     public void setMain(int main)
@@ -190,7 +199,7 @@ public class Camera implements ImageReader.Listener
     {
         if(imageBuffers.size() >= imageCount)
         {
-            reader.kill();
+            ir.kill();
             synchronized(imageBuffers)
             {
                 imageBuffers.notify();

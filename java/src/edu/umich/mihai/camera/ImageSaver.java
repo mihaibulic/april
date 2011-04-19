@@ -3,7 +3,7 @@ package edu.umich.mihai.camera;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.HashMap;
+
 import lcm.lcm.LCM;
 import april.jcam.ImageSourceFormat;
 import edu.umich.mihai.lcmtypes.image_path_t;
@@ -19,9 +19,6 @@ public class ImageSaver extends Thread implements ImageReader.Listener
 {
     private LCM lcm = LCM.getSingleton();
 
-    private String url;
-    private HashMap<String, Integer> urls = new HashMap<String, Integer>();
-    
     private boolean run = true;
     private Object lock = new Object();
     private boolean imageReady = false;
@@ -31,16 +28,16 @@ public class ImageSaver extends Thread implements ImageReader.Listener
     private int height = 0;
     private String format = "";
     
+    private String url;
+    private int index = 0; 
     private String outputDir = "";
     private int saveCounter = 0;
 
     public ImageSaver(ImageReader ir, String url, String outputDir)
     {
-        setUrls();
-        if(urls.get(url) == null) return;
+    	index = ir.getIndex();
+        this.outputDir = outputDir + "cam" + index;
         this.url = url;
-
-        this.outputDir = outputDir + "cam" + urls.get(url);
         File dir = new File(this.outputDir);
         dir.mkdirs();
         
@@ -90,7 +87,7 @@ public class ImageSaver extends Thread implements ImageReader.Listener
 	                e.printStackTrace();
 	            }
 	
-	            lcm.publish("cam" + urls.get(url), imagePath);
+	            lcm.publish("cam" + index, imagePath);
 	            imageReady = false;
             }
         }
@@ -110,19 +107,6 @@ public class ImageSaver extends Thread implements ImageReader.Listener
         saveCounter++;
 
         return filepath;
-    }
-    
-    private void setUrls()
-    {
-        urls.put("dc1394://b09d01008b51b8", 0);
-        urls.put("dc1394://b09d01008b51ab", 1);
-        urls.put("dc1394://b09d01008b51b9", 2);
-        urls.put("dc1394://b09d01009a46a8", 3);
-        urls.put("dc1394://b09d01009a46b6", 4);
-        urls.put("dc1394://b09d01009a46bd", 5);
-        urls.put("dc1394://b09d01008c3f62", 10);
-        urls.put("dc1394://b09d01008c3f6a", 11); // has J on it
-        urls.put("dc1394://b09d01008e366c", 12); // unmarked
     }
     
     /**
