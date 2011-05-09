@@ -10,8 +10,9 @@ import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
-import april.tag.TagDetector;
 import edu.umich.mihai.led.TagComparator;
+import edu.umich.mihai.misc.ConfigException;
+import edu.umich.mihai.misc.Util;
 
 /**
  * Tracks a camera's tag detections and coordinates relative to a "main" camera
@@ -35,18 +36,23 @@ public class Camera implements ImageReader.Listener
     private String format = "";
     
     private double fc[]; // Focal length, in pixels, [X Y]
+    private double cc[];
+    private double kc[];
+    private double alpha;
     
     public Camera(Config config, String url) throws CameraException, IOException, ConfigException
     {
-        ir = new ImageReader(config, url);
-        fc = CamUtil.getDoubleProperty(config, url, "fc", config.requireInt("LENGTH_FC"));
-        position = CamUtil.getDoubleProperty(config, url, "xyzrpy", config.requireInt("LENGTH_X"));
-        
-        if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
-    	config = config.getChild("Image_reader").getChild("intrinsics");
+        Util.verifyConfig(config);
+    	
+    	position = config.requireDoubles("xyzrpy");
+        fc = config.requireDoubles("fc");
+        cc = config.requireDoubles("cc");
+        kc = config.requireDoubles("kc");
+        alpha = config.requireDouble("alpha");
     	
         detections = new ArrayList<TagDetection>();
         potentialPositions = new ArrayList<double[]>();
+        ir = new ImageReader(config, url);
     }
     
     public boolean isGood()
@@ -70,7 +76,7 @@ public class Camera implements ImageReader.Listener
             }
         }
         
-        TagDetector td = new TagDetector(new Tag36h11());
+        TagDetector td = new TagDetector(new Tag36h11(), fc, cc, kc, alpha);
         for(byte[] buffer: imageBuffers)
         {
             detections.addAll(td.process(ImageConvert.convertToImage(format, width, height, buffer), new double[] {width/2.0, height/2.0}));
@@ -132,7 +138,7 @@ public class Camera implements ImageReader.Listener
     	return fc;
     }
     
-    public int getIndex()
+    public int getId()
     {
         return ir.getIndex();
     }
@@ -274,5 +280,4 @@ public class Camera implements ImageReader.Listener
         
         return c;
     }
-
 }

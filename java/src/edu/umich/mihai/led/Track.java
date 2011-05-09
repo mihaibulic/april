@@ -2,14 +2,13 @@ package edu.umich.mihai.led;
 
 import java.io.IOException;
 import java.util.ArrayList;
-
 import april.config.Config;
 import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
 import edu.umich.mihai.camera.CameraException;
-import edu.umich.mihai.camera.CamUtil;
-import edu.umich.mihai.camera.ConfigException;
 import edu.umich.mihai.camera.ImageReader;
+import edu.umich.mihai.misc.ConfigException;
+import edu.umich.mihai.misc.Util;
 
 /**
  * Tracks a given LED in 3D space (used by LEDTracker)
@@ -37,11 +36,6 @@ public class Track extends Thread implements ImageReader.Listener
 
     private double[][] transformation;
     
-    // required calibration parameter lengths
-    private int lengthFC;
-    private int lengthCC;
-    private int lengthKC;
-    
     // indices for lookup in kc[]
     private int KC1 = 0;//^2
     private int KC2 = 1;//^4
@@ -61,19 +55,17 @@ public class Track extends Thread implements ImageReader.Listener
     
     public Track(Config config, String url) throws ConfigException, CameraException, IOException
     {
-    	if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
+    	Util.verifyConfig(config);
 
-    	lengthFC = config.requireInt("LENGTH_FC");
-    	lengthCC = config.requireInt("LENGTH_CC");
-    	lengthKC = config.requireInt("LENGTH_KC");
+    	id = config.requireInt("id");
+    	transformation = LinAlg.xyzrpyToMatrix(config.requireDoubles("xyzrpy"));
+        fc = config.requireDoubles("fc");
+        cc = config.requireDoubles("cc");
+        kc = config.requireDoubles("kc");
+        alpha = config.requireDouble("alpha");
     	
-    	id = CamUtil.getIntProperty(config, url, "indices");
-    	transformation = LinAlg.xyzrpyToMatrix(CamUtil.getDoubleProperty(config, url, "xyzrpy", config.requireInt("LENGTH_X")));
-    	fc = CamUtil.getDoubleProperty(config, url, "fc", lengthFC);
-    	cc = CamUtil.getDoubleProperty(config, url, "cc", lengthCC);
-    	kc = CamUtil.getDoubleProperty(config, url, "kc", lengthKC);
-    	dlf = new DummyLEDFinder(fc, cc, kc);
-        ir = new ImageReader(config, url);
+    	dlf = new DummyLEDFinder(fc, cc, kc, alpha);
+    	ir = new ImageReader(config, url);
     }
 
     public void run()

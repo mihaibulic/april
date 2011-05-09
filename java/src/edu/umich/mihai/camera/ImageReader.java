@@ -2,6 +2,8 @@ package edu.umich.mihai.camera;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import edu.umich.mihai.misc.ConfigException;
+import edu.umich.mihai.misc.Util;
 
 import magic.camera.util.SyncErrorDetector;
 import april.config.Config;
@@ -25,7 +27,7 @@ public class ImageReader extends Thread
     private ImageSource isrc;
     private ImageSourceFormat ifmt;
     private String url;
-    private int index;
+    private int id;
     
     private SyncErrorDetector sync;
     
@@ -36,7 +38,7 @@ public class ImageReader extends Thread
     
     public ImageReader(String url) throws CameraException, IOException, ConfigException
     {
-    	this(new ConfigFile("$CONFIG/camera.config") , url);
+    	this(new ConfigFile(System.getenv("CONFIG")+"/camera.config"), url);
     }
     
     public ImageReader(boolean loRes, boolean color16, int maxfps, String url) throws CameraException, IOException, ConfigException
@@ -46,7 +48,8 @@ public class ImageReader extends Thread
     
     public ImageReader(Config config, String url) throws CameraException, IOException, ConfigException
     {
-    	if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
+        Util.verifyConfig(config);
+    	
     	this.config = config;
     	boolean loRes = config.requireBoolean("loRes");
     	boolean color16 = config.requireBoolean("color16");
@@ -63,7 +66,7 @@ public class ImageReader extends Thread
     	{
     		if(urls[x].equals(url)) 
 			{
-    			index = indices[x];
+    			id = indices[x];
     			found = true;
     			break;
 			}
@@ -117,7 +120,7 @@ public class ImageReader extends Thread
                     
                     for (Listener listener : Listeners)
                     {
-                        listener.handleImage(imageBuffer, ifmt, timestamp, index);
+                        listener.handleImage(imageBuffer, ifmt, timestamp, id);
                     }
                 }
                 else if(sync.verify() == SyncErrorDetector.RECOMMEND_ACTION)
@@ -144,7 +147,7 @@ public class ImageReader extends Thread
     
     public int getIndex()
     {
-    	return index;
+    	return id;
     }
     
     private void setIsrc(boolean loRes, boolean color16, int fps, String urls) throws IOException

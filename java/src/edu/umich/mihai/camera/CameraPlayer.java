@@ -26,6 +26,8 @@ import april.vis.VisImage;
 import april.vis.VisWorld;
 import april.vis.VisWorld.Buffer;
 import edu.umich.mihai.lcmtypes.image_path_t;
+import edu.umich.mihai.misc.ConfigException;
+import edu.umich.mihai.misc.Util;
 
 /**
  * Plays back the video from all cameras. Images are selected from the LCM message stream of image paths.
@@ -50,6 +52,8 @@ public class CameraPlayer implements LCMSubscriber, ImageReader.Listener
 
     public CameraPlayer(Config config, int columns) throws CameraException, IOException, ConfigException
     {
+        Util.verifyConfig(config);
+        
     	if(ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
     	
         this.columns = columns;

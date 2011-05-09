@@ -21,10 +21,12 @@ import april.vis.VisDataFillStyle;
 import april.vis.VisDataLineStyle;
 import april.vis.VisSphere;
 import april.vis.VisWorld;
+import edu.umich.mihai.camera.CamUtil;
 import edu.umich.mihai.camera.CameraComparator;
 import edu.umich.mihai.camera.CameraException;
-import edu.umich.mihai.camera.ConfigException;
 import edu.umich.mihai.lcmtypes.led_t;
+import edu.umich.mihai.misc.ConfigException;
+import edu.umich.mihai.misc.Util;
 import edu.umich.mihai.vis.VisCamera;
 
 /**
@@ -53,11 +55,11 @@ public class LEDTracker extends CameraComparator implements Track.Listener
 
     private boolean run = true;
     
-    // TODO detect boundry tags and publish under boundry channel (use int[256][3])
+    // TODO detect boundary tags and publish under boundary channel (use int[256][3])
     
     public LEDTracker(Config config, boolean display) throws ConfigException, CameraException, IOException 
     {
-    	if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
+    	Util.verifyConfig(config);
 
         this.display = display;
     	
@@ -67,7 +69,7 @@ public class LEDTracker extends CameraComparator implements Track.Listener
         System.out.println("ICC-Constructor: starting imagereaders...");
         for(String url : urls)
         {
-        	Track test = new Track(config, url);
+        	Track test = new Track(config.getChild(CamUtil.getUrl(config, url)), url);
         	if(test.isGood())
         	{
         		leds.add(new ArrayList<LEDDetection>());

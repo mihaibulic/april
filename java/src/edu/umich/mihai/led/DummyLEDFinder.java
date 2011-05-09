@@ -2,10 +2,10 @@ package edu.umich.mihai.led;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import edu.umich.mihai.camera.TagDetector;
 import april.jcam.ImageConvert;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
-import april.tag.TagDetector;
 
 /**
  * Temp replacement for LED tracker/finder (to be made by Ryan Anderson).
@@ -19,7 +19,6 @@ public class DummyLEDFinder
     private TagDetector td;
     private double[] fc;
     private double[] cc;
-    private double[] kc;
     
     /**
      * Finds the LEDs and returns array of coordinates in pixel space along with IDs
@@ -27,12 +26,11 @@ public class DummyLEDFinder
      * @param image - Image in which to find LEDs
      * @return arraylist of led locations
      */
-    public DummyLEDFinder(double[] fc, double[] cc, double[] kc)
+    public DummyLEDFinder(double[] fc, double[] cc, double[] kc, double alpha)
     {
     	this.fc = fc;
     	this.cc = cc;
-    	this.kc = kc;
-        td = new TagDetector(new Tag36h11());
+        td = new TagDetector(new Tag36h11(), fc, cc, kc, alpha);
     }
     
     public ArrayList<LEDDetection> getLedUV(byte[] buffer, int width, int height, String format)

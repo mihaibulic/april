@@ -19,6 +19,8 @@ import april.vis.VisChain;
 import april.vis.VisDataLineStyle;
 import april.vis.VisRectangle;
 import april.vis.VisWorld;
+import edu.umich.mihai.misc.ConfigException;
+import edu.umich.mihai.misc.Util;
 import edu.umich.mihai.vis.VisCamera;
 
 /**
@@ -46,6 +48,8 @@ public class ExtrinsicsCalibrator
     
     public ExtrinsicsCalibrator(Config config, boolean display) throws Exception
     {
+        Util.verifyConfig(config);
+        
     	tagSize = config.requireDouble("tagSize");
     	
         ArrayList<String> urls = ImageSource.getCameraURLs();
@@ -54,7 +58,7 @@ public class ExtrinsicsCalibrator
         System.out.println("ICC-Constructor: starting imagereaders...");
         for(String url : urls)
         {
-        	Camera test = new Camera(config, url);
+        	Camera test = new Camera(config.getChild(CamUtil.getUrl(config, url)), url);
         	if(test.isGood())
         	{
         		cameras.add(test);
@@ -65,7 +69,7 @@ public class ExtrinsicsCalibrator
         System.out.println("ICC-run: imagereaders started. aggregating tags...");
         for (Camera camera : cameras)
         {
-            System.out.println("ICC-run: aggregating tags of camera " + camera.getIndex());
+            System.out.println("ICC-run: aggregating tags of camera " + camera.getId());
             camera.aggregateTags(5);
         }
 
@@ -82,14 +86,14 @@ public class ExtrinsicsCalibrator
                 Color color = new Color(rand.nextInt(256), 127, 127);
                 double[] pos = cam.getPosition();
                 
-                output += "camera: " + cam.getIndex() + "\n";
+                output += "camera: " + cam.getId() + "\n";
                 output += "(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2] + "\n";
                 output += "(r,p,y): " + pos[3] + ", " + pos[4] + ", " + pos[5] + "\n\n";
                 
                 double[][] camM = cam.getTransformationMatrix();
                 vbCameras.addBuffered(new VisChain(camM, new VisCamera(color, 0.08)));
                 
-                fc = CamUtil.getDoubleProperty(config, cam.getUrl(), "fc", config.requireInt("LENGTH_FC"));
+                fc = cam.getFocal();
                 ArrayList<TagDetection> tags = cam.getDetections();
                 for (TagDetection tag : tags)
                 {
@@ -279,7 +283,7 @@ public class ExtrinsicsCalibrator
         
         for(Camera cam : cameras)
         {
-            if(index == cam.getIndex())
+            if(index == cam.getId())
             {
                 position = cam.getPosition();
             }

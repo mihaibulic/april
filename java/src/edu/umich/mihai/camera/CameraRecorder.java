@@ -4,6 +4,7 @@ import java.io.Console;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import edu.umich.mihai.misc.ConfigException;
 
 import april.config.Config;
 import april.config.ConfigFile;

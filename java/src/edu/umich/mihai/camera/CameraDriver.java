@@ -14,7 +14,6 @@ import april.jcam.ImageSourceFormat;
 import edu.umich.mihai.lcmtypes.image_path_t;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
-import april.tag.TagDetector;
 
 /**
 * Gets camera images and saves them as necessary

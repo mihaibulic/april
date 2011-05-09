@@ -5,73 +5,35 @@ import april.jmat.LinAlg;
 
 public class CamUtil 
 {
-    // required calibration parameter lengths
-    static final public int LENGTH_FC = 2;
-    static final public int LENGTH_CC = 2;
-    static final public int LENGTH_KC = 5;
+    public static String getUrl(Config config, String url)
+    {
+        String prefix = config.requireString("default_url");
+        
+        if(url.contains(prefix))
+        {
+            url = url.substring(url.indexOf(prefix) + prefix.length());
+        }
 
-    // indices for lookup in kc[]
-    static final public int KC1 = 0;//^2
-    static final public int KC2 = 1;//^4
-    static final public int KC3 = 2;//^tangential
-    static final public int KC4 = 3;//^tangential
-    static final public int KC5 = 4;//^6
+        return url;
+    }
+    
+	public static double[] undistort(double pixel[], double fc[], double cc[], double kc[], double alpha)
+    {
+	    final int LENGTH_FC = 2;
+        final int LENGTH_CC = 2;
+        final int LENGTH_KC = 5;
+        
+        // indices for lookup in kc[]
+        final int KC1 = 0;//^2
+        final int KC2 = 1;//^4
+        final int KC3 = 2;//^tangential
+        final int KC4 = 3;//^tangential
+        final int KC5 = 4;//^6
 
-    private double fc[]; // Focal length, in pixels, [X Y]
-    private double cc[]; // Principal point, [X Y] 
-    private double kc[]; // Distortion, [kc1 kc2 kc3 kc4 kc5 kc6]
-    private double alpha; // Skew
-	
-    public static int getIntProperty(Config config, String url, String property) throws ConfigException
-    {
-    	return getIntProperty(config, url, property, 1)[0];
-    }
-    
-    public static int[] getIntProperty(Config config, String url, String property, int size) throws ConfigException
-    {
-    	int propertyValues[] = new int[size];
-    	
-    	String[] urls = config.getStrings("urls");
-    	int[] allProps = config.getInts(property);
-    	
-    	for(int x = 0; x < urls.length; x++)
-    	{
-    		if(url.compareTo(urls[x]) == 0)
-    		{
-    			for(int y = 0; y < size; y++)
-    			{
-    				propertyValues[y] = allProps[x*size+y];
-    			}
-    		}
-    	}
-    	
-    	return propertyValues;
-    }
-    
-    public static double[] getDoubleProperty(Config config, String url, String property, int size) throws ConfigException
-    {
-    	double propertyValues[] = new double[size];
-    	
-    	String[] urls = config.getStrings("urls");
-    	double[] allProps = config.getDoubles(property);
-    	
-    	for(int x = 0; x < urls.length; x++)
-    	{
-    		if(url.compareTo(urls[x]) == 0)
-    		{
-    			for(int y = 0; y < size; y++)
-    			{
-    				propertyValues[y] = allProps[x*size+y];
-    			}
-    		}
-    	}
-    	
-    	return propertyValues;
-    }
-    
-    // XXX set parameters??
-	public double[] undistort(double pixel[])
-    {
+        if(fc.length != LENGTH_FC) throw new ArrayIndexOutOfBoundsException("Focal length array contains " + fc.length + " elements (should have " + LENGTH_FC + ")");
+        if(cc.length != LENGTH_CC) throw new ArrayIndexOutOfBoundsException("Principal point array contains " + cc.length + " elements (should have " + LENGTH_CC + ")");
+        if(kc.length != LENGTH_KC) throw new ArrayIndexOutOfBoundsException("Distortion parameter array contains " + kc.length + " elements (should have " + LENGTH_KC + ")");
+        
         double p[] = LinAlg.resize(pixel, 2);
 
         double centered[] = LinAlg.subtract(p, cc);
@@ -100,8 +62,23 @@ public class CamUtil
         return result;
     }
 	
-	public double[] distort(double pixel[])
+	public static double[] distort(double pixel[], double fc[], double cc[], double kc[], double alpha)
     {
+	    final int LENGTH_FC = 2;
+        final int LENGTH_CC = 2;
+        final int LENGTH_KC = 5;
+        
+        // indices for lookup in kc[]
+        final int KC1 = 0;//^2
+        final int KC2 = 1;//^4
+        final int KC3 = 2;//^tangential
+        final int KC4 = 3;//^tangential
+        final int KC5 = 4;//^6
+
+        if(fc.length != LENGTH_FC) throw new ArrayIndexOutOfBoundsException("Focal length array contains " + fc.length + " elements (should have " + LENGTH_FC + ")");
+        if(cc.length != LENGTH_CC) throw new ArrayIndexOutOfBoundsException("Principal point array contains " + cc.length + " elements (should have " + LENGTH_CC + ")");
+        if(kc.length != LENGTH_KC) throw new ArrayIndexOutOfBoundsException("Distortion parameter array contains " + kc.length + " elements (should have " + LENGTH_KC + ")");
+           
         double p[] = LinAlg.resize(pixel, 2);
 
         double centered[] = LinAlg.subtract(p, cc);
