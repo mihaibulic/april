@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import edu.umich.mihai.misc.ConfigException;
+import edu.umich.mihai.misc.Util;
 
 import april.config.Config;
 import april.config.ConfigFile;
@@ -47,7 +48,7 @@ public class CameraRecorder
         }
         
         Config config = new ConfigFile(opts.getString("config"));
-        if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
+        Util.verifyConfig(config);
         if(!opts.getString("resolution").isEmpty())
         {
         	config.setBoolean("loRes", opts.getString("resolution").contains("lo"));

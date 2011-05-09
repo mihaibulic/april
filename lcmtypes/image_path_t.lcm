@@ -7,6 +7,7 @@ struct image_path_t
     // The playback application should take an optional directory
     // flag, which allows the image directory to be specified.
     string img_path;
+    int32_t id;
     int32_t width;
     int32_t height;
     string format;

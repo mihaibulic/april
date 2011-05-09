@@ -29,15 +29,15 @@ public class ImageSaver extends Thread implements ImageReader.Listener
     private String format = "";
     
     private String url;
-    private int index = 0; 
+    private int id; 
     private String outputDir = "";
     private int saveCounter = 0;
 
     public ImageSaver(ImageReader ir, String url, String outputDir)
     {
-    	index = ir.getIndex();
-        this.outputDir = outputDir + "cam" + index;
-        this.url = url;
+    	id = ir.getCameraId();
+    	this.url = url;
+        this.outputDir = outputDir + "cam" + id;
         File dir = new File(this.outputDir);
         dir.mkdirs();
         
@@ -72,6 +72,7 @@ public class ImageSaver extends Thread implements ImageReader.Listener
 	                imagePath.height = height;
 	                imagePath.format = format;
 	                imagePath.utime = (long)timeStamp;
+	                imagePath.id = id;
 	            } catch (NullPointerException e)
 	            {
 	            	if(run)
@@ -86,8 +87,8 @@ public class ImageSaver extends Thread implements ImageReader.Listener
 	            {
 	                e.printStackTrace();
 	            }
-	
-	            lcm.publish("cam" + index, imagePath);
+
+	            lcm.publish("cam" + id, imagePath);
 	            imageReady = false;
             }
         }

@@ -52,7 +52,7 @@ public class Camera implements ImageReader.Listener
     	
         detections = new ArrayList<TagDetection>();
         potentialPositions = new ArrayList<double[]>();
-        ir = new ImageReader(config, url);
+        ir = new ImageReader(config.getRoot(), url);
     }
     
     public boolean isGood()
@@ -138,9 +138,9 @@ public class Camera implements ImageReader.Listener
     	return fc;
     }
     
-    public int getId()
+    public int getCameraId()
     {
-        return ir.getIndex();
+        return ir.getCameraId();
     }
     
     public int getMain()

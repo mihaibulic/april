@@ -6,9 +6,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
 import javax.swing.JFrame;
+
 import lcm.lcm.LCM;
 import lcm.lcm.LCMDataInputStream;
 import lcm.lcm.LCMSubscriber;
@@ -88,7 +88,8 @@ public class CameraPlayer implements LCMSubscriber, ImageReader.Listener
         }
     }
 
-    private void setGUI() {
+    private void setGUI() 
+    {
     	vw = new VisWorld();
     	vc = new VisCanvas(vw);
     	jf = new JFrame("Camera player");
@@ -158,12 +159,8 @@ public class CameraPlayer implements LCMSubscriber, ImageReader.Listener
         {
             if (channel.contains("cam"))
             {
-                Pattern intsOnly = Pattern.compile("\\d+");
-                Matcher makeMatch = intsOnly.matcher(channel);
-                makeMatch.find();
-                int camera = Integer.parseInt(makeMatch.group());
-                
                 image_path_t imagePath = new image_path_t(ins);
+                int camera = imagePath.id;
                 byte[] buffer = new byte[imagePath.width * imagePath.height];
                 new FileInputStream(new File(imagePath.img_path)).read(buffer);
                 image = ImageConvert.convertToImage(imagePath.format,imagePath.width, imagePath.height, buffer);

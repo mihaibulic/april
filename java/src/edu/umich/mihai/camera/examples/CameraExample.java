@@ -173,7 +173,7 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
     {
         try
         {
-            if (channel.contains("cam1"))
+            if (channel.contains("cam"))
             {
                 synchronized(lock)
                 {

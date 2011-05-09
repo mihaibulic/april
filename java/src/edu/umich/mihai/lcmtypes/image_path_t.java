@@ -14,6 +14,7 @@ public final class image_path_t implements lcm.lcm.LCMEncodable
 {
     public long utime;
     public String img_path;
+    public int id;
     public int width;
     public int height;
     public String format;
@@ -23,7 +24,7 @@ public final class image_path_t implements lcm.lcm.LCMEncodable
     }
  
     public static final long LCM_FINGERPRINT;
-    public static final long LCM_FINGERPRINT_BASE = 0x00182b4f8551586aL;
+    public static final long LCM_FINGERPRINT_BASE = 0x3e0c76fd9c350928L;
  
     static {
         LCM_FINGERPRINT = _hashRecursive(new ArrayList<Class>());
@@ -53,6 +54,8 @@ public final class image_path_t implements lcm.lcm.LCMEncodable
         outs.writeLong(this.utime); 
  
         __strbuf = new char[this.img_path.length()]; this.img_path.getChars(0, this.img_path.length(), __strbuf, 0); outs.writeInt(__strbuf.length+1); for (int _i = 0; _i < __strbuf.length; _i++) outs.write(__strbuf[_i]); outs.writeByte(0); 
+ 
+        outs.writeInt(this.id); 
  
         outs.writeInt(this.width); 
  
@@ -89,6 +92,8 @@ public final class image_path_t implements lcm.lcm.LCMEncodable
  
         __strbuf = new char[ins.readInt()-1]; for (int _i = 0; _i < __strbuf.length; _i++) __strbuf[_i] = (char) (ins.readByte()&0xff); ins.readByte(); this.img_path = new String(__strbuf);
  
+        this.id = ins.readInt();
+ 
         this.width = ins.readInt();
  
         this.height = ins.readInt();
@@ -103,6 +108,8 @@ public final class image_path_t implements lcm.lcm.LCMEncodable
         outobj.utime = this.utime;
  
         outobj.img_path = this.img_path;
+ 
+        outobj.id = this.id;
  
         outobj.width = this.width;
  

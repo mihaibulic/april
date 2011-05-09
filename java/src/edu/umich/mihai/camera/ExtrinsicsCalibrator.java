@@ -69,7 +69,7 @@ public class ExtrinsicsCalibrator
         System.out.println("ICC-run: imagereaders started. aggregating tags...");
         for (Camera camera : cameras)
         {
-            System.out.println("ICC-run: aggregating tags of camera " + camera.getId());
+            System.out.println("ICC-run: aggregating tags of camera " + camera.getCameraId());
             camera.aggregateTags(5);
         }
 
@@ -86,7 +86,7 @@ public class ExtrinsicsCalibrator
                 Color color = new Color(rand.nextInt(256), 127, 127);
                 double[] pos = cam.getPosition();
                 
-                output += "camera: " + cam.getId() + "\n";
+                output += "camera: " + cam.getCameraId() + "\n";
                 output += "(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2] + "\n";
                 output += "(r,p,y): " + pos[3] + ", " + pos[4] + ", " + pos[5] + "\n\n";
                 
@@ -283,7 +283,7 @@ public class ExtrinsicsCalibrator
         
         for(Camera cam : cameras)
         {
-            if(index == cam.getId())
+            if(index == cam.getCameraId())
             {
                 position = cam.getPosition();
             }

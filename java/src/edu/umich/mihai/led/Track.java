@@ -114,7 +114,7 @@ public class Track extends Thread implements ImageReader.Listener
     
     public int getIndex()
     {
-    	return ir.getIndex();
+    	return ir.getCameraId();
     }
     
     public double[][] getTransformationMatrix()

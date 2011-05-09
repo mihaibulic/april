@@ -54,33 +54,18 @@ public class ImageReader extends Thread
     	boolean loRes = config.requireBoolean("loRes");
     	boolean color16 = config.requireBoolean("color16");
     	int maxfps = config.requireInt("fps");
-    	
     	this.url = url;
-    	int indices[] = config.requireInts("indices");
-    	String urls[] = config.requireStrings("urls");
-    	boolean found = false;
+
+    	config = config.getChild(CamUtil.getUrl(config, url));
+    	Util.verifyConfig(config);
+    	id = config.requireInt("id");
     	
-    	if(indices.length != urls.length) throw new ConfigException(ConfigException.INDICES_URL_LENGTH);
-    	
-    	for(int x = 0; x < indices.length; x++)
-    	{
-    		if(urls[x].equals(url)) 
-			{
-    			id = indices[x];
-    			found = true;
-    			break;
-			}
-    	}
-    	if(!found)
-    	{
-    		this.kill();
-    	}
-    	else
-    	{
-	        if (maxfps > (loRes ? CameraException.MAX_LO_RES : CameraException.MAX_HI_RES)) throw new CameraException(CameraException.FPS);
-	        setIsrc(loRes, color16, maxfps, this.url);
-	        sync = new SyncErrorDetector(config.getChild("sync"));
-    	}
+        if (maxfps > (loRes ? CameraException.MAX_LO_RES : CameraException.MAX_HI_RES)) throw new CameraException(CameraException.FPS);
+        setIsrc(loRes, color16, maxfps, url);
+        
+        config = config.getRoot().getChild("sync");
+        Util.verifyConfig(config);
+        sync = new SyncErrorDetector(config);
     }
 
     public void run()
@@ -145,7 +130,7 @@ public class ImageReader extends Thread
     	return config;
     }
     
-    public int getIndex()
+    public int getCameraId()
     {
     	return id;
     }
