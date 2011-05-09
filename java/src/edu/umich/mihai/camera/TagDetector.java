@@ -945,15 +945,6 @@ public class TagDetector
                 }
 
                 if (!bad) {
-                    
-                    if(distorionCorrection)
-                    {
-                        for(double[] point : p)
-                        {
-                            point = CamUtil.undistort(point, fc, cc, kc, alpha);
-                        }
-                    }
-                    
                     double d0 = LinAlg.distance(p[0], p[1]);
                     double d1 = LinAlg.distance(p[1], p[2]);
                     double d2 = LinAlg.distance(p[2], p[3]);
@@ -976,6 +967,29 @@ public class TagDetector
                 }
 
                 if (!bad) {
+                    
+                    if(distorionCorrection)
+                    {
+//                        double[][] old = new double[p.length][p[0].length];
+//                        for(int x = 0; x < p.length; x++)
+//                        {
+//                            old[x][0] = p[x][0];
+//                            old[x][1] = p[x][1];
+//                        }
+                        
+                        for(int x = 0; x < p.length; x++)
+                        {
+                            p[x] = CamUtil.undistort(p[x], fc, cc, kc, alpha);
+                        }
+                        
+//                        for(int x = 0; x < p.length; x++)
+//                        {
+//                            System.out.println((old[x][0]-p[x][0]) + "\t" + (old[x][1]-p[x][1]));
+//                        }
+                        
+                    }
+                    
+                    
                     Quad q = new Quad(p);
                     q.observedPerimeter = observedPerimeter;
                     quads.add(q);

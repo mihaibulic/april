@@ -1,6 +1,7 @@
 package edu.umich.mihai.camera.examples;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -8,11 +9,17 @@ import javax.swing.JFrame;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
+import april.jmat.LinAlg;
 import april.util.GetOpt;
 import april.util.ParameterGUI;
 import april.util.ParameterListener;
 import april.vis.VisCanvas;
+import april.vis.VisChain;
+import april.vis.VisCircle;
+import april.vis.VisDataFillStyle;
+import april.vis.VisDataLineStyle;
 import april.vis.VisImage;
+import april.vis.VisRectangle;
 import april.vis.VisTexture;
 import april.vis.VisWorld;
 
@@ -131,8 +138,9 @@ public class BasicCameraGUI implements ParameterListener
                     continue;
                 }
 
-                vbImage.addBuffered(new VisImage(new VisTexture(image),new double[] { 0., 0, }, 
-                        new double[] {image.getWidth(), image.getHeight() }, true));
+                vbImage.addBuffered(new VisChain(new VisImage(new VisTexture(image),new double[] { 0., 0, }, 
+                        new double[] {image.getWidth(), image.getHeight() }, true), LinAlg.translate(image.getWidth()/2, image.getHeight()/2), 
+                        new VisRectangle(110, 110, new VisDataLineStyle(Color.RED, 2))));
                 vbImage.switchBuffer();
             }
         }

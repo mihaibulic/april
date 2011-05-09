@@ -1,13 +1,8 @@
 package edu.umich.mihai.sandbox;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
-
-import edu.umich.mihai.camera.CamUtil;
-import edu.umich.mihai.camera.CameraException;
-import edu.umich.mihai.camera.ImageReader;
-import edu.umich.mihai.camera.TagDetector;
-import edu.umich.mihai.misc.ConfigException;
 import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageConvert;
@@ -16,13 +11,16 @@ import april.jmat.LinAlg;
 import april.tag.CameraUtil;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
-import april.vis.VisChain;
-import april.vis.VisDataLineStyle;
-import april.vis.VisRectangle;
+import edu.umich.mihai.camera.CamUtil;
+import edu.umich.mihai.camera.CameraException;
+import edu.umich.mihai.camera.ImageReader;
+import edu.umich.mihai.misc.ConfigException;
+import edu.umich.mihai.camera.TagDetector;
 
 public class TagTest implements ImageReader.Listener
 {
 	private TagDetector td;
+    private TagDetector tdOld;
 	double tagSize;
 	double[] fc;
 	double[] cc;
@@ -45,6 +43,7 @@ public class TagTest implements ImageReader.Listener
 		alpha = config.requireDouble("alpha");
 		
 		td = new TagDetector(new Tag36h11(), fc, cc, kc, alpha);
+		tdOld = new TagDetector(new Tag36h11());
 		
 		ir.start();
 	}
@@ -56,14 +55,18 @@ public class TagTest implements ImageReader.Listener
 
 	public void handleImage(byte[] image, ImageSourceFormat ifmt, double timeStamp, int camera) 
 	{
-		ArrayList<TagDetection> tags = td.process(ImageConvert.convertToImage(ifmt.format, ifmt.width, ifmt.height, image), 
-				new double[] {ifmt.width/2, ifmt.height/2});
+	    BufferedImage im = ImageConvert.convertToImage(ifmt.format, ifmt.width, ifmt.height, image);
+		ArrayList<TagDetection> tags = td.process(im, new double[] {ifmt.width/2, ifmt.height/2});
+		ArrayList<TagDetection> tagsOld = tdOld.process(im, new double[] {ifmt.width/2, ifmt.height/2});
 		
-        for (TagDetection tag : tags)
+        for (int x = 0; x < tags.size(); x++)
         {
-            for(double q : LinAlg.matrixToXyzrpy(CameraUtil.homographyToPose(fc[0], fc[1], tagSize, tag.homography)))
+            double[] xyz = LinAlg.matrixToXyzrpy(CameraUtil.homographyToPose(fc[0], fc[1], tagSize, tags.get(x).homography));
+            double[] xyzOld = LinAlg.matrixToXyzrpy(CameraUtil.homographyToPose(fc[0], fc[1], tagSize, tagsOld.get(x).homography));
+            
+            for(int y = 0; y < 6; y++)
             {
-            	System.out.print(q + "\t\t\t");
+            	System.out.print((xyz[y]-xyzOld[y]) + "\t\t\t");
             }
             System.out.print('\n');
         }
