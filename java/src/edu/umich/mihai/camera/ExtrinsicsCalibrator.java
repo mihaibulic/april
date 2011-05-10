@@ -51,11 +51,10 @@ public class ExtrinsicsCalibrator
         Util.verifyConfig(config);
         
     	tagSize = config.requireDouble("tagSize");
-    	
         ArrayList<String> urls = ImageSource.getCameraURLs();
         cameras = new ArrayList<Camera>();
 
-        System.out.println("ICC-Constructor: starting imagereaders...");
+        System.out.print("ICC-Constructor: starting imagereaders...");
         for(String url : urls)
         {
         	Camera test = new Camera(config.getChild(CamUtil.getUrl(config, url)), url);
@@ -64,18 +63,22 @@ public class ExtrinsicsCalibrator
         		cameras.add(test);
         	}
         }
+        System.out.println("done");
         
         // FIXME enable simultaneous tag aggregation
-        System.out.println("ICC-run: imagereaders started. aggregating tags...");
+        System.out.println("ICC-run: Aggregating tags...");
         for (Camera camera : cameras)
         {
-            System.out.println("ICC-run: aggregating tags of camera " + camera.getCameraId());
+            System.out.print("ICC-run: aggregating tags of camera " + camera.getCameraId() + "...");
             camera.aggregateTags(5);
+            System.out.println("done (found " + camera.getTagCount() + " tags)");
         }
 
+        System.out.print("ICC-run: Resolving extrinsics...");
         Collections.sort(cameras, new CameraComparator());
         getAllCorrespondences();
         resolveExtrinsics();
+        System.out.println("done");
         
         if(display)
         {
@@ -107,7 +110,6 @@ public class ExtrinsicsCalibrator
             System.out.println(output);
             showGui(output);
         }
-
     }
 
     private void showGui(String output)
@@ -177,18 +179,18 @@ public class ExtrinsicsCalibrator
         for (int cam = 1; cam < cameras.size(); cam++)
         {
             if (cameras.get(cam).getTagCount() == 0) throw new CameraException(CameraException.NO_TAGS);
+            boolean found = false;
 
-            for (int main = 0; main < cameras.size(); main++)
+            for (int main = 0; main < cameras.size() && !found; main++)
             {
                 if (main != cam)
                 {
                     getCorrespondence(main, cameras.get(main), cameras.get(cam));
-                    
-                    if (cameras.get(cam).isCertain()) break;
+                    found = cameras.get(cam).isCertain();
                 }
             }
             
-            if (!cameras.get(cam).isCertain()) throw new CameraException(CameraException.UNCERTAIN);
+            if (!found) throw new CameraException(CameraException.UNCERTAIN);
         }
     }
 
@@ -209,21 +211,24 @@ public class ExtrinsicsCalibrator
 
         while (mainIndex < mainTags.length && auxIndex < auxTags.length)
         {
-        	mainM = CameraUtil.homographyToPose(mainFc[0], mainFc[1], tagSize, mainTags[mainIndex].homography);
-            auxM = CameraUtil.homographyToPose(auxFc[0], auxFc[1], tagSize, auxTags[auxIndex].homography);
-
+            System.out.print(auxTags[auxIndex].id + "\t" + mainTags[mainIndex].id);
             if (auxTags[auxIndex].id == mainTags[mainIndex].id)
             {
+                System.out.println(" equal");
+                mainM = CameraUtil.homographyToPose(mainFc[0], mainFc[1], tagSize, mainTags[mainIndex].homography);
+                auxM = CameraUtil.homographyToPose(auxFc[0], auxFc[1], tagSize, auxTags[auxIndex].homography);
                 auxCam.addCorrespondence(LinAlg.matrixAB(mainM, LinAlg.inverse(auxM)));
                 mainIndex++;
                 auxIndex++;
             }
             else if (auxTags[auxIndex].id > mainTags[mainIndex].id)
             {
+                System.out.println(" 2nd too small");
                 mainIndex++;
             }
             else
             {
+                System.out.println(" 1st too small");
                 auxIndex++;
             }
         }
