@@ -7,6 +7,7 @@ import java.util.HashMap;
 import april.image.FloatImage;
 import april.image.Homography33;
 import april.image.SigProc;
+import april.jcam.ImageConvert;
 import april.jmat.LinAlg;
 import april.jmat.MathUtil;
 import april.jmat.geom.GLine2D;
@@ -224,13 +225,18 @@ public class TagDetector
 
         return newv;
     }
-
+    
     /** Detect the features in the specified image. We need the
      * optical center, but it is usually fine to pass in (width/2,
      * height/2).
      **/
     public ArrayList<TagDetection> process(BufferedImage im, double opticalCenter[])
     {
+        if(distorionCorrection)
+        {
+//            im = CamUtil.undistortImage(im, fc, cc, kc, alpha);
+        }
+        
         this.opticalCenter = opticalCenter;
 
         // This is a very long function, but it can't really be
@@ -968,27 +974,13 @@ public class TagDetector
 
                 if (!bad) {
                     
-                    if(distorionCorrection)
-                    {
-//                        double[][] old = new double[p.length][p[0].length];
+//                    if(distorionCorrection)
+//                    {
 //                        for(int x = 0; x < p.length; x++)
 //                        {
-//                            old[x][0] = p[x][0];
-//                            old[x][1] = p[x][1];
+//                            p[x] = CamUtil.undistort(p[x], fc, cc, kc, alpha);
 //                        }
-                        
-                        for(int x = 0; x < p.length; x++)
-                        {
-                            p[x] = CamUtil.undistort(p[x], fc, cc, kc, alpha);
-                        }
-                        
-//                        for(int x = 0; x < p.length; x++)
-//                        {
-//                            System.out.println((old[x][0]-p[x][0]) + "\t" + (old[x][1]-p[x][1]));
-//                        }
-                        
-                    }
-                    
+//                    }
                     
                     Quad q = new Quad(p);
                     q.observedPerimeter = observedPerimeter;

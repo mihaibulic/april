@@ -3,7 +3,6 @@ package edu.umich.mihai.camera;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-
 import april.config.Config;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSourceFormat;
@@ -77,9 +76,11 @@ public class Camera implements ImageReader.Listener
         }
         
         TagDetector td = new TagDetector(new Tag36h11(), fc, cc, kc, alpha);
+        DistortionFast df = new DistortionFast(fc, cc, kc, alpha, width, height);
         for(byte[] buffer: imageBuffers)
         {
-            detections.addAll(td.process(ImageConvert.convertToImage(format, width, height, buffer), new double[] {width/2.0, height/2.0}));
+            byte newBuffer[] = df.undistortBuffer(buffer);
+            detections.addAll(td.process(ImageConvert.convertToImage(format, width, height, newBuffer), cc));
         }
         
         Collections.sort(detections, new TagComparator());

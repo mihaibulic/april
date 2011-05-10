@@ -15,8 +15,6 @@ import april.util.ParameterGUI;
 import april.util.ParameterListener;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
-import april.vis.VisCircle;
-import april.vis.VisDataFillStyle;
 import april.vis.VisDataLineStyle;
 import april.vis.VisImage;
 import april.vis.VisRectangle;
