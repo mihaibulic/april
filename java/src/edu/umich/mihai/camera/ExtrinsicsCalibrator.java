@@ -217,6 +217,20 @@ public class ExtrinsicsCalibrator
                 System.out.println(" equal");
                 mainM = CameraUtil.homographyToPose(mainFc[0], mainFc[1], tagSize, mainTags[mainIndex].homography);
                 auxM = CameraUtil.homographyToPose(auxFc[0], auxFc[1], tagSize, auxTags[auxIndex].homography);
+                
+                double[] xyzrpyMain = LinAlg.matrixToXyzrpy(mainM);
+                double[] xyzrpyAux = LinAlg.matrixToXyzrpy(auxM);
+                
+                xyzrpyMain[3] = 0;
+                xyzrpyMain[4] = 0;
+                xyzrpyMain[5] = 0;
+                xyzrpyAux[3] = 0;
+                xyzrpyAux[4] = 0;
+                xyzrpyAux[5] = 0;
+                
+                mainM = LinAlg.xyzrpyToMatrix(xyzrpyMain);
+                auxM = LinAlg.xyzrpyToMatrix(xyzrpyMain);
+                
                 auxCam.addCorrespondence(LinAlg.matrixAB(mainM, LinAlg.inverse(auxM)));
                 mainIndex++;
                 auxIndex++;
