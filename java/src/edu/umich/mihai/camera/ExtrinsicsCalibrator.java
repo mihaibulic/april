@@ -211,38 +211,34 @@ public class ExtrinsicsCalibrator
 
         while (mainIndex < mainTags.length && auxIndex < auxTags.length)
         {
-            System.out.print(auxTags[auxIndex].id + "\t" + mainTags[mainIndex].id);
             if (auxTags[auxIndex].id == mainTags[mainIndex].id)
             {
-                System.out.println(" equal");
                 mainM = CameraUtil.homographyToPose(mainFc[0], mainFc[1], tagSize, mainTags[mainIndex].homography);
                 auxM = CameraUtil.homographyToPose(auxFc[0], auxFc[1], tagSize, auxTags[auxIndex].homography);
                 
-                double[] xyzrpyMain = LinAlg.matrixToXyzrpy(mainM);
-                double[] xyzrpyAux = LinAlg.matrixToXyzrpy(auxM);
-                
-                xyzrpyMain[3] = 0;
-                xyzrpyMain[4] = 0;
-                xyzrpyMain[5] = 0;
-                xyzrpyAux[3] = 0;
-                xyzrpyAux[4] = 0;
-                xyzrpyAux[5] = 0;
-                
-                mainM = LinAlg.xyzrpyToMatrix(xyzrpyMain);
-                auxM = LinAlg.xyzrpyToMatrix(xyzrpyMain);
-                
+//                double[] xyzrpyMain = LinAlg.matrixToXyzrpy(mainM);
+//                double[] xyzrpyAux = LinAlg.matrixToXyzrpy(auxM);
+//                
+//                xyzrpyMain[3] = 0;
+//                xyzrpyMain[4] = 0;
+//                xyzrpyMain[5] = 0;
+//                xyzrpyAux[3] = 0;
+//                xyzrpyAux[4] = 0;
+//                xyzrpyAux[5] = 0;
+//                
+//                mainM = LinAlg.xyzrpyToMatrix(xyzrpyMain);
+//                auxM = LinAlg.xyzrpyToMatrix(xyzrpyAux);
+//                
                 auxCam.addCorrespondence(LinAlg.matrixAB(mainM, LinAlg.inverse(auxM)));
                 mainIndex++;
                 auxIndex++;
             }
             else if (auxTags[auxIndex].id > mainTags[mainIndex].id)
             {
-                System.out.println(" 2nd too small");
                 mainIndex++;
             }
             else
             {
-                System.out.println(" 1st too small");
                 auxIndex++;
             }
         }
