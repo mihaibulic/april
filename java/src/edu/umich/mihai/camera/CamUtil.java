@@ -2,7 +2,6 @@ package edu.umich.mihai.camera;
 
 import java.awt.image.BufferedImage;
 import april.config.Config;
-import april.jcam.ImageConvert;
 
 public class CamUtil 
 {
@@ -17,7 +16,11 @@ public class CamUtil
 
         return url;
     }
-    
+
+    /**
+     * @author Mihai Blic
+     * @deprecated - Unsafe to undistort images this way because it causes aliasing in the image and that segmentation/object detection unstable and unreliable
+     */
     public static BufferedImage undistortImage(BufferedImage rawImage, double[] fc, double[] cc, double[] kc, double alpha)
     {
         BufferedImage correctImage = rawImage;
@@ -37,7 +40,11 @@ public class CamUtil
         return correctImage;
     }
     
-    public static BufferedImage undistortImage(byte[] rawBuffer, double[] fc, double[] cc, double[] kc, double alpha, int width, int height, String format)
+    /**
+     * @author Mihai Blic
+     * @deprecated - Unsafe to undistort images this way because it causes aliasing in the image and that segmentation/object detection unstable and unreliable
+     */
+    public static byte[] undistortBuffer(byte[] rawBuffer, double[] fc, double[] cc, double[] kc, double alpha, int width, int height, String format)
     {
         byte correctBuffer[] = new byte[rawBuffer.length];
         
@@ -48,9 +55,7 @@ public class CamUtil
             correctBuffer[n] = rawBuffer[(int)correctPixel[0] + (int)correctPixel[1]*width]; 
         }
         
-        BufferedImage correctImage = ImageConvert.convertToImage(format, width, height, correctBuffer);
-
-        return correctImage;
+        return correctBuffer;
     }
 	
 	public static double[] distort(double p[], double fc[], double cc[], double kc[], double alpha)

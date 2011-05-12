@@ -7,7 +7,6 @@ import java.util.HashMap;
 import april.image.FloatImage;
 import april.image.Homography33;
 import april.image.SigProc;
-import april.jcam.ImageConvert;
 import april.jmat.LinAlg;
 import april.jmat.MathUtil;
 import april.jmat.geom.GLine2D;
@@ -21,6 +20,7 @@ import april.vis.VisData;
 import april.vis.VisDataLineStyle;
 import april.vis.VisDataPointStyle;
 import april.vis.VisWorld;
+import edu.umich.mihai.sandbox.PointDistortion;
 
 public class TagDetector
 {
@@ -125,6 +125,7 @@ public class TagDetector
     private double kc[];
     private double alpha;
     private boolean distorionCorrection = false;
+    private PointDistortion pd;
     
     public TagDetector(TagFamily tagFamily, double fc[], double cc[], double kc[], double alpha)
     {
@@ -225,16 +226,16 @@ public class TagDetector
 
         return newv;
     }
-    
+
     /** Detect the features in the specified image. We need the
      * optical center, but it is usually fine to pass in (width/2,
      * height/2).
      **/
     public ArrayList<TagDetection> process(BufferedImage im, double opticalCenter[])
     {
-        if(distorionCorrection)
+        if(distorionCorrection && pd == null)
         {
-//            im = CamUtil.undistortImage(im, fc, cc, kc, alpha);
+            pd = new PointDistortion(fc, cc, kc, alpha, im.getWidth(), im.getHeight(), 1);
         }
         
         this.opticalCenter = opticalCenter;
@@ -726,6 +727,18 @@ public class TagDetector
                 // orientation of the target.
                 d.p = new double[4][];
 
+                if(distorionCorrection)
+                {
+                    double pt[][] = quad.p;
+                    for (int i = 0; i < 4; i++) 
+                    {
+                        pt[i] = pd.undistort(pt[i]);
+                    }
+                    Quad newQuad = new Quad(pt);
+                    newQuad.observedPerimeter = quad.observedPerimeter;
+                    quad = newQuad;
+                }
+                
                 for (int i = 0; i < 4; i++) {
                     d.p[(4+i-d.rotation)%4] = quad.p[i];
                 }
@@ -973,15 +986,6 @@ public class TagDetector
                 }
 
                 if (!bad) {
-                    
-//                    if(distorionCorrection)
-//                    {
-//                        for(int x = 0; x < p.length; x++)
-//                        {
-//                            p[x] = CamUtil.undistort(p[x], fc, cc, kc, alpha);
-//                        }
-//                    }
-                    
                     Quad q = new Quad(p);
                     q.observedPerimeter = observedPerimeter;
                     quads.add(q);
@@ -1112,4 +1116,3 @@ public class TagDetector
         }
     }
 }
-

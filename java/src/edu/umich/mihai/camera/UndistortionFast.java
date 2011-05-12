@@ -2,7 +2,11 @@ package edu.umich.mihai.camera;
 
 import java.awt.image.BufferedImage;
 
-public class DistortionFast
+/**
+ * @author Mihai Bulic
+ * @deprecated - Unsafe to undistort images this way because it causes aliasing in the image and that segmentation/object detection unstable and unreliable
+ */
+public class UndistortionFast
 {
     final int LENGTH_FC = 2;
     final int LENGTH_CC = 2;
@@ -16,7 +20,7 @@ public class DistortionFast
     private double kc[];
     private double alpha;
     
-    public DistortionFast(double fc[], double cc[], double kc[], double alpha, int width, int height)
+    public UndistortionFast(double fc[], double cc[], double kc[], double alpha, int width, int height)
     {
         if(fc.length != LENGTH_FC) throw new ArrayIndexOutOfBoundsException("Focal length array contains " + fc.length + " elements (should have " + LENGTH_FC + ")");
         if(cc.length != LENGTH_CC) throw new ArrayIndexOutOfBoundsException("Principal point array contains " + cc.length + " elements (should have " + LENGTH_CC + ")");

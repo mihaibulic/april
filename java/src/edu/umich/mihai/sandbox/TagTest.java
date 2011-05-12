@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Random;
 import javax.swing.JFrame;
 import april.config.Config;
 import april.config.ConfigFile;
@@ -30,19 +29,17 @@ import april.vis.VisSphere;
 import april.vis.VisTexture;
 import april.vis.VisWorld;
 import edu.umich.mihai.camera.CamUtil;
-import edu.umich.mihai.camera.Camera;
 import edu.umich.mihai.camera.CameraException;
-import edu.umich.mihai.camera.DistortionFast;
 import edu.umich.mihai.camera.ImageReader;
 import edu.umich.mihai.camera.TagDetector;
+import edu.umich.mihai.camera.UndistortionFast;
 import edu.umich.mihai.misc.ConfigException;
-import edu.umich.mihai.vis.VisCamera;
 
+@SuppressWarnings("deprecation")
 public class TagTest implements ImageReader.Listener, ParameterListener
 {
     private TagDetector td;
     private TagDetector tdOld;
-    private DistortionFast df;
     double tagSize;
     double[] fc;
     double[] cc;
@@ -56,8 +53,9 @@ public class TagTest implements ImageReader.Listener, ParameterListener
     private VisWorld.Buffer vbImage = vw.getBuffer("images");
     private VisWorld.Buffer vbTag = vw.getBuffer("tags");
     private VisWorld.Buffer vbTagOld = vw.getBuffer("tagsO");
-    private boolean toggle = true;
 
+    private UndistortionFast df;
+    
     public TagTest() throws IOException, CameraException, ConfigException
     {
         pg = new ParameterGUI();
@@ -86,6 +84,8 @@ public class TagTest implements ImageReader.Listener, ParameterListener
 
         td = new TagDetector(new Tag36h11(), fc, cc, kc, alpha);
         tdOld = new TagDetector(new Tag36h11());
+        
+        df = new UndistortionFast(fc, cc, kc, alpha, 752, 480);
         
         ir.start();
         jf.setVisible(true);
@@ -134,12 +134,7 @@ public class TagTest implements ImageReader.Listener, ParameterListener
     }
 
     public void parameterChanged(ParameterGUI pg, String name)
-    {
-        if (name == "Reset")
-        {
-            toggle = true;
-        }
-    }
+    {}
 
     public double[] inv(double[] a)
     {
@@ -174,24 +169,18 @@ public class TagTest implements ImageReader.Listener, ParameterListener
         }
         count++;
         
-        if(df == null)
-        {
-            df = new DistortionFast(fc, cc, kc, alpha, ifmt.width, ifmt.height);
-        }
-        
-        byte newBuffer[] = df.undistortBuffer(buffer);
-        BufferedImage im = ImageConvert.convertToImage(ifmt.format, ifmt.width,ifmt.height, newBuffer);
-        BufferedImage imOld = ImageConvert.convertToImage(ifmt.format, ifmt.width,ifmt.height, buffer);
+        BufferedImage im = ImageConvert.convertToImage(ifmt.format, ifmt.width,ifmt.height, buffer);
+        BufferedImage imNew = ImageConvert.convertToImage(ifmt.format, ifmt.width,ifmt.height, df.undistortBuffer(buffer));
         ArrayList<TagDetection> tags = td.process(im, cc);
-        ArrayList<TagDetection> tagsOld = tdOld.process(imOld, cc);
+        ArrayList<TagDetection> tagsOld = tdOld.process(im, cc);
 
-//        vbImage.addBuffered(new VisChain(LinAlg.translate(new double[] {0,-1*ifmt.height}), new VisImage(new VisTexture(im), new double[] { 0., 0, }, 
-//                new double[] {im.getWidth(), im.getHeight() }, true),LinAlg.translate(im.getWidth() / 2, 
-//                        im.getHeight() / 2), new VisRectangle(110, 110,new VisDataLineStyle(Color.RED, 2))));
-//
-//        vbImage.addBuffered(new VisChain(new VisImage(new VisTexture(imOld), new double[] { 0., 0, }, 
-//                new double[] {im.getWidth(), im.getHeight() }, true),LinAlg.translate(im.getWidth() / 2, 
-//                        im.getHeight() / 2), new VisRectangle(110, 110,new VisDataLineStyle(Color.RED, 2))));
+        vbImage.addBuffered(new VisChain(LinAlg.translate(new double[] {0,-1*ifmt.height}), new VisImage(new VisTexture(imNew), new double[] { 0., 0, }, 
+                new double[] {im.getWidth(), im.getHeight() }, true),LinAlg.translate(im.getWidth() / 2, 
+                        im.getHeight() / 2), new VisRectangle(110, 110,new VisDataLineStyle(Color.RED, 2))));
+
+        vbImage.addBuffered(new VisChain(new VisImage(new VisTexture(im), new double[] { 0., 0, }, 
+                new double[] {im.getWidth(), im.getHeight() }, true),LinAlg.translate(im.getWidth() / 2, 
+                        im.getHeight() / 2), new VisRectangle(110, 110,new VisDataLineStyle(Color.RED, 2))));
         
         vbImage.addBuffered(new VisSphere(0.05, Color.red));
         
@@ -215,10 +204,10 @@ public class TagTest implements ImageReader.Listener, ParameterListener
                         new VisDataLineStyle(Color.RED, 2))));
                 vbTag.switchBuffer();
             }
-//            vbImage.addBuffered(new VisChain(LinAlg.translate(new double[] {0,-1*ifmt.height}), LinAlg.translate(d1), new VisCircle(2, new VisDataFillStyle(Color.RED)), LinAlg.translate(inv(d1)),
-//                    LinAlg.translate(d2), new VisCircle(2, new VisDataFillStyle(Color.RED)), LinAlg.translate(inv(d2)),
-//                    LinAlg.translate(d3), new VisCircle(2, new VisDataFillStyle(Color.RED)), LinAlg.translate(inv(d3)),
-//                    LinAlg.translate(d4), new VisCircle(2, new VisDataFillStyle(Color.RED)), LinAlg.translate(inv(d4))));
+            vbImage.addBuffered(new VisChain(LinAlg.translate(new double[] {0,-1*ifmt.height}), LinAlg.translate(d1), new VisCircle(2, new VisDataFillStyle(Color.RED)), LinAlg.translate(inv(d1)),
+                    LinAlg.translate(d2), new VisCircle(2, new VisDataFillStyle(Color.RED)), LinAlg.translate(inv(d2)),
+                    LinAlg.translate(d3), new VisCircle(2, new VisDataFillStyle(Color.RED)), LinAlg.translate(inv(d3)),
+                    LinAlg.translate(d4), new VisCircle(2, new VisDataFillStyle(Color.RED)), LinAlg.translate(inv(d4))));
         }
         
         for (int x = 0; x < tagsOld.size(); x++)
@@ -241,11 +230,11 @@ public class TagTest implements ImageReader.Listener, ParameterListener
             for(double q : xyzOld)
                 System.out.print(q + "\t");
             System.out.println("old");
-//            
-//            vbImage.addBuffered(new VisChain(LinAlg.translate(d1o), new VisCircle(1, new VisDataFillStyle(Color.BLUE)), LinAlg.translate(inv(d1o)),
-//                    LinAlg.translate(d2o), new VisCircle(1, new VisDataFillStyle(Color.BLUE)), LinAlg.translate(inv(d2o)),
-//                    LinAlg.translate(d3o), new VisCircle(1, new VisDataFillStyle(Color.BLUE)), LinAlg.translate(inv(d3o)),
-//                    LinAlg.translate(d4o), new VisCircle(1, new VisDataFillStyle(Color.BLUE)), LinAlg.translate(inv(d4o))));
+            
+            vbImage.addBuffered(new VisChain(LinAlg.translate(d1o), new VisCircle(1, new VisDataFillStyle(Color.BLUE)), LinAlg.translate(inv(d1o)),
+                    LinAlg.translate(d2o), new VisCircle(1, new VisDataFillStyle(Color.BLUE)), LinAlg.translate(inv(d2o)),
+                    LinAlg.translate(d3o), new VisCircle(1, new VisDataFillStyle(Color.BLUE)), LinAlg.translate(inv(d3o)),
+                    LinAlg.translate(d4o), new VisCircle(1, new VisDataFillStyle(Color.BLUE)), LinAlg.translate(inv(d4o))));
         }
         
         vbImage.switchBuffer();

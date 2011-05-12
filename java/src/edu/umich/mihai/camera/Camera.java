@@ -76,11 +76,9 @@ public class Camera implements ImageReader.Listener
         }
         
         TagDetector td = new TagDetector(new Tag36h11(), fc, cc, kc, alpha);
-        DistortionFast df = new DistortionFast(fc, cc, kc, alpha, width, height);
         for(byte[] buffer: imageBuffers)
         {
-            byte newBuffer[] = df.undistortBuffer(buffer);
-            detections.addAll(td.process(ImageConvert.convertToImage(format, width, height, newBuffer), cc));
+            detections.addAll(td.process(ImageConvert.convertToImage(format, width, height, buffer), cc));
         }
         
         Collections.sort(detections, new TagComparator());
