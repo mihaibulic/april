@@ -6,14 +6,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+
 import javax.imageio.ImageIO;
+
 import lcm.lcm.LCM;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
-import edu.umich.mihai.lcmtypes.image_path_t;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
+import april.tag.TagDetector;
+import edu.umich.mihai.lcmtypes.image_path_t;
 
 /**
 * Gets camera images and saves them as necessary

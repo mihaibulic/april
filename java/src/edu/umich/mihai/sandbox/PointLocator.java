@@ -1,8 +1,9 @@
 package edu.umich.mihai.sandbox;
 
 import java.awt.Color;
-import java.util.Random;
+
 import javax.swing.JFrame;
+
 import april.jmat.Function;
 import april.jmat.LinAlg;
 import april.jmat.Matrix;
