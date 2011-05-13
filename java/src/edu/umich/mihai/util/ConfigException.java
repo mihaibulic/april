@@ -1,4 +1,4 @@
-package edu.umich.mihai.misc;
+package edu.umich.mihai.util;
 
 public class ConfigException extends Exception
 {

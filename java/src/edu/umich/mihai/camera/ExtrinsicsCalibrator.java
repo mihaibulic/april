@@ -19,8 +19,9 @@ import april.vis.VisChain;
 import april.vis.VisDataLineStyle;
 import april.vis.VisRectangle;
 import april.vis.VisWorld;
-import edu.umich.mihai.misc.ConfigException;
-import edu.umich.mihai.misc.Util;
+import edu.umich.mihai.util.CameraException;
+import edu.umich.mihai.util.ConfigException;
+import edu.umich.mihai.util.Util;
 import edu.umich.mihai.vis.VisCamera;
 
 /**

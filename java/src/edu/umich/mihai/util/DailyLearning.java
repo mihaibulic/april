@@ -1,4 +1,4 @@
-package edu.umich.mihai.misc;
+package edu.umich.mihai.util;
 
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;

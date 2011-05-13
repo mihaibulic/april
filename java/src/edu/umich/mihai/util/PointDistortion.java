@@ -1,4 +1,4 @@
-package edu.umich.mihai.sandbox;
+package edu.umich.mihai.util;
 
 import april.jmat.Function;
 import april.jmat.LinAlg;

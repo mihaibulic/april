@@ -29,11 +29,11 @@ import april.vis.VisSphere;
 import april.vis.VisTexture;
 import april.vis.VisWorld;
 import edu.umich.mihai.camera.CamUtil;
-import edu.umich.mihai.camera.CameraException;
 import edu.umich.mihai.camera.ImageReader;
 import edu.umich.mihai.camera.TagDetector;
-import edu.umich.mihai.camera.UndistortionFast;
-import edu.umich.mihai.misc.ConfigException;
+import edu.umich.mihai.util.CameraException;
+import edu.umich.mihai.util.ConfigException;
+import edu.umich.mihai.util.UndistortFast;
 
 @SuppressWarnings("deprecation")
 public class TagTest implements ImageReader.Listener, ParameterListener
@@ -54,7 +54,7 @@ public class TagTest implements ImageReader.Listener, ParameterListener
     private VisWorld.Buffer vbTag = vw.getBuffer("tags");
     private VisWorld.Buffer vbTagOld = vw.getBuffer("tagsO");
 
-    private UndistortionFast df;
+    private UndistortFast df;
     
     public TagTest() throws IOException, CameraException, ConfigException
     {
@@ -85,7 +85,7 @@ public class TagTest implements ImageReader.Listener, ParameterListener
         td = new TagDetector(new Tag36h11(), fc, cc, kc, alpha);
         tdOld = new TagDetector(new Tag36h11());
         
-        df = new UndistortionFast(fc, cc, kc, alpha, 752, 480);
+        df = new UndistortFast(fc, cc, kc, alpha, 752, 480);
         
         ir.start();
         jf.setVisible(true);

@@ -1,4 +1,4 @@
-package edu.umich.mihai.camera;
+package edu.umich.mihai.util;
 
 public class CameraException extends Exception
 {

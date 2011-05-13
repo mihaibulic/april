@@ -4,8 +4,9 @@ import java.io.Console;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import edu.umich.mihai.misc.ConfigException;
-import edu.umich.mihai.misc.Util;
+import edu.umich.mihai.util.CameraException;
+import edu.umich.mihai.util.ConfigException;
+import edu.umich.mihai.util.Util;
 
 import april.config.Config;
 import april.config.ConfigFile;

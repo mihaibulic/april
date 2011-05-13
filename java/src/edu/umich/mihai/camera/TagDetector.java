@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
+import edu.umich.mihai.util.PointDistortion;
 import april.image.FloatImage;
 import april.image.Homography33;
 import april.image.SigProc;
@@ -20,7 +21,6 @@ import april.vis.VisData;
 import april.vis.VisDataLineStyle;
 import april.vis.VisDataPointStyle;
 import april.vis.VisWorld;
-import edu.umich.mihai.sandbox.PointDistortion;
 
 public class TagDetector
 {

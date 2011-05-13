@@ -1,4 +1,4 @@
-package edu.umich.mihai.misc;
+package edu.umich.mihai.util;
 
 import april.config.Config;
 

@@ -2,8 +2,9 @@ package edu.umich.mihai.camera;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import edu.umich.mihai.misc.ConfigException;
-import edu.umich.mihai.misc.Util;
+import edu.umich.mihai.util.CameraException;
+import edu.umich.mihai.util.ConfigException;
+import edu.umich.mihai.util.Util;
 
 import magic.camera.util.SyncErrorDetector;
 import april.config.Config;

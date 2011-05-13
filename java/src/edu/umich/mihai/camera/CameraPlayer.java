@@ -26,8 +26,9 @@ import april.vis.VisImage;
 import april.vis.VisWorld;
 import april.vis.VisWorld.Buffer;
 import edu.umich.mihai.lcmtypes.image_path_t;
-import edu.umich.mihai.misc.ConfigException;
-import edu.umich.mihai.misc.Util;
+import edu.umich.mihai.util.CameraException;
+import edu.umich.mihai.util.ConfigException;
+import edu.umich.mihai.util.Util;
 
 /**
  * Plays back the video from all cameras. Images are selected from the LCM message stream of image paths.

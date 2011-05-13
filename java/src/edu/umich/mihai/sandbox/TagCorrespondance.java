@@ -14,7 +14,7 @@ import april.vis.VisDataLineStyle;
 import april.vis.VisRectangle;
 import april.vis.VisWorld;
 import edu.umich.mihai.camera.Camera;
-import edu.umich.mihai.camera.CameraException;
+import edu.umich.mihai.util.CameraException;
 import edu.umich.mihai.vis.VisCamera;
 
 public class TagCorrespondance

@@ -5,10 +5,10 @@ import java.util.ArrayList;
 import april.config.Config;
 import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
-import edu.umich.mihai.camera.CameraException;
 import edu.umich.mihai.camera.ImageReader;
-import edu.umich.mihai.misc.ConfigException;
-import edu.umich.mihai.misc.Util;
+import edu.umich.mihai.util.CameraException;
+import edu.umich.mihai.util.ConfigException;
+import edu.umich.mihai.util.Util;
 
 /**
  * Tracks a given LED in 3D space (used by LEDTracker)

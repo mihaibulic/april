@@ -10,8 +10,9 @@ import april.jmat.LinAlg;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import edu.umich.mihai.led.TagComparator;
-import edu.umich.mihai.misc.ConfigException;
-import edu.umich.mihai.misc.Util;
+import edu.umich.mihai.util.CameraException;
+import edu.umich.mihai.util.ConfigException;
+import edu.umich.mihai.util.Util;
 
 /**
  * Tracks a camera's tag detections and coordinates relative to a "main" camera
