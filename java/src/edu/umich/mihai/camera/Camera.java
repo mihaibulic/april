@@ -7,9 +7,11 @@ import april.config.Config;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
+import april.tag.CameraUtil;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import edu.umich.mihai.led.TagComparator;
+import edu.umich.mihai.sandbox.PointLocator;
 import edu.umich.mihai.util.CameraException;
 import edu.umich.mihai.util.ConfigException;
 import edu.umich.mihai.util.Util;
@@ -25,6 +27,7 @@ public class Camera implements ImageReader.Listener
     private int mainIndex;
     private ImageReader ir;
     private ArrayList<TagDetection> detections;
+    private ArrayList< Tag > tags;
     private ArrayList<double[]> potentialPositions;
     private double[] position;
     private double[] stdDev;
@@ -55,12 +58,24 @@ public class Camera implements ImageReader.Listener
         ir = new ImageReader(config.getRoot(), url);
     }
     
+    class Tag
+    {
+        double[] xyzrpy;
+        int id;
+        
+        public Tag(double[] xyzrpy, int id)
+        {
+            this.xyzrpy = xyzrpy;
+            this.id = id;
+        }
+    }
+    
     public boolean isGood()
     {
     	return ir.isGood();
     }
     
-    public void aggregateTags(int size) throws InterruptedException
+    public void aggregateTags(int size, double tagSize) throws InterruptedException
     {
         imageCount = size;
         imageBuffers = new ArrayList<byte[]>();
@@ -86,6 +101,29 @@ public class Camera implements ImageReader.Listener
         
         int lastId = -1;
         int x = 0;
+        
+        int end = 0;
+        tags = new ArrayList< Tag >();
+        for(int start = 0; start < detections.size(); start=end)
+        {
+            int last_id = detections.get(start).id;
+            int id = last_id;
+            
+            while( last_id==id && ++end < detections.size())
+            {
+                id = detections.get(end).id;
+            }
+            
+            double[][] points = new double[end-start][6];
+            for(int b = 0; b < points.length; b++)
+            {
+                double[][] M = CameraUtil.homographyToPose(fc[0], fc[1], tagSize, detections.get(start+b).homography);
+                points[b] = LinAlg.matrixToXyzrpy(M);
+            }
+            
+            tags.add(new Tag(PointLocator.calculateItt(points),last_id));
+        }
+        
         while(x < detections.size())
         {
             if(lastId == detections.get(x).id)
@@ -123,14 +161,14 @@ public class Camera implements ImageReader.Listener
         return potentialPositions;
     }
     
-    public TagDetection getDetection(int index)
+    public Tag getDetection(int index)
     {
-        return detections.get(index);
+        return tags.get(index);
     }
 
-    public ArrayList<TagDetection> getDetections()
+    public ArrayList<Tag> getDetections()
     {
-        return detections;
+        return tags;
     }
     
     public double[] getFocal()
@@ -181,13 +219,8 @@ public class Camera implements ImageReader.Listener
     
     public void setPosition()
     {
-        position = new double[]{0,0,0,0,0,0};
-        
-        for(double[] coordinate: potentialPositions)
-        {
-            position = LinAlg.add(position, coordinate);
-        }
-        position = LinAlg.scale(position, (1.0/potentialPositions.size()));
+        double[][] points = new double[potentialPositions.size()][6];
+        position = PointLocator.calculateItt(potentialPositions.toArray(points));
     }
     
     public void setPosition(double[] xyzrpy, int main)

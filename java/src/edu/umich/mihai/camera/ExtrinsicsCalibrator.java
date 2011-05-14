@@ -11,8 +11,6 @@ import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageSource;
 import april.jmat.LinAlg;
-import april.tag.CameraUtil;
-import april.tag.TagDetection;
 import april.util.GetOpt;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
@@ -39,14 +37,11 @@ public class ExtrinsicsCalibrator
     private VisWorld.Buffer vbCameras = vw.getBuffer("cameras");
     private VisWorld.Buffer vbTags = vw.getBuffer("tags");
 
-    private double[] fc;
     private double tagSize;
     private HashMap<String, Integer> knownUrls = new HashMap<String, Integer>();
 
     private ArrayList <Camera> cameras;
 
-    // FIXME linear algebra bug that causes misallignment
-    
     public ExtrinsicsCalibrator(Config config, boolean display) throws Exception
     {
         Util.verifyConfig(config);
@@ -66,12 +61,11 @@ public class ExtrinsicsCalibrator
         }
         System.out.println("done");
         
-        // FIXME enable simultaneous tag aggregation
         System.out.println("ICC-run: Aggregating tags...");
         for (Camera camera : cameras)
         {
             System.out.print("ICC-run: aggregating tags of camera " + camera.getCameraId() + "...");
-            camera.aggregateTags(5);
+            camera.aggregateTags(5, tagSize);
             System.out.println("done (found " + camera.getTagCount() + " tags)");
         }
 
@@ -97,11 +91,10 @@ public class ExtrinsicsCalibrator
                 double[][] camM = cam.getTransformationMatrix();
                 vbCameras.addBuffered(new VisChain(camM, new VisCamera(color, 0.08)));
                 
-                fc = cam.getFocal();
-                ArrayList<TagDetection> tags = cam.getDetections();
-                for (TagDetection tag : tags)
+                ArrayList<Camera.Tag> tags = cam.getDetections();
+                for (Camera.Tag tag : tags)
                 {
-                    double tagM[][] = CameraUtil.homographyToPose(fc[0], fc[1], tagSize, tag.homography);
+                    double tagM[][] = LinAlg.xyzrpyToMatrix(tag.xyzrpy);
                     vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
                             new VisDataLineStyle(color, 2))));
                 }
@@ -201,40 +194,24 @@ public class ExtrinsicsCalibrator
         int auxIndex = 0;
         double mainM[][];
         double auxM[][];
-        TagDetection mainTags[] = mainCam.getDetections().toArray(new TagDetection[1]);
-        TagDetection auxTags[] = auxCam.getDetections().toArray(new TagDetection[1]);
+        ArrayList<Camera.Tag> mainTags = mainCam.getDetections();
+        ArrayList<Camera.Tag> auxTags = auxCam.getDetections();
 
-        double mainFc[] = mainCam.getFocal();
-        double auxFc[] = auxCam.getFocal();
-        
         auxCam.setMain(main);
         auxCam.clearPotentialPositions();
 
-        while (mainIndex < mainTags.length && auxIndex < auxTags.length)
+        while (mainIndex < mainTags.size() && auxIndex < auxTags.size())
         {
-            if (auxTags[auxIndex].id == mainTags[mainIndex].id)
+            if (auxTags.get(auxIndex).id == mainTags.get(mainIndex).id)
             {
-                mainM = CameraUtil.homographyToPose(mainFc[0], mainFc[1], tagSize, mainTags[mainIndex].homography);
-                auxM = CameraUtil.homographyToPose(auxFc[0], auxFc[1], tagSize, auxTags[auxIndex].homography);
+                mainM = LinAlg.xyzrpyToMatrix(mainTags.get(mainIndex).xyzrpy);
+                auxM = LinAlg.xyzrpyToMatrix(auxTags.get(auxIndex).xyzrpy);
                 
-//                double[] xyzrpyMain = LinAlg.matrixToXyzrpy(mainM);
-//                double[] xyzrpyAux = LinAlg.matrixToXyzrpy(auxM);
-//                
-//                xyzrpyMain[3] = 0;
-//                xyzrpyMain[4] = 0;
-//                xyzrpyMain[5] = 0;
-//                xyzrpyAux[3] = 0;
-//                xyzrpyAux[4] = 0;
-//                xyzrpyAux[5] = 0;
-//                
-//                mainM = LinAlg.xyzrpyToMatrix(xyzrpyMain);
-//                auxM = LinAlg.xyzrpyToMatrix(xyzrpyAux);
-//                
                 auxCam.addCorrespondence(LinAlg.matrixAB(mainM, LinAlg.inverse(auxM)));
                 mainIndex++;
                 auxIndex++;
             }
-            else if (auxTags[auxIndex].id > mainTags[mainIndex].id)
+            else if (auxTags.get(auxIndex).id > auxTags.get(mainIndex).id)
             {
                 mainIndex++;
             }
