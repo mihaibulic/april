@@ -3,6 +3,7 @@ package edu.umich.mihai.camera;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+
 import april.config.Config;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSourceFormat;
@@ -55,6 +56,7 @@ public class Camera implements ImageReader.Listener
     	
         detections = new ArrayList<TagDetection>();
         potentialPositions = new ArrayList<double[]>();
+        
         ir = new ImageReader(config.getRoot(), url);
     }
     
@@ -99,8 +101,6 @@ public class Camera implements ImageReader.Listener
         
         Collections.sort(detections, new TagComparator());
         
-        int lastId = -1;
-        int x = 0;
         
         int end = 0;
         tags = new ArrayList< Tag >();
@@ -122,19 +122,6 @@ public class Camera implements ImageReader.Listener
             }
             
             tags.add(new Tag(PointLocator.calculateItt(points),last_id));
-        }
-        
-        while(x < detections.size())
-        {
-            if(lastId == detections.get(x).id)
-            {
-                detections.remove(x);
-            }
-            else
-            {
-                lastId = detections.get(x).id;
-                x++;
-            }
         }
     }
     
@@ -179,7 +166,6 @@ public class Camera implements ImageReader.Listener
     public int getCameraId()
     {
         return ir.getCameraId();
-//        return 0;
     }
     
     public int getMain()
@@ -199,7 +185,7 @@ public class Camera implements ImageReader.Listener
     
     public int getTagCount()
     {
-        return detections.size();
+        return tags.size();
     }
     
     public double[][] getTransformationMatrix()
@@ -220,7 +206,7 @@ public class Camera implements ImageReader.Listener
     public void setPosition()
     {
         double[][] points = new double[potentialPositions.size()][6];
-        position = PointLocator.calculateItt(potentialPositions.toArray(points));
+      position = PointLocator.calculateItt(potentialPositions.toArray(points));
     }
     
     public void setPosition(double[] xyzrpy, int main)

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import april.config.Config;
 import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
+import edu.umich.mihai.camera.CamUtil;
 import edu.umich.mihai.camera.ImageReader;
 import edu.umich.mihai.util.CameraException;
 import edu.umich.mihai.util.ConfigException;
@@ -63,9 +64,9 @@ public class Track extends Thread implements ImageReader.Listener
         cc = config.requireDoubles("cc");
         kc = config.requireDoubles("kc");
         alpha = config.requireDouble("alpha");
-    	
     	dlf = new DummyLEDFinder(fc, cc, kc, alpha);
-    	ir = new ImageReader(config, url);
+
+    	ir = new ImageReader(config.getRoot(), url);
     }
 
     public void run()

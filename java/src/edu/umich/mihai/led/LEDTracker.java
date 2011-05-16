@@ -54,6 +54,8 @@ public class LEDTracker extends CameraComparator implements Track.Listener
 
     private LCM lcm = LCM.getSingleton();
 
+    private Color[] colors = {Color.BLACK, Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.LIGHT_GRAY};
+    
     private boolean run = true;
     
     // TODO detect boundary tags and publish under boundary channel (use int[256][3])
@@ -67,7 +69,7 @@ public class LEDTracker extends CameraComparator implements Track.Listener
         ArrayList<String> urls = ImageSource.getCameraURLs();
         ArrayList<Track> tracks = new ArrayList<Track>();
 
-        System.out.println("ICC-Constructor: starting imagereaders...");
+        System.out.println("LEDTracker-Constructor: starting imagereaders...");
         for(String url : urls)
         {
         	Track test = new Track(config.getChild(CamUtil.getUrl(config, url)), url);
@@ -106,6 +108,7 @@ public class LEDTracker extends CameraComparator implements Track.Listener
                 {
                     e.printStackTrace();
                 }
+                ledsReady = false;
                 
                 leds.get(id).clear();
                 leds.get(id).addAll(newLeds);
@@ -157,7 +160,6 @@ public class LEDTracker extends CameraComparator implements Track.Listener
                 vbLeds.switchBuffer();
             }
             
-            ledsReady = false;
         }
     }
     
@@ -198,12 +200,12 @@ public class LEDTracker extends CameraComparator implements Track.Listener
             jf.setSize(1000, 500);
             jf.setVisible(true);
             
-            for (Track track : tracks)
+            for(int x = 0; x < tracks.size(); x++)
             {
-                Color color = (track.getIndex() == 0 ? Color.blue : Color.red);
-                double[][] camM = track.getTransformationMatrix();
-                vbCameras.addBuffered(new VisChain(camM, new VisCamera(color, 0.08)));
+            	double[][] camM = tracks.get(x).getTransformationMatrix();
+                vbCameras.addBuffered(new VisChain(camM, new VisCamera(colors[x], 0.08)));
             }
+            
             vbCameras.switchBuffer();
         }
     }
@@ -335,10 +337,14 @@ public class LEDTracker extends CameraComparator implements Track.Listener
      */
     public static void main(String[] args) throws Exception
     {
-        GetOpt opts = new GetOpt();
-
+    	GetOpt opts = new GetOpt();
+        
         opts.addBoolean('h', "help", false, "See this help screen");
-        opts.addString('c', "config", System.getenv("CONFIG")+"/camera.config", "Location of config file to use for settings");
+        opts.addString('n', "config", System.getenv("CONFIG")+"/camera.config", "location of config file");
+        opts.addString('r', "resolution", "", "lo=380x240, hi=760x480 (overrides config resolution)");
+        opts.addString('c', "colors", "", "gray8 or gray16 (overrides config color setting)");
+        opts.addString('f', "fps", "", "framerate to use if player (overrides config framerate) ");
+        opts.addString('t', "tagSize", "", "size of tags used in meters (overrides config framerate)");
 
         if (!opts.parse(args))
         {
@@ -347,14 +353,33 @@ public class LEDTracker extends CameraComparator implements Track.Listener
 
         if (opts.getBoolean("help"))
         {
-            System.out.println("Usage: Tracks LEDs across multiple cameras.");
+            System.out.println("Usage: Calibrate relative positions of multiple cameras.");
             opts.doHelp();
             System.exit(1);
         }
+        
+        Config config = new ConfigFile(opts.getString("config"));
+        if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
+    	if(!opts.getString("resolution").isEmpty())
+    	{
+    		config.setBoolean("loRes", opts.getString("resolution").contains("lo"));
+    	}
+    	if(!opts.getString("colors").isEmpty())
+    	{
+    		config.setBoolean("color16", opts.getString("colors").contains("16"));
+    	}
+    	if(!opts.getString("fps").isEmpty())
+    	{
+    		config.setInt("fps", Integer.parseInt(opts.getString("fps")));
+    	}
+    	if(!opts.getString("tagSize").isEmpty())
+    	{
+    		config.setDouble("tagSize", Double.parseDouble(opts.getString("tagSize")));
+    	}
 
         if (ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
 
-        new LEDTracker(new ConfigFile(opts.getString("config")), true); 
+        new LEDTracker(config, true); 
     }
     
     public void kill()

@@ -4,13 +4,9 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+
 import javax.swing.JFrame;
-import edu.umich.mihai.camera.CamUtil;
-import edu.umich.mihai.camera.ImageReader;
-import edu.umich.mihai.camera.TagDetector;
-import edu.umich.mihai.util.CameraException;
-import edu.umich.mihai.util.ConfigException;
-import edu.umich.mihai.vis.VisCamera;
+
 import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageConvert;
@@ -24,6 +20,12 @@ import april.vis.VisChain;
 import april.vis.VisDataFillStyle;
 import april.vis.VisRectangle;
 import april.vis.VisWorld;
+import edu.umich.mihai.camera.CamUtil;
+import edu.umich.mihai.camera.ImageReader;
+import edu.umich.mihai.camera.TagDetector2;
+import edu.umich.mihai.util.CameraException;
+import edu.umich.mihai.util.ConfigException;
+import edu.umich.mihai.vis.VisCamera;
 
 public class TagAggregate extends JFrame implements ImageReader.Listener
 {
@@ -39,7 +41,7 @@ public class TagAggregate extends JFrame implements ImageReader.Listener
     private double kc[];
     private double alpha;
     
-    private TagDetector td;
+    private TagDetector2 td;
     
     private Object lock = new Object();
     private boolean ready = false;
@@ -67,7 +69,7 @@ public class TagAggregate extends JFrame implements ImageReader.Listener
         kc = config.requireDoubles("kc");
         alpha = config.requireDouble("alpha");
         
-        td = new TagDetector(new Tag36h11(), fc, cc, kc, alpha);
+        td = new TagDetector2(new Tag36h11(), fc, cc, kc, alpha);
         
         run();
     }

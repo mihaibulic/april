@@ -2,11 +2,13 @@ package edu.umich.mihai.camera;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Random;
+
 import javax.swing.JFrame;
+
 import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageSource;
@@ -41,8 +43,10 @@ public class ExtrinsicsCalibrator
     private HashMap<String, Integer> knownUrls = new HashMap<String, Integer>();
 
     private ArrayList <Camera> cameras;
+    
+    private Color[] colors = {Color.BLACK, Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.LIGHT_GRAY};
 
-    public ExtrinsicsCalibrator(Config config, boolean display) throws Exception
+    public ExtrinsicsCalibrator(Config config, boolean display) throws ConfigException, CameraException, IOException, InterruptedException
     {
         Util.verifyConfig(config);
         
@@ -78,28 +82,27 @@ public class ExtrinsicsCalibrator
         if(display)
         {
             String output = "";
-            Random rand = new Random();
-            for (Camera cam : cameras)
+            for(int x = 0; x < cameras.size(); x++)
             {
-                Color color = new Color(rand.nextInt(256), 127, 127);
-                double[] pos = cam.getPosition();
+                Camera cam = cameras.get(x);
                 
+                double[] pos = cam.getPosition();
                 output += "camera: " + cam.getCameraId() + "\n";
                 output += "(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2] + "\n";
                 output += "(r,p,y): " + pos[3] + ", " + pos[4] + ", " + pos[5] + "\n\n";
                 
                 double[][] camM = cam.getTransformationMatrix();
-                vbCameras.addBuffered(new VisChain(camM, new VisCamera(color, 0.08)));
+                vbCameras.addBuffered(new VisChain(camM, new VisCamera(colors[x], 0.08)));
                 
                 ArrayList<Camera.Tag> tags = cam.getDetections();
-                for (Camera.Tag tag : tags)
+                for (Camera.Tag tag : tags)   
                 {
                     double tagM[][] = LinAlg.xyzrpyToMatrix(tag.xyzrpy);
                     double xyzrpy[] = LinAlg.matrixToXyzrpy(tagM); // XXX
                     System.out.println(xyzrpy[0] + "\t" + xyzrpy[1] + "\t" + xyzrpy[2] + "\t" + xyzrpy[3] + "\t" + xyzrpy[4] + "\t" + xyzrpy[5]); // XXX
                     
                     vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
-                            new VisDataLineStyle(color, 2))));
+                            new VisDataLineStyle(colors[x], 2))));
                 }
                 System.out.println("\n"); // XXX
             }
@@ -123,7 +126,7 @@ public class ExtrinsicsCalibrator
         jf.setVisible(true);
     }
 
-    public static void main(String[] args) throws Exception
+    public static void main(String[] args) throws IOException, ConfigException, CameraException, InterruptedException
     {
         GetOpt opts = new GetOpt();
         
@@ -185,6 +188,8 @@ public class ExtrinsicsCalibrator
                 {
                     getCorrespondence(main, cameras.get(main), cameras.get(cam));
                     found = cameras.get(cam).isCertain();
+                    
+                    if(found) break;
                 }
             }
             
@@ -200,7 +205,7 @@ public class ExtrinsicsCalibrator
         double auxM[][];
         ArrayList<Camera.Tag> mainTags = mainCam.getDetections();
         ArrayList<Camera.Tag> auxTags = auxCam.getDetections();
-
+        
         auxCam.setMain(main);
         auxCam.clearPotentialPositions();
 
@@ -215,7 +220,7 @@ public class ExtrinsicsCalibrator
                 mainIndex++;
                 auxIndex++;
             }
-            else if (auxTags.get(auxIndex).id > auxTags.get(mainIndex).id)
+            else if (auxTags.get(auxIndex).id > mainTags.get(mainIndex).id)
             {
                 mainIndex++;
             }
