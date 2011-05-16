@@ -36,7 +36,7 @@ public class DummyLEDFinder
     public ArrayList<LEDDetection> getLedUV(byte[] buffer, int width, int height, String format)
     {
         BufferedImage image = ImageConvert.convertToImage(format, width, height, buffer);
-        ArrayList<TagDetection> tags = td.process(image, new double[] {image.getWidth()/2, image.getHeight()/2});
+        ArrayList<TagDetection> tags = td.process(image, cc);
         ArrayList<LEDDetection> detections = new ArrayList<LEDDetection>();
         
         for (int x = 0; x < tags.size(); x++)

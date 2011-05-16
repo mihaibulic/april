@@ -17,7 +17,6 @@ public class PointLocator extends JFrame
     
     private static final int MIN = 5;
     private static final int MAX = 25;
-    private static final int LENGTH = 6;
 
     private VisWorld vw = new VisWorld();
     private VisCanvas vc = new VisCanvas(vw);
@@ -28,8 +27,7 @@ public class PointLocator extends JFrame
     public PointLocator(double[][] points)
     {
         super("Point Locator");
-        if(points[0].length != LENGTH) throw new RuntimeException("points need to have 6 elements (xyzrpy)");
-     
+        int length = points[0].length;
         double[] locationCentroid = calculateCentroid(points);
         double[] locationItt = calculateItt(points);
         
@@ -47,15 +45,15 @@ public class PointLocator extends JFrame
 
             System.out.println("\n");
             for(int a = 0; a < points.length; a++)
-                for(int b = 0; b < LENGTH; b++)
+                for(int b = 0; b < length; b++)
                     System.out.print(points[a][b] + "\t");
             System.out.println("---");
             
-            for(int b = 0; b < LENGTH; b++)
+            for(int b = 0; b < length; b++)
                 System.out.print(locationCentroid[b] + "\t");
             System.out.println("---");
             
-            for(int b = 0; b < LENGTH; b++)
+            for(int b = 0; b < length; b++)
                 System.out.print(locationItt[b] + "\t");
             System.out.println();
             
@@ -84,10 +82,12 @@ public class PointLocator extends JFrame
     static class Distance extends Function
     {
         double[][] points;
+        int length;
         
         public Distance(double[][] points)
         {
             this.points = points;
+            length = points[0].length;
         }
         
         @Override
@@ -95,8 +95,8 @@ public class PointLocator extends JFrame
         {
             if(distance == null)
             {
-                distance = new double[LENGTH];
-                for(int a = 0; a < LENGTH; a++)
+                distance = new double[length];
+                for(int a = 0; a < length; a++)
                 {
                     distance[a] = 0;
                 }
@@ -106,7 +106,7 @@ public class PointLocator extends JFrame
             {
                 double d = LinAlg.distance(points[b], location, 3 );
                 double t = angleDiff(points[b], location);
-                for(int a = 0; a < LENGTH; a++)
+                for(int a = 0; a < length; a++)
                 {
                     distance[a] += (a<3 ? d : t);
                 }
@@ -129,20 +129,34 @@ public class PointLocator extends JFrame
         return Math.sqrt(diff);
     }
     
+    public static double[] calculateItt(double[][][] transformations)
+    {
+        int length = 6;
+        double[][] points = new double[transformations.length][length];
+        
+        for(int x = 0; x < transformations.length; x++)
+        {
+            points[x] = LinAlg.matrixToXyzrpy(transformations[x]);
+        }
+        
+        return calculateItt(points);
+    }
+    
     public static double[] calculateItt(double[][] points)
     {
         Distance d = new Distance(points);
+        int length = points[0].length;
         
         double loction[] = calculateCentroid(points);
         
-        boolean skip[] = new boolean[LENGTH];
+        boolean skip[] = new boolean[length];
         for(int a = 0; a < skip.length; a++)
         {
             skip[a] = false;
         }
         
         double delta = 0.0001;
-        double[] eps = new double[LENGTH];
+        double[] eps = new double[length];
         for(int i = 0; i < eps.length; i++)
         {
             eps[i] = delta;
@@ -156,7 +170,7 @@ public class PointLocator extends JFrame
         {
             J = NumericalJacobian.computeJacobian(d, loction, eps);
             
-            for(int a = 0; a < LENGTH; a++)
+            for(int a = 0; a < length; a++)
             {
                 if(!skip[a])
                 {
@@ -196,11 +210,10 @@ public class PointLocator extends JFrame
 
     public static double[] calculateCentroid(double[][] points)
     {
-        if(points[0].length != LENGTH) throw new RuntimeException("points need to have 6 elements (xyzrpy)");
-        
-        double average[] = new double[LENGTH];
+        int length = points[0].length;
+        double average[] = new double[length];
                
-        for(int b = 0; b < LENGTH; b++)
+        for(int b = 0; b < length; b++)
         {
             average[b] = 0;
             for(int a = 0; a < points.length; a++)
@@ -235,20 +248,20 @@ public class PointLocator extends JFrame
     public static void main(String[] args)
     {
         int ran = 1000;
+        int length = 6;
         for(int x = 0; x < ran; x++)
         {
             Random rand = new Random();
             int size = rand.nextInt(MAX-MIN)+MIN;
-            double[][] points = new double[size][LENGTH];
+            double[][] points = new double[size][length];
             for(int a = 0; a < size; a++)
             {
-                for(int b = 0; b < LENGTH; b++)
+                for(int b = 0; b < length; b++)
                   {
                     if(b < 3)
                         points[a][b] = rand.nextGaussian()*0.10;
                     else
                         points[a][b] = rand.nextGaussian()*0.33;
-      //                points[a][b] = rand.nextDouble()*SIZE;
                   }
             }
             System.out.print(size + "\t");

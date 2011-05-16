@@ -24,6 +24,7 @@ import april.vis.VisWorld;
 import edu.umich.mihai.camera.CamUtil;
 import edu.umich.mihai.camera.CameraComparator;
 import edu.umich.mihai.lcmtypes.led_t;
+import edu.umich.mihai.sandbox.PointLocator;
 import edu.umich.mihai.util.CameraException;
 import edu.umich.mihai.util.ConfigException;
 import edu.umich.mihai.util.Util;
@@ -259,13 +260,13 @@ public class LEDTracker extends CameraComparator implements Track.Listener
                     
                 if(temp-oldDistance != 0 && (oldDistance-mainDistance)/(temp-oldDistance) > 0)
                 {
-                    mainGo = true; 
+                    mainGo = true;
                 }
                 
                 for(int x = 0; x < ld.size(); x++)
                 {
                     boolean auxGo = true;
-                    distance[x] = LinAlg.distance(calculateAve(transformations), matrixToXyz(transformations[x]));
+                    distance[x] = LinAlg.distance(PointLocator.calculateItt(transformations), matrixToXyz(transformations[x]));
                     lastDistance[x] = distance[x]+1;
                     while(x != z && auxGo)
                     {
@@ -300,7 +301,7 @@ public class LEDTracker extends CameraComparator implements Track.Listener
             vbRays.switchBuffer();
         }
         
-        return new LEDDetection(calculateAve(locations), ld.get(0).id);
+        return new LEDDetection(PointLocator.calculateItt(locations), ld.get(0).id);
     }
     
     private double ave(double[][][] transformations, double[][] main)
@@ -316,29 +317,17 @@ public class LEDTracker extends CameraComparator implements Track.Listener
         return distance/transformations.length;
     }
 
-    private double[] calculateAve(double[][] locs)
-    {
-        double average[] = new double[]{0,0,0};
-        
-        for(int x = 0; x < locs.length; x++)
-        {
-            average = LinAlg.add(average, locs[x]);
-        }
-        
-        return LinAlg.scale(average, 1.0/locs.length);
-    }
-    
-    private double[] calculateAve(double[][][] transformations)
-    {
-        double average[] = new double[]{0,0,0};
-        
-        for(int x = 0; x < transformations.length; x++)
-        {
-            average = LinAlg.add(average, new double[]{transformations[x][0][3], transformations[x][1][3], transformations[x][2][3]});
-        }
-        
-        return LinAlg.scale(average, 1.0/transformations.length);
-    }
+//    private double[] calculateAve(double[][][] transformations)
+//    {
+//        double average[] = new double[]{0,0,0};
+//        
+//        for(int x = 0; x < transformations.length; x++)
+//        {
+//            average = LinAlg.add(average, new double[]{transformations[x][0][3], transformations[x][1][3], transformations[x][2][3]});
+//        }
+//        
+//        return LinAlg.scale(average, 1.0/transformations.length);
+//    }
     
     /**
      * @param args
