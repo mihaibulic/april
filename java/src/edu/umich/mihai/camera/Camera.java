@@ -91,7 +91,7 @@ public class Camera implements ImageReader.Listener
             }
         }
         
-        TagDetector td = new TagDetector(new Tag36h11(), fc, cc, kc, alpha);
+        TagDetector2 td = new TagDetector2(new Tag36h11(), fc, cc, kc, alpha);
         for(byte[] buffer: imageBuffers)
         {
             detections.addAll(td.process(ImageConvert.convertToImage(format, width, height, buffer), cc));
@@ -271,7 +271,8 @@ public class Camera implements ImageReader.Listener
         
         // certain iff there are at least 5 tagdetections, stdDev of xyz err is < 20cm, and stdDev of rpy err is < 180deg
 //        return (coordinates.size()>5 && translationErr < 0.50 && rotationErr < Math.PI);
-        return (translationErr < 0.20 && rotationErr < Math.PI/2);
+//        return (translationErr < 0.20 && rotationErr < Math.PI/2);
+        return true;
     }
     private void setVariance()
     {
@@ -315,3 +316,4 @@ public class Camera implements ImageReader.Listener
         return c;
     }
 }
+

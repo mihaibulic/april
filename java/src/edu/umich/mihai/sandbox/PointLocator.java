@@ -3,13 +3,13 @@ package edu.umich.mihai.sandbox;
 import java.awt.Color;
 import java.util.Random;
 import javax.swing.JFrame;
-import edu.umich.mihai.vis.VisCamera;
 import april.jmat.Function;
 import april.jmat.LinAlg;
 import april.jmat.NumericalJacobian;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
 import april.vis.VisWorld;
+import edu.umich.mihai.vis.VisCamera;
 
 public class PointLocator extends JFrame
 {

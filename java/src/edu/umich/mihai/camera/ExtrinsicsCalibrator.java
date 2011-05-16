@@ -95,9 +95,13 @@ public class ExtrinsicsCalibrator
                 for (Camera.Tag tag : tags)
                 {
                     double tagM[][] = LinAlg.xyzrpyToMatrix(tag.xyzrpy);
+                    double xyzrpy[] = LinAlg.matrixToXyzrpy(tagM); // XXX
+                    System.out.println(xyzrpy[0] + "\t" + xyzrpy[1] + "\t" + xyzrpy[2] + "\t" + xyzrpy[3] + "\t" + xyzrpy[4] + "\t" + xyzrpy[5]); // XXX
+                    
                     vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
                             new VisDataLineStyle(color, 2))));
                 }
+                System.out.println("\n"); // XXX
             }
 
             // TODO write to config file
@@ -285,3 +289,4 @@ public class ExtrinsicsCalibrator
         return position;
     }
 }
+
