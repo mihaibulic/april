@@ -2,6 +2,7 @@ package edu.umich.mihai.camera;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Toolkit;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,87 +40,98 @@ public class ExtrinsicsCalibrator
     private VisWorld.Buffer vbCameras = vw.getBuffer("cameras");
     private VisWorld.Buffer vbTags = vw.getBuffer("tags");
 
-    private double tagSize;
-    private HashMap<String, Integer> knownUrls = new HashMap<String, Integer>();
-
-    private ArrayList <Camera> cameras;
-    
     private Color[] colors = {Color.BLACK, Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.LIGHT_GRAY};
 
-    public ExtrinsicsCalibrator(Config config, boolean display) throws ConfigException, CameraException, IOException, InterruptedException
+    private double tagSize;
+    
+    private HashMap<String, Integer> knownUrls = new HashMap<String, Integer>();
+    private ArrayList <Camera> cameras;
+    
+    public ExtrinsicsCalibrator(Config config) throws ConfigException, CameraException, IOException, InterruptedException
+    {
+        this(config, false, false);
+    }
+    
+    public ExtrinsicsCalibrator(Config config, boolean display, boolean verbose) throws ConfigException, CameraException, IOException, InterruptedException
     {
         Util.verifyConfig(config);
         
     	tagSize = config.requireDouble("tagSize");
         ArrayList<String> urls = ImageSource.getCameraURLs();
-        cameras = new ArrayList<Camera>();
 
-        System.out.print("ICC-Constructor: starting imagereaders...");
+        if(verbose) System.out.print("ICC-Constructor: starting imagereaders...");
+        cameras = new ArrayList<Camera>();
         for(String url : urls)
         {
-        	Camera test = new Camera(config.getChild(CamUtil.getUrl(config, url)), url);
-        	if(test.isGood())
-        	{
-        		cameras.add(test);
-        	}
+            Camera test = new Camera(config.getChild(CamUtil.getUrl(config, url)), url);
+            if(test.isGood())
+            {
+                cameras.add(test);
+            }
         }
-        System.out.println("done");
+        if(verbose) System.out.println("done");
         
-        System.out.println("ICC-run: Aggregating tags...");
+        if(verbose) System.out.println("ICC-run: Aggregating tags...");
         for (Camera camera : cameras)
         {
-            System.out.print("ICC-run: aggregating tags of camera " + camera.getCameraId() + "...");
+            if(verbose) System.out.print("ICC-run: aggregating tags of camera " + camera.getCameraId() + "...");
             camera.aggregateTags(5, tagSize);
-            System.out.println("done (found " + camera.getTagCount() + " tags)");
+            if(verbose) System.out.println("done (found " + camera.getTagCount() + " tags)");
         }
 
-        System.out.print("ICC-run: Resolving extrinsics...");
+        if(verbose) System.out.print("ICC-run: Resolving initial extrinsics solution...");
         Collections.sort(cameras, new CameraComparator());
         getAllCorrespondences();
         resolveExtrinsics();
-        System.out.println("done");
+        if(verbose) System.out.println("done");
         
-        if(display)
+        if(verbose) System.out.print("ICC-run: Resolving itterative extrinsics solution...");
+        
+        
+        if(verbose) System.out.println("done");
+        
+        if(display || verbose)
         {
-            String output = "";
             for(int x = 0; x < cameras.size(); x++)
             {
                 Camera cam = cameras.get(x);
                 
-                double[] pos = cam.getPosition();
-                output += "camera: " + cam.getCameraId() + "\n";
-                output += "(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2] + "\n";
-                output += "(r,p,y): " + pos[3] + ", " + pos[4] + ", " + pos[5] + "\n\n";
-                
-                double[][] camM = cam.getTransformationMatrix();
-                vbCameras.addBuffered(new VisChain(camM, new VisCamera(colors[x], 0.08)));
-                
-                ArrayList<Camera.Tag> tags = cam.getDetections();
-                for (Camera.Tag tag : tags)   
+                if(verbose)
                 {
-                    double tagM[][] = LinAlg.xyzrpyToMatrix(tag.xyzrpy);
-                    double xyzrpy[] = LinAlg.matrixToXyzrpy(tagM); // XXX
-                    System.out.println(xyzrpy[0] + "\t" + xyzrpy[1] + "\t" + xyzrpy[2] + "\t" + xyzrpy[3] + "\t" + xyzrpy[4] + "\t" + xyzrpy[5]); // XXX
-                    
-                    vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
-                            new VisDataLineStyle(colors[x], 2))));
+                    double[] pos = cam.getPosition();
+                    System.out.println("camera: " + cam.getCameraId());
+                    System.out.println("(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2]);
+                    System.out.println("(r,p,y): " + pos[3] + ", " + pos[4] + ", " + pos[5] + "\n\n");
                 }
-                System.out.println("\n"); // XXX
+         
+                if(display)
+                {
+                    double[][] camM = cam.getTransformationMatrix();
+                    vbCameras.addBuffered(new VisChain(camM, new VisCamera(colors[x], 0.08)));
+                    
+                    for (Tag tag : cam.getTags())   
+                    {
+                        double tagM[][] = tag.getTransformationMatrix();
+                        vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
+                                new VisDataLineStyle(colors[x], 2))));
+                    }
+                }
             }
-
-            // TODO write to config file
-            System.out.println(output);
-            showGui(output);
+            
+            if(display)
+            {
+                showGui();
+            }
         }
     }
 
-    private void showGui(String output)
+    private void showGui()
     {
-    	jf = new JFrame("Inter Camera Calibrater");
+    	jf = new JFrame("Extrinsics Calibrater");
         jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         jf.setLayout(new BorderLayout());
         jf.add(vc, BorderLayout.CENTER);
-        jf.setSize(1000, 500);
+        jf.setSize(Toolkit.getDefaultToolkit().getScreenSize());
     	
         vbTags.switchBuffer();
         vbCameras.switchBuffer();
@@ -136,6 +148,8 @@ public class ExtrinsicsCalibrator
         opts.addString('c', "colors", "", "gray8 or gray16 (overrides config color setting)");
         opts.addString('f', "fps", "", "framerate to use if player (overrides config framerate) ");
         opts.addString('t', "tagSize", "", "size of tags used in meters (overrides config framerate)");
+        opts.addBoolean('d', "dispaly", true, "if true will display a GUI with the camera and tag locations");
+        opts.addBoolean('v', "verbose", true, "if true will print out more information regarding calibrator's status");
 
         if (!opts.parse(args))
         {
@@ -150,7 +164,7 @@ public class ExtrinsicsCalibrator
         }
         
         Config config = new ConfigFile(opts.getString("config"));
-        if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
+        Util.verifyConfig(config);
     	if(!opts.getString("resolution").isEmpty())
     	{
     		config.setBoolean("loRes", opts.getString("resolution").contains("lo"));
@@ -170,7 +184,7 @@ public class ExtrinsicsCalibrator
 
         if (ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
 
-        new ExtrinsicsCalibrator(config, true);
+        new ExtrinsicsCalibrator(config, opts.getBoolean("display"), opts.getBoolean("verbose"));
     }
 
     private void getAllCorrespondences() throws CameraException
@@ -203,24 +217,24 @@ public class ExtrinsicsCalibrator
         int auxIndex = 0;
         double mainM[][];
         double auxM[][];
-        ArrayList<Camera.Tag> mainTags = mainCam.getDetections();
-        ArrayList<Camera.Tag> auxTags = auxCam.getDetections();
+        ArrayList<Tag> mainTags = mainCam.getTags();
+        ArrayList<Tag> auxTags = auxCam.getTags();
         
         auxCam.setMain(main);
         auxCam.clearPotentialPositions();
 
         while (mainIndex < mainTags.size() && auxIndex < auxTags.size())
         {
-            if (auxTags.get(auxIndex).id == mainTags.get(mainIndex).id)
+            if (auxTags.get(auxIndex).getId() == mainTags.get(mainIndex).getId())
             {
-                mainM = LinAlg.xyzrpyToMatrix(mainTags.get(mainIndex).xyzrpy);
-                auxM = LinAlg.xyzrpyToMatrix(auxTags.get(auxIndex).xyzrpy);
+                mainM = mainTags.get(mainIndex).getTransformationMatrix();
+                auxM = auxTags.get(auxIndex).getTransformationMatrix();
                 
                 auxCam.addCorrespondence(LinAlg.matrixAB(mainM, LinAlg.inverse(auxM)));
                 mainIndex++;
                 auxIndex++;
             }
-            else if (auxTags.get(auxIndex).id > mainTags.get(mainIndex).id)
+            else if (auxTags.get(auxIndex).getId() > mainTags.get(mainIndex).getId())
             {
                 mainIndex++;
             }

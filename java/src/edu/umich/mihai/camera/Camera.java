@@ -12,9 +12,9 @@ import april.tag.CameraUtil;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import edu.umich.mihai.led.TagComparator;
-import edu.umich.mihai.sandbox.PointLocator;
 import edu.umich.mihai.util.CameraException;
 import edu.umich.mihai.util.ConfigException;
+import edu.umich.mihai.util.PointLocator;
 import edu.umich.mihai.util.Util;
 
 /**
@@ -31,7 +31,6 @@ public class Camera implements ImageReader.Listener
     private ArrayList< Tag > tags;
     private ArrayList<double[]> potentialPositions;
     private double[] position;
-    private double[] stdDev;
 
     private int imageCount = 0;
     private ArrayList<byte[]> imageBuffers;
@@ -43,6 +42,13 @@ public class Camera implements ImageReader.Listener
     private double cc[];
     private double kc[];
     private double alpha;
+    
+    // XXX temp
+    public Camera(ArrayList<Tag> tags, double[] position)
+    {
+        this.tags = tags;
+        this.position = position;
+    }
     
     public Camera(Config config, String url) throws CameraException, IOException, ConfigException
     {
@@ -58,18 +64,6 @@ public class Camera implements ImageReader.Listener
         potentialPositions = new ArrayList<double[]>();
         
         ir = new ImageReader(config.getRoot(), url);
-    }
-    
-    class Tag
-    {
-        double[] xyzrpy;
-        int id;
-        
-        public Tag(double[] xyzrpy, int id)
-        {
-            this.xyzrpy = xyzrpy;
-            this.id = id;
-        }
     }
     
     public boolean isGood()
@@ -121,7 +115,7 @@ public class Camera implements ImageReader.Listener
                 points[b] = LinAlg.matrixToXyzrpy(M);
             }
             
-            tags.add(new Tag(PointLocator.calculateItt(points),last_id));
+            tags.add(new Tag(PointLocator.calculateItt(points), last_id));
         }
     }
     
@@ -148,12 +142,12 @@ public class Camera implements ImageReader.Listener
         return potentialPositions;
     }
     
-    public Tag getDetection(int index)
+    public Tag getTag(int index)
     {
         return tags.get(index);
     }
 
-    public ArrayList<Tag> getDetections()
+    public ArrayList<Tag> getTags()
     {
         return tags;
     }
@@ -244,62 +238,7 @@ public class Camera implements ImageReader.Listener
     // FIXME eliminate magic numbers/make them parameters rather then hardcoded
     public boolean isCertain()
     {
-        if(potentialPositions.size()==0)
-            return false;
-        
-        if(stdDev == null)
-        {
-            setVariance();
-        }
-        
-        double translationErr = (Math.sqrt(stdDev[0]) + Math.sqrt(stdDev[1]) + Math.sqrt(stdDev[2]))/3;
-        double rotationErr = (Math.sqrt(stdDev[3]) + Math.sqrt(stdDev[4]) + Math.sqrt(stdDev[5]))/3;
-        
-        // certain iff there are at least 5 tagdetections, stdDev of xyz err is < 20cm, and stdDev of rpy err is < 180deg
-//        return (coordinates.size()>5 && translationErr < 0.50 && rotationErr < Math.PI);
-//        return (translationErr < 0.20 && rotationErr < Math.PI/2);
-        return true;
-    }
-    private void setVariance()
-    {
-        double average[] = new double[]{0,0,0,0,0,0};
-        stdDev = new double[]{0,0,0,0,0,0};
-        
-        for(double[] coordinate : potentialPositions)
-        {
-            average = LinAlg.add(average, coordinate);
-        }
-
-        average = LinAlg.scale(average, 1.0/potentialPositions.size());
-        
-        for(double[] coordinate : potentialPositions)
-        {
-            double tmp[] = LinAlg.subtract(coordinate, average);
-
-            try
-            {
-                stdDev = LinAlg.add(elementMultiplication(tmp, tmp), stdDev);
-            } catch (Exception e)
-            {
-                e.printStackTrace();
-            }
-        }
-    }
-    private double[] elementMultiplication(double[] a, double[] b) throws Exception
-    {
-        double c[] = new double[a.length];
-        
-        if(a.length != b.length)
-        {
-            throw new Exception("Arrays not of equal size");
-        }
-        
-        for(int x = 0; x < a.length; x++)
-        {
-            c[x] = a[x] * b[x];
-        }
-        
-        return c;
+        return (potentialPositions.size() > 0);
     }
 }
 

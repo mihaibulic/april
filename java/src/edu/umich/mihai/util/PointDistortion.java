@@ -11,8 +11,6 @@ public class PointDistortion
     private final int LENGTH_CC = 2;
     private final int LENGTH_KC = 5;
 
-    private int width;
-    private int height;
     private double fc[];
     private double cc[];
     private double kc[];
@@ -21,7 +19,7 @@ public class PointDistortion
     private double threshold;
     private Distort d;
 
-    public PointDistortion(double fc[], double cc[], double kc[], double alpha, int width, int height, double threshold)
+    public PointDistortion(double fc[], double cc[], double kc[], double alpha, double threshold)
     {
         if(fc.length != LENGTH_FC) throw new ArrayIndexOutOfBoundsException("Focal length array contains " + fc.length + " elements (should have " + LENGTH_FC + ")");
         if(cc.length != LENGTH_CC) throw new ArrayIndexOutOfBoundsException("Principal point array contains " + cc.length + " elements (should have " + LENGTH_CC + ")");
@@ -31,8 +29,6 @@ public class PointDistortion
         this.cc = cc;
         this.kc = kc;
         this.alpha = alpha;
-        this.width = width;
-        this.height = height;
         this.threshold = threshold;
         d = new Distort();
     }
@@ -86,14 +82,8 @@ public class PointDistortion
             for (int i = 0; i < dx.getRowDimension(); i++) 
             {
                 udp[i] += dx.get(i,0);
-              
-                // guard against spilling outside of image
-                if(udp[i] < 0) udp[i] = 0;
             }
-            // guard against spilling outside of image
-            if(udp[0] > width-1) udp[0] = width-1;
-            if(udp[1] > height-1) udp[1] = height-1;
-            
+
             // compute residual
             r = LinAlg.subtract(dp, d.evaluate(udp));
         }

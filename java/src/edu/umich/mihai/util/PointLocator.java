@@ -1,4 +1,4 @@
-package edu.umich.mihai.sandbox;
+package edu.umich.mihai.util;
 
 import java.awt.Color;
 import java.util.Random;
@@ -31,7 +31,7 @@ public class PointLocator extends JFrame
         double[] locationCentroid = calculateCentroid(points);
         double[] locationItt = calculateItt(points);
         
-        double[] diff = LinAlg.subtract(printDistance(points, locationCentroid), printDistance(points, locationItt));  
+        double[] diff = LinAlg.subtract(getDistance(points, locationCentroid), getDistance(points, locationItt));  
         System.out.println(diff[0] + "\t" + diff[1] + (diff[0] > 0.05 ? "\t *********************" : diff[1] > 0.13 ? "\t ^^^^^^^^^^^^^^^^^" : ""));
         total = LinAlg.add(total, diff);
 
@@ -63,21 +63,6 @@ public class PointLocator extends JFrame
         return;
     }
     
-    private double[] printDistance(double[][] points, double[] location)
-    {
-        double[][] distance = new double[points.length][2];
-        double[] total = {0,0};
-        
-        for(int y = 0; y < points.length; y++)
-        {
-            distance[y][0] = LinAlg.distance(points[y], location, 3);
-            distance[y][1] = angleDiff(points[y], location);
-            total = LinAlg.add(total, distance[y]);
-        }
-        System.out.print(total[0] + "\t" + total[1] + "\t") ;
-        
-        return total;
-    }
     
     static class Distance extends Function
     {
@@ -116,6 +101,21 @@ public class PointLocator extends JFrame
             return distance;
         }
     }        
+
+    private static double[] getDistance(double[][] points, double[] location)
+    {
+        double[][] distance = new double[points.length][2];
+        double[] total = {0,0};
+        
+        for(int y = 0; y < points.length; y++)
+        {
+            distance[y][0] = LinAlg.distance(points[y], location, 3);
+            distance[y][1] = angleDiff(points[y], location);
+            total = LinAlg.add(total, distance[y]);
+        }
+        
+        return total;
+    }
     
     private static double angleDiff(double[] a, double[] b)
     {
@@ -147,7 +147,8 @@ public class PointLocator extends JFrame
         Distance d = new Distance(points);
         int length = points[0].length;
         
-        double loction[] = calculateCentroid(points);
+        double centroid[] = calculateCentroid(points);
+        double loction[] = centroid.clone();
         
         boolean skip[] = new boolean[length];
         for(int a = 0; a < skip.length; a++)
@@ -187,6 +188,13 @@ public class PointLocator extends JFrame
             
             oldOldJ = oldJ.clone();
             oldJ = J.clone();
+        }
+        
+        double[] centroidDist = getDistance(points, centroid);
+        double[] ittDist = getDistance(points, centroid);
+        if(centroidDist[0] < ittDist[0] && centroidDist[1] < ittDist[1])
+        {
+            loction = centroid;
         }
         
         return loction;

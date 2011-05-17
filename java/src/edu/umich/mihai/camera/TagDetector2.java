@@ -20,7 +20,7 @@ import april.vis.VisData;
 import april.vis.VisDataLineStyle;
 import april.vis.VisDataPointStyle;
 import april.vis.VisWorld;
-import edu.umich.mihai.sandbox.PointDistortion;
+import edu.umich.mihai.util.PointDistortion;
 
 public class TagDetector2
 {

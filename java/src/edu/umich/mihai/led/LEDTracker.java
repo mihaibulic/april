@@ -2,6 +2,7 @@ package edu.umich.mihai.led;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Toolkit;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -24,9 +25,9 @@ import april.vis.VisWorld;
 import edu.umich.mihai.camera.CamUtil;
 import edu.umich.mihai.camera.CameraComparator;
 import edu.umich.mihai.lcmtypes.led_t;
-import edu.umich.mihai.sandbox.PointLocator;
 import edu.umich.mihai.util.CameraException;
 import edu.umich.mihai.util.ConfigException;
+import edu.umich.mihai.util.PointLocator;
 import edu.umich.mihai.util.Util;
 import edu.umich.mihai.vis.VisCamera;
 
@@ -193,20 +194,19 @@ public class LEDTracker extends CameraComparator implements Track.Listener
         {
             System.out.println("LEDTracker-showGUI: Tracks started. Starting display...");
             
-            jf = new JFrame("LEDTracker");
-            jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            jf.setLayout(new BorderLayout());
+            jf = new JFrame("LED Tracker");
             jf.add(vc, BorderLayout.CENTER);
-            jf.setSize(1000, 500);
-            jf.setVisible(true);
+            jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            jf.setSize(Toolkit.getDefaultToolkit().getScreenSize());
             
             for(int x = 0; x < tracks.size(); x++)
             {
             	double[][] camM = tracks.get(x).getTransformationMatrix();
                 vbCameras.addBuffered(new VisChain(camM, new VisCamera(colors[x], 0.08)));
             }
-            
             vbCameras.switchBuffer();
+
+            jf.setVisible(true);
         }
     }
     
