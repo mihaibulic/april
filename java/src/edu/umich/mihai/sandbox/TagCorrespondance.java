@@ -60,7 +60,7 @@ public class TagCorrespondance
             for(int y = 0; y < 2; y++)
             {
                 Color color = new Color(rand.nextInt(256), 127, 127);
-                double[] pos = cameras.get(y).getPosition();
+                double[] pos = cameras.get(y).getXyzrpy();
                 
                 output += "camera: " + cameras.get(y).getCameraId() + "\n";
                 output += "(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2] + "\n";

@@ -98,7 +98,7 @@ public class ExtrinsicsCalibrator
                 
                 if(verbose)
                 {
-                    double[] pos = cam.getPosition();
+                    double[] pos = cam.getXyzrpy();
                     System.out.println("camera: " + cam.getCameraId());
                     System.out.println("(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2]);
                     System.out.println("(r,p,y): " + pos[3] + ", " + pos[4] + ", " + pos[5] + "\n\n");
@@ -301,7 +301,7 @@ public class ExtrinsicsCalibrator
         {
             if(index == cam.getCameraId())
             {
-                position = cam.getPosition();
+                position = cam.getXyzrpy();
             }
         }
         

@@ -3,6 +3,7 @@ package edu.umich.mihai.camera;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 
 import april.config.Config;
 import april.jcam.ImageConvert;
@@ -28,7 +29,7 @@ public class Camera implements ImageReader.Listener
     private int mainIndex;
     private ImageReader ir;
     private ArrayList<TagDetection> detections;
-    private ArrayList< Tag > tags;
+    private ArrayList< Tag > tagsL;
     private ArrayList<double[]> potentialPositions;
     private double[] position;
 
@@ -43,10 +44,13 @@ public class Camera implements ImageReader.Listener
     private double kc[];
     private double alpha;
     
+    private HashMap< Integer, double[]> tagsH = new HashMap<Integer, double[]>();
+    
     // XXX temp
-    public Camera(ArrayList<Tag> tags, double[] position)
+    public Camera(ArrayList<Tag> tagsL, HashMap< Integer, double[]> tagsH, double[] position)
     {
-        this.tags = tags;
+        this.tagsL = tagsL;
+        this.tagsH = tagsH;
         this.position = position;
     }
     
@@ -97,7 +101,7 @@ public class Camera implements ImageReader.Listener
         
         
         int end = 0;
-        tags = new ArrayList< Tag >();
+        tagsL = new ArrayList< Tag >();
         for(int start = 0; start < detections.size(); start=end)
         {
             int last_id = detections.get(start).id;
@@ -115,7 +119,7 @@ public class Camera implements ImageReader.Listener
                 points[b] = LinAlg.matrixToXyzrpy(M);
             }
             
-            tags.add(new Tag(PointLocator.calculateItt(points), last_id));
+            tagsL.add(new Tag(PointLocator.calculateItt(points), last_id));
         }
     }
     
@@ -144,12 +148,22 @@ public class Camera implements ImageReader.Listener
     
     public Tag getTag(int index)
     {
-        return tags.get(index);
+        return tagsL.get(index);
     }
 
+    public double[] getTagH(int id)
+    {
+        return tagsH.get(id);
+    }
+    
+    public HashMap<Integer,double[]> getTagsH()
+    {
+        return tagsH;
+    }
+    
     public ArrayList<Tag> getTags()
     {
-        return tags;
+        return tagsL;
     }
     
     public double[] getFocal()
@@ -167,7 +181,7 @@ public class Camera implements ImageReader.Listener
         return mainIndex;
     }
     
-    public double[] getPosition()
+    public double[] getXyzrpy()
     {
         return position;
     }
@@ -176,10 +190,15 @@ public class Camera implements ImageReader.Listener
     {
         return ir;
     }
+
+    public int getTagCountH()
+    {
+        return tagsH.size();
+    }
     
     public int getTagCount()
     {
-        return tags.size();
+        return tagsL.size();
     }
     
     public double[][] getTransformationMatrix()
@@ -200,7 +219,7 @@ public class Camera implements ImageReader.Listener
     public void setPosition()
     {
         double[][] points = new double[potentialPositions.size()][6];
-      position = PointLocator.calculateItt(potentialPositions.toArray(points));
+        position = PointLocator.calculateItt(potentialPositions.toArray(points));
     }
     
     public void setPosition(double[] xyzrpy, int main)
