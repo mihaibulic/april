@@ -87,7 +87,7 @@ public class ExtrinsicsCalibrator
         if(verbose) System.out.println("done");
         
         if(verbose) System.out.print("ICC-run: Resolving itterative extrinsics solution...");
-        
+        calculateItt();
         if(verbose) System.out.println("done");
         
         if(display || verbose)
@@ -265,20 +265,19 @@ public class ExtrinsicsCalibrator
         }
     }
     
-    
-    public void calculateItt(Camera[] cameras)
+    private void calculateItt()
     {
         double threshold = 0.000001; // experimentally derived
         int ittLimit = 1000;         // experimentally derived
         int length = 6;              // xyzrpy
-        int size = length * cameras.length;
+        int size = length * cameras.size();
         Distance distance = new Distance(cameras);
 
         double locations[] = new double[size];
         double eps[] = new double[size];
-        for (int i = 0; i < cameras.length; i++) 
+        for (int i = 0; i < cameras.size(); i++) 
         {
-            double[] pos = cameras[i].getXyzrpy();
+            double[] pos = cameras.get(i).getXyzrpy();
             for(int o = 0; o < 6; o++)
             {
                 locations[i*length+o] = pos[o];
@@ -308,14 +307,14 @@ public class ExtrinsicsCalibrator
             r = LinAlg.scale(distance.evaluate(locations), -1);
         }
         
-        for(int x = 0; x < cameras.length; x++)
+        for(int x = 0; x < cameras.size(); x++)
         {
             double[] position = new double[length];
             for(int y = 0; y < length; y++)
             {
                 position[y] = locations[x*length+y];
             }
-            cameras[x].setPosition(position);
+            cameras.get(x).setPosition(position);
         }
     }
     
@@ -353,21 +352,21 @@ public class ExtrinsicsCalibrator
     
     class Distance extends Function
     {
-        Camera[] cameras;;
+        ArrayList<Camera> cameras;;
         HashMap<Integer,double[]>[] tagsH;
         ArrayList<Tag>[] tagsL;
         
         @SuppressWarnings("unchecked") // can't infer generic when making arrays of HashMaps or ArrayLists
-        public Distance(Camera[] cameras)
+        public Distance(ArrayList<Camera> cameras)
         {
             this.cameras = cameras;
-            tagsH = new HashMap[cameras.length];
-            tagsL = new ArrayList[cameras.length];
+            tagsH = new HashMap[cameras.size()];
+            tagsL = new ArrayList[cameras.size()];
             
-            for(int c = 0; c < cameras.length; c++)
+            for(int c = 0; c < cameras.size(); c++)
             {
-                tagsH[c] = cameras[c].getTagsH();
-                tagsL[c] = cameras[c].getTags();
+                tagsH[c] = cameras.get(c).getTagsH();
+                tagsL[c] = cameras.get(c).getTags();
             }
         }
         
@@ -391,7 +390,7 @@ public class ExtrinsicsCalibrator
                 }
             }
             
-            for(int c = 0; c < cameras.length; c++)
+            for(int c = 0; c < cameras.size(); c++)
             {
                 int count = 0;
                 double[] curCamera = new double[length];
@@ -402,7 +401,7 @@ public class ExtrinsicsCalibrator
                 for(int t = 0; t < tagsL[c].size(); t++)
                 {
                     double[] curTag = LinAlg.matrixToXyzrpy(LinAlg.matrixAB(LinAlg.xyzrpyToMatrix(curCamera), tagsL[c].get(t).getTransformationMatrix()));
-                    for(int o = 0; o < cameras.length; o++)
+                    for(int o = 0; o < cameras.size(); o++)
                     {
                         if(o!=c)
                         {

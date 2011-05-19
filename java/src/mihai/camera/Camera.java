@@ -119,7 +119,9 @@ public class Camera implements ImageReader.Listener
                 points[b] = LinAlg.matrixToXyzrpy(M);
             }
             
-            tagsL.add(new Tag(PointLocator.calculateItt(points), last_id));
+            double[] tagXyzrpy = PointLocator.calculateItt(points); 
+            tagsL.add(new Tag(tagXyzrpy, last_id));
+            tagsH.put(last_id, tagXyzrpy);
         }
     }
     
