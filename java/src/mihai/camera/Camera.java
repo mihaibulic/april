@@ -222,6 +222,12 @@ public class Camera implements ImageReader.Listener
         position = PointLocator.calculateItt(potentialPositions.toArray(points));
     }
     
+    public void setPosition(double[] xyzrpy)
+    {
+        this.position = xyzrpy;
+        mainIndex = -1; // camera positions are now not relative to one another anymore
+    }
+    
     public void setPosition(double[] xyzrpy, int main)
     {
         this.position = xyzrpy;

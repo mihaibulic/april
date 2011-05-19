@@ -7,17 +7,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-
 import javax.swing.JFrame;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.Util;
 import mihai.vis.VisCamera;
-
 import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageSource;
+import april.jmat.Function;
 import april.jmat.LinAlg;
+import april.jmat.Matrix;
+import april.jmat.NumericalJacobian;
 import april.util.GetOpt;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
@@ -82,11 +83,10 @@ public class ExtrinsicsCalibrator
         if(verbose) System.out.print("ICC-run: Resolving initial extrinsics solution...");
         Collections.sort(cameras, new CameraComparator());
         getAllCorrespondences();
-        resolveExtrinsics();
+        initializeExtrinsics();
         if(verbose) System.out.println("done");
         
         if(verbose) System.out.print("ICC-run: Resolving itterative extrinsics solution...");
-        
         
         if(verbose) System.out.println("done");
         
@@ -245,7 +245,7 @@ public class ExtrinsicsCalibrator
         }
     }
 
-    private void resolveExtrinsics() throws CameraException
+    private void initializeExtrinsics() throws CameraException
     {
         cameras.get(0).setPosition(new double[] { 0, 0, 0, 0, 0, 0 }, 0);
         
@@ -264,6 +264,181 @@ public class ExtrinsicsCalibrator
             }
         }
     }
+    
+    
+    public void calculateItt(Camera[] cameras)
+    {
+        double threshold = 0.000001; // experimentally derived
+        int ittLimit = 1000;         // experimentally derived
+        int length = 6;              // xyzrpy
+        int size = length * cameras.length;
+        Distance distance = new Distance(cameras);
+
+        double locations[] = new double[size];
+        double eps[] = new double[size];
+        for (int i = 0; i < cameras.length; i++) 
+        {
+            double[] pos = cameras[i].getXyzrpy();
+            for(int o = 0; o < 6; o++)
+            {
+                locations[i*length+o] = pos[o];
+                eps[i*length+o] = 0.0001; // units: meters
+            }
+        }
+        
+        double[] r = LinAlg.scale(distance.evaluate(locations), -1);
+        double[] oldR = null;
+        
+        int count = 0;
+        while(!shouldStop(r, oldR, threshold) && ++count < ittLimit)
+        {
+            double[][] _J = NumericalJacobian.computeJacobian(distance, locations, eps);
+            Matrix J = new Matrix(_J);
+            
+            Matrix JTtimesJplusI = J.transpose().times(J).plus(Matrix.identity(size, size));
+            Matrix JTr = J.transpose().times(Matrix.columnMatrix(r));
+            Matrix dx = JTtimesJplusI.solve(JTr);
+            
+            for (int i = 0; i < locations.length; i++)
+            {
+                locations[i] += 0.1*dx.get(i,0); // 0.1 helps stabilize results
+            }
+            
+            oldR = r.clone();
+            r = LinAlg.scale(distance.evaluate(locations), -1);
+        }
+        
+        for(int x = 0; x < cameras.length; x++)
+        {
+            double[] position = new double[length];
+            for(int y = 0; y < length; y++)
+            {
+                position[y] = locations[x*length+y];
+            }
+            cameras[x].setPosition(position);
+        }
+    }
+    
+    private boolean shouldStop(double[] r, double[] oldR, double threshold)
+    {
+        boolean stop = true;
+        int length = 2;
+        
+        if(oldR != null)
+        {
+            for(int x = 0; x < r.length/length; x++)
+            {
+                double[] cur = new double[length];
+                double[] old = new double[length];
+                for(int y = 0; y < length; y++)
+                {
+                    cur[y] = r[x*length+y];
+                    old[y] = oldR[x*length+y];
+                }
+                
+                if(LinAlg.distance(cur, old) > threshold)
+                {
+                    stop = false;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            stop = false;
+        }
+        
+        return stop;
+    }
+    
+    class Distance extends Function
+    {
+        Camera[] cameras;;
+        HashMap<Integer,double[]>[] tagsH;
+        ArrayList<Tag>[] tagsL;
+        
+        @SuppressWarnings("unchecked") // can't infer generic when making arrays of HashMaps or ArrayLists
+        public Distance(Camera[] cameras)
+        {
+            this.cameras = cameras;
+            tagsH = new HashMap[cameras.length];
+            tagsL = new ArrayList[cameras.length];
+            
+            for(int c = 0; c < cameras.length; c++)
+            {
+                tagsH[c] = cameras[c].getTagsH();
+                tagsL[c] = cameras[c].getTags();
+            }
+        }
+        
+        @Override
+        public double[] evaluate(double[] location)
+        {
+            return evaluate(location, null);
+        }
+        
+        @Override
+        public double[] evaluate(double[] location, double[] distance)
+        {
+            int length = 6;
+            
+            if(distance == null)
+            {
+                distance = new double[location.length/3];
+                for(int a = 0; a < distance.length; a++)
+                {
+                    distance[a] = 0;
+                }
+            }
+            
+            for(int c = 0; c < cameras.length; c++)
+            {
+                int count = 0;
+                double[] curCamera = new double[length];
+                for(int x = 0; x < length; x++)
+                {
+                    curCamera[x] = location[c*length+x];
+                }
+                for(int t = 0; t < tagsL[c].size(); t++)
+                {
+                    double[] curTag = LinAlg.matrixToXyzrpy(LinAlg.matrixAB(LinAlg.xyzrpyToMatrix(curCamera), tagsL[c].get(t).getTransformationMatrix()));
+                    for(int o = 0; o < cameras.length; o++)
+                    {
+                        if(o!=c)
+                        {
+                            double[] otherTag = tagsH[o].get(tagsL[c].get(t).getId());
+                            if(otherTag != null)
+                            {
+                                count++;
+                                
+                                double[] otherCamera = new double[length];
+                                for(int x = 0; x < length; x++)
+                                {
+                                    otherCamera[x] = location[o*length+x];
+                                }
+                                otherTag = LinAlg.matrixToXyzrpy(LinAlg.matrixAB(LinAlg.xyzrpyToMatrix(otherCamera), LinAlg.xyzrpyToMatrix(otherTag)));
+                                
+                                distance[2*c] += Math.sqrt(sq(curTag[0]-otherTag[0])+sq(curTag[1]-otherTag[1])+sq(curTag[2]-otherTag[2]));
+                                distance[2*c+1] += Math.sqrt(sq(curTag[3]-otherTag[3])+sq(curTag[4]-otherTag[4])+sq(curTag[5]-otherTag[5]));
+                            }
+                        }
+                    }
+                }
+                if(count != 0)
+                {
+                    distance[c*2] /= count;
+                    distance[c*2+1] /= count;
+                }
+            }
+            
+            return distance;
+        }
+        
+        public double sq(double a)
+        {
+            return a*a;
+        }
+    }  
     
     /**
      * Once the constructor is run, call this method to retrieve an 

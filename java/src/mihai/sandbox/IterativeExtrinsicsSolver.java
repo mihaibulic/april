@@ -18,7 +18,7 @@ import april.vis.VisDataFillStyle;
 import april.vis.VisRectangle;
 import april.vis.VisWorld;
 
-public class ExtrinsicsSolverTest extends JFrame
+public class IterativeExtrinsicsSolver extends JFrame
 {
     private static final long serialVersionUID = 1L;
 
@@ -28,53 +28,12 @@ public class ExtrinsicsSolverTest extends JFrame
     
     private Color[] colors = {Color.BLACK, Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.LIGHT_GRAY};
     
-    public ExtrinsicsSolverTest(Camera[] cameras)
+    public IterativeExtrinsicsSolver(Camera[] cameras)
     {
         super("EST");
-
+        
         int length = 6;
-        int size = length * cameras.length;
-        Distance distance = new Distance(cameras);
-
-        // ideal value of our function. (distances between points in observation)
-        double locations[] = new double[size];
-        double eps[] = new double[size];
-        for (int i = 0; i < cameras.length; i++) 
-        {
-            double[] pos = cameras[i].getXyzrpy();
-            for(int o = 0; o < 6; o++)
-            {
-                locations[i*length+o] = pos[o];
-                eps[i*length+o] = 0.001; // units: meters
-            }
-        }
-
-        double threshold = 0.01;
-        int count = 100;
-        
-        double[] r = LinAlg.scale(distance.evaluate(locations), -1);
-        double[] oldR = null;
-        
-        int c = 0;
-        while(!shouldStop(r, oldR, threshold) && c < count)
-        {
-            c++;
-            double[][] _J = NumericalJacobian.computeJacobian(distance, locations, eps);
-            Matrix J = new Matrix(_J);
-            
-            Matrix JTtimesJplusI = J.transpose().times(J).plus(Matrix.identity(size, size));
-            Matrix JTr = J.transpose().times(Matrix.columnMatrix(r));
-            Matrix dx = JTtimesJplusI.solve(JTr);
-            
-            for (int i = 0; i < locations.length; i++)
-            {
-                locations[i] += 0.1*dx.get(i,0);
-            }
-            
-            oldR = r.clone();
-            r = LinAlg.scale(distance.evaluate(locations), -1);
-        }
-        System.out.println(c);
+        double locations[] = calculateItt(cameras);
         
         for(int i = 0; i < cameras.length; i++)
         {
@@ -97,46 +56,6 @@ public class ExtrinsicsSolverTest extends JFrame
         
         showGui();
     }
-    
-    private static boolean shouldStop(double[] r, double[] oldR, double threshold)
-    {
-        boolean stop = true;
-        
-        if(oldR != null)
-        {
-            for(int x = 0; x < r.length; x++)
-            { 
-                if(Math.abs(r[x]) > threshold)
-                {
-                    stop = false;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            stop = false;
-        }
-        
-        return stop;
-//        return (oldR != null && LinAlg.distance(r,oldR)/Math.sqrt(2) < threshold);
-    }
-    
-    private void showGui()
-    {
-        add(vc);
-        vb.switchBuffer();
-        
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(Toolkit.getDefaultToolkit().getScreenSize());
-        setVisible(true);
-    }
-    
-    private double[] matrixab(double[] a, double[] b)
-    {
-        return LinAlg.matrixToXyzrpy(LinAlg.matrixAB(LinAlg.xyzrpyToMatrix(a), LinAlg.xyzrpyToMatrix(b)));
-    }
-    
     
     /* very big improvement to current extrinsics initial solution
      * for(int c = 0; c < cameras.length; c++)
@@ -164,12 +83,100 @@ public class ExtrinsicsSolverTest extends JFrame
             }
      */
     
+    private void showGui()
+    {
+        add(vc);
+        vb.switchBuffer();
+        
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(Toolkit.getDefaultToolkit().getScreenSize());
+        setVisible(true);
+    }
+    
+    public double[] calculateItt(Camera[] cameras)
+    {
+        double threshold = 0.000001; // experimentally derived
+        int ittLimit = 1000;         // experimentally derived
+        int length = 6;              // xyzrpy
+        int size = length * cameras.length;
+        Distance distance = new Distance(cameras);
+
+        double locations[] = new double[size];
+        double eps[] = new double[size];
+        for (int i = 0; i < cameras.length; i++) 
+        {
+            double[] pos = cameras[i].getXyzrpy();
+            for(int o = 0; o < 6; o++)
+            {
+                locations[i*length+o] = pos[o];
+                eps[i*length+o] = 0.0001; // units: meters
+            }
+        }
+        
+        double[] r = LinAlg.scale(distance.evaluate(locations), -1);
+        double[] oldR = null;
+        
+        int count = 0;
+        while(!shouldStop(r, oldR, threshold) && ++count < ittLimit)
+        {
+            double[][] _J = NumericalJacobian.computeJacobian(distance, locations, eps);
+            Matrix J = new Matrix(_J);
+            
+            Matrix JTtimesJplusI = J.transpose().times(J).plus(Matrix.identity(size, size));
+            Matrix JTr = J.transpose().times(Matrix.columnMatrix(r));
+            Matrix dx = JTtimesJplusI.solve(JTr);
+            
+            for (int i = 0; i < locations.length; i++)
+            {
+                locations[i] += 0.1*dx.get(i,0); // 0.1 helps stabilize results
+            }
+            
+            oldR = r.clone();
+            r = LinAlg.scale(distance.evaluate(locations), -1);
+        }
+        
+        return locations;
+    }
+    
+    private boolean shouldStop(double[] r, double[] oldR, double threshold)
+    {
+        boolean stop = true;
+        int length = 2;
+        
+        if(oldR != null)
+        {
+            for(int x = 0; x < r.length/length; x++)
+            {
+                double[] cur = new double[length];
+                double[] old = new double[length];
+                for(int y = 0; y < length; y++)
+                {
+                    cur[y] = r[x*length+y];
+                    old[y] = oldR[x*length+y];
+                }
+                
+                if(LinAlg.distance(cur, old) > threshold)
+                {
+                    stop = false;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            stop = false;
+        }
+        
+        return stop;
+    }
+    
     class Distance extends Function
     {
         Camera[] cameras;;
         HashMap<Integer,double[]>[] tagsH;
         ArrayList<Tag>[] tagsL;
         
+        @SuppressWarnings("unchecked")
         public Distance(Camera[] cameras)
         {
             this.cameras = cameras;
@@ -284,8 +291,7 @@ public class ExtrinsicsSolverTest extends JFrame
             cameras[x] = new Camera(tags[x], tagsH, camInit[x]);
         }
         
-        new ExtrinsicsSolverTest(cameras);
-        
+        new IterativeExtrinsicsSolver(cameras);
     }
 
 }
