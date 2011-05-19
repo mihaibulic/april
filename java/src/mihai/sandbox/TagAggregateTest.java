@@ -27,7 +27,7 @@ import april.vis.VisDataFillStyle;
 import april.vis.VisRectangle;
 import april.vis.VisWorld;
 
-public class TagAggregate extends JFrame implements ImageReader.Listener
+public class TagAggregateTest extends JFrame implements ImageReader.Listener
 {
     private static final long serialVersionUID = 1L;
     private VisWorld vw = new VisWorld();
@@ -51,7 +51,7 @@ public class TagAggregate extends JFrame implements ImageReader.Listener
     private int h;
     private String f;
     
-    public TagAggregate() throws IOException, CameraException, ConfigException, InterruptedException
+    public TagAggregateTest() throws IOException, CameraException, ConfigException, InterruptedException
     {
         super("TA test");
         add(vc);
@@ -113,7 +113,7 @@ public class TagAggregate extends JFrame implements ImageReader.Listener
     
     public static void main(String[] args) throws IOException, CameraException, ConfigException, InterruptedException
     {
-        new TagAggregate();
+        new TagAggregateTest();
     }
 
 

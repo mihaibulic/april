@@ -46,7 +46,9 @@ public class Camera implements ImageReader.Listener
     
     private HashMap< Integer, double[]> tagsH = new HashMap<Integer, double[]>();
     
-    // XXX temp
+    /**
+     * @deprecated temporary only for testing
+     */
     public Camera(ArrayList<Tag> tagsL, HashMap< Integer, double[]> tagsH, double[] position)
     {
         this.tagsL = tagsL;
@@ -98,7 +100,6 @@ public class Camera implements ImageReader.Listener
         }
         
         Collections.sort(detections, new TagComparator());
-        
         
         int end = 0;
         tagsL = new ArrayList< Tag >();

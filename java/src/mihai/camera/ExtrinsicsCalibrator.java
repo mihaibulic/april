@@ -148,7 +148,7 @@ public class ExtrinsicsCalibrator
         opts.addString('c', "colors", "", "gray8 or gray16 (overrides config color setting)");
         opts.addString('f', "fps", "", "framerate to use if player (overrides config framerate) ");
         opts.addString('t', "tagSize", "", "size of tags used in meters (overrides config framerate)");
-        opts.addBoolean('d', "dispaly", true, "if true will display a GUI with the camera and tag locations");
+        opts.addBoolean('d', "display", true, "if true will display a GUI with the camera and tag locations");
         opts.addBoolean('v', "verbose", true, "if true will print out more information regarding calibrator's status");
 
         if (!opts.parse(args))

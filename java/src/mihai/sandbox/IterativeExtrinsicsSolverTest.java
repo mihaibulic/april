@@ -18,7 +18,7 @@ import april.vis.VisDataFillStyle;
 import april.vis.VisRectangle;
 import april.vis.VisWorld;
 
-public class IterativeExtrinsicsSolver extends JFrame
+public class IterativeExtrinsicsSolverTest extends JFrame
 {
     private static final long serialVersionUID = 1L;
 
@@ -28,7 +28,7 @@ public class IterativeExtrinsicsSolver extends JFrame
     
     private Color[] colors = {Color.BLACK, Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.LIGHT_GRAY};
     
-    public IterativeExtrinsicsSolver(Camera[] cameras)
+    public IterativeExtrinsicsSolverTest(Camera[] cameras)
     {
         super("EST");
         
@@ -259,13 +259,14 @@ public class IterativeExtrinsicsSolver extends JFrame
         }
     }  
     
+    @SuppressWarnings("unchecked")
     public static void main(String[] args)
     {
         
         double[][] camAct = {{0,0,0,0,0,0}, {0,1,0,0,0,0}, {1,0,0,0,0,0}};
         double[][] tagsAct = {{0,0,-2,0,0,0}, {0,1,-2,0,0,0}, {1,0,-2,0,0,0}, {1,1,-2,0,0,0}, {-1,0,-2,0,0,0}, 
                               {0,-1,-2,0,0,0}, {-1,-1,-2,0,0,0}, {0.5,0.5,-2,0,0,0}, {-0.5,-0.5,-2,0,0,0}};
-        double[][] camInit = {{.1,0,-.2,0,.05,0}, {0.2,1.05,-0.2,.05,0,.05}, {0.8,.1,-.05,.1,0.1,-0.1}};
+        double[][] camInit = {{.1,3,-.2,0,.05,0}, {0.2,1.05,-0.2,.05,0,.05}, {0.8,.1,-.05,.1,0.1,-0.1}};
 //        double[][] camInit = camAct;
         
         int numOfCams = camAct.length;
@@ -291,7 +292,7 @@ public class IterativeExtrinsicsSolver extends JFrame
             cameras[x] = new Camera(tags[x], tagsH, camInit[x]);
         }
         
-        new IterativeExtrinsicsSolver(cameras);
+        new IterativeExtrinsicsSolverTest(cameras);
     }
 
 }

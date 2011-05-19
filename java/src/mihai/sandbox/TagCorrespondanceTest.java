@@ -17,7 +17,7 @@ import april.vis.VisDataLineStyle;
 import april.vis.VisRectangle;
 import april.vis.VisWorld;
 
-public class TagCorrespondance
+public class TagCorrespondanceTest
 {
     private JFrame jf;
     private VisWorld vw = new VisWorld();
@@ -38,7 +38,7 @@ public class TagCorrespondance
              {0,0,-3,0,0,0}, // d
              {-1.95,0,-3,0,0,0.18}}; // e
     
-    public TagCorrespondance()
+    public TagCorrespondanceTest()
     {
         Config config;
         cameras = new ArrayList<Camera>();
@@ -162,7 +162,7 @@ public class TagCorrespondance
      */
     public static void main(String[] args)
     {
-        new TagCorrespondance();
+        new TagCorrespondanceTest();
     }
 
 }
