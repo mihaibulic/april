@@ -1,0 +1,8 @@
+package mihai.lcmtypes;
+struct object_t
+{
+    int32_t id;
+    int64_t utime;
+    double xyzrpy[6];
+    double transformation[4][4];
+}

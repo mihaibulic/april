@@ -34,7 +34,7 @@ public class ImageReader extends Thread
     
     public interface Listener
     {
-        public void handleImage(byte[] image, ImageSourceFormat ifmt, double timeStamp, int camera);
+        public void handleImage(byte[] image, ImageSourceFormat ifmt, long timeStamp, int camera);
     }
     
     public ImageReader(String url) throws CameraException, IOException, ConfigException
@@ -96,7 +96,7 @@ public class ImageReader extends Thread
                 
                 if(sync.verify() == SyncErrorDetector.SYNC_GOOD)
                 {
-                    double timestamp = times[times.length-1] - initTime;
+                    long timestamp = (long)(times[times.length-1] - initTime); // TODO use time sync stuff
                     if(lastTimestamp > timestamp)
                     {
                         rollOverCounter++;

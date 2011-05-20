@@ -271,7 +271,7 @@ public class TagTest implements ImageReader.Listener, ParameterListener
     private double count = 0;
     private long time = 0;
     
-    public void handleImage(byte[] buffer, ImageSourceFormat ifmt,double timeStamp, int camera)
+    public void handleImage(byte[] buffer, ImageSourceFormat ifmt, long timeStamp, int camera)
     {
         synchronized(lock)
         {

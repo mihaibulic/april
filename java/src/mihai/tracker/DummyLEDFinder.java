@@ -1,8 +1,9 @@
-package mihai.led;
+package mihai.tracker;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import mihai.camera.TagDetector2;
+import mihai.util.PointDistortion;
 import april.jcam.ImageConvert;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
@@ -16,6 +17,7 @@ import april.tag.TagDetection;
  */
 public class DummyLEDFinder
 {
+    private PointDistortion pd;
     private TagDetector2 td;
     private double[] fc;
     private double[] cc;
@@ -31,17 +33,18 @@ public class DummyLEDFinder
     	this.fc = fc;
     	this.cc = cc;
         td = new TagDetector2(new Tag36h11(), fc, cc, kc, alpha);
+        pd = new PointDistortion(fc, cc, kc, alpha, 0.01);
     }
     
-    public ArrayList<LEDDetection> getLedUV(byte[] buffer, int width, int height, String format)
+    public ArrayList<ImageObjectDetection> getObjectUV(byte[] buffer, int width, int height, String format)
     {
         BufferedImage image = ImageConvert.convertToImage(format, width, height, buffer);
         ArrayList<TagDetection> tags = td.process(image, cc);
-        ArrayList<LEDDetection> detections = new ArrayList<LEDDetection>();
+        ArrayList<ImageObjectDetection> detections = new ArrayList<ImageObjectDetection>();
         
-        for (int x = 0; x < tags.size(); x++)
+        for (TagDetection tag: tags)
         {
-            detections.add(new LEDDetection(tags.get(x).id, tags.get(x).cxy, fc, cc));
+            detections.add(new ImageObjectDetection(tag.id, System.currentTimeMillis(), pd.undistort(tag.cxy), fc, cc));
         }
 
         return detections;

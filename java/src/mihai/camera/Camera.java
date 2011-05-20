@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import mihai.led.TagComparator;
+import mihai.tracker.TagComparator;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.PointLocator;
@@ -243,7 +243,7 @@ public class Camera implements ImageReader.Listener
         this.mainIndex = main;
     }
     
-    public void handleImage(byte[] image, ImageSourceFormat ifmt, double timeStamp, int camera)
+    public void handleImage(byte[] image, ImageSourceFormat ifmt, long timeStamp, int camera)
     {
         if(imageBuffers.size() >= imageCount)
         {

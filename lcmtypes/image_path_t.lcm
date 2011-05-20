@@ -1,4 +1,4 @@
-package edu.umich.mihai.lcmtypes;
+package mihai.lcmtypes;
 struct image_path_t
 {
     int64_t utime;

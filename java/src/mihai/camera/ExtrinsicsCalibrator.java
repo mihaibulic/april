@@ -27,25 +27,23 @@ import april.vis.VisRectangle;
 import april.vis.VisWorld;
 
 /**
- * 
  * Gives camera to camera coordinates given that tags are spread out in the view of multiple cameras
  * 
  * @author Mihai Bulic
  *
  */
-public class ExtrinsicsCalibrator
+public class ExtrinsicsCalibrator extends JFrame
 {
-    private JFrame jf;
+    private static final long serialVersionUID = 1L;
+    
     private VisWorld vw = new VisWorld();
     private VisCanvas vc = new VisCanvas(vw);
     private VisWorld.Buffer vbCameras = vw.getBuffer("cameras");
     private VisWorld.Buffer vbTags = vw.getBuffer("tags");
-
     private Color[] colors = {Color.BLACK, Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.LIGHT_GRAY};
 
     private double tagSize;
     
-    private HashMap<String, Integer> knownUrls = new HashMap<String, Integer>();
     private ArrayList <Camera> cameras;
     
     public ExtrinsicsCalibrator(Config config) throws ConfigException, CameraException, IOException, InterruptedException
@@ -55,6 +53,8 @@ public class ExtrinsicsCalibrator
     
     public ExtrinsicsCalibrator(Config config, boolean display, boolean verbose) throws ConfigException, CameraException, IOException, InterruptedException
     {
+        super("Extrinsics Calibrator");
+        
         Util.verifyConfig(config);
         
     	tagSize = config.requireDouble("tagSize");
@@ -127,15 +127,14 @@ public class ExtrinsicsCalibrator
 
     private void showGui()
     {
-    	jf = new JFrame("Extrinsics Calibrater");
-        jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        jf.setLayout(new BorderLayout());
-        jf.add(vc, BorderLayout.CENTER);
-        jf.setSize(Toolkit.getDefaultToolkit().getScreenSize());
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+        add(vc, BorderLayout.CENTER);
+        setSize(Toolkit.getDefaultToolkit().getScreenSize());
     	
         vbTags.switchBuffer();
         vbCameras.switchBuffer();
-        jf.setVisible(true);
+        setVisible(true);
     }
 
     public static void main(String[] args) throws IOException, ConfigException, CameraException, InterruptedException
@@ -182,19 +181,28 @@ public class ExtrinsicsCalibrator
     		config.setDouble("tagSize", Double.parseDouble(opts.getString("tagSize")));
     	}
 
-        if (ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
+        if (ImageSource.getCameraURLs().size() == 0) 
+        {
+            throw new CameraException(CameraException.NO_CAMERA);
+        }
 
         new ExtrinsicsCalibrator(config, opts.getBoolean("display"), opts.getBoolean("verbose"));
     }
 
     private void getAllCorrespondences() throws CameraException
     {
-    	if(cameras.get(0).getTagCount() == 0) throw new CameraException(CameraException.NO_TAGS);
+    	if(cameras.get(0).getTagCount() == 0)
+        {
+    	    throw new CameraException(CameraException.NO_TAGS);
+	    }
     	
         for (int cam = 1; cam < cameras.size(); cam++)
         {
-            if (cameras.get(cam).getTagCount() == 0) throw new CameraException(CameraException.NO_TAGS);
             boolean found = false;
+            if (cameras.get(cam).getTagCount() == 0) 
+            {
+                throw new CameraException(CameraException.NO_TAGS);
+            }
 
             for (int main = 0; main < cameras.size() && !found; main++)
             {
@@ -203,11 +211,17 @@ public class ExtrinsicsCalibrator
                     getCorrespondence(main, cameras.get(main), cameras.get(cam));
                     found = cameras.get(cam).isCertain();
                     
-                    if(found) break;
+                    if(found) 
+                    {
+                        break;
+                    }
                 }
             }
             
-            if (!found) throw new CameraException(CameraException.UNCERTAIN);
+            if (!found)
+            {
+                throw new CameraException(CameraException.UNCERTAIN);
+            }
         }
     }
 
@@ -450,36 +464,6 @@ public class ExtrinsicsCalibrator
     public ArrayList<Camera> getCameras()
     {
         return cameras;
-    }
-    
-    /**
-     * 
-     * @param url - the URL of the camera in question
-     * @return - the xyzrpy coordinates of this camera relative to the main camera (index = 0)
-     */
-    public double[] getCameraPostion(String url)
-    {
-        return getCameraPostion(knownUrls.get(url));
-    }
-
-    /**
-     * 
-     * @param index - index of the camera in question as printed on it (see urls hashmap of this class)
-     * @return - the xyzrpy coordinates of this camera relative to the main camera (index = 0)
-     */
-    public double[] getCameraPostion(int index)
-    {
-        double position[] = new double[6]; 
-        
-        for(Camera cam : cameras)
-        {
-            if(index == cam.getCameraId())
-            {
-                position = cam.getXyzrpy();
-            }
-        }
-        
-        return position;
     }
 }
 

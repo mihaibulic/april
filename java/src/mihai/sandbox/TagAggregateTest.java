@@ -117,7 +117,7 @@ public class TagAggregateTest extends JFrame implements ImageReader.Listener
     }
 
 
-    public void handleImage(byte[] image, ImageSourceFormat ifmt, double timeStamp, int camera)
+    public void handleImage(byte[] image, ImageSourceFormat ifmt, long timeStamp, int camera)
     {
         synchronized(lock)
         {

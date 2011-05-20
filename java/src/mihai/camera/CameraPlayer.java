@@ -1,5 +1,6 @@
 package mihai.camera;
 
+import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
@@ -37,8 +38,9 @@ import april.vis.VisWorld.Buffer;
  * @author Mihai Bulic
  *
  */
-public class CameraPlayer implements LCMSubscriber, ImageReader.Listener
+public class CameraPlayer extends JFrame implements LCMSubscriber, ImageReader.Listener
 {
+    private static final long serialVersionUID = 1L;
     static LCM lcm = LCM.getSingleton();
     private int width = 0;
     private int height = 0;
@@ -46,13 +48,14 @@ public class CameraPlayer implements LCMSubscriber, ImageReader.Listener
     
     private BufferedImage image;
     
-    VisWorld vw;
-    VisCanvas vc;
-    HashMap<Integer, VisWorld.Buffer> buffers = new HashMap<Integer, VisWorld.Buffer>();
-    JFrame jf;
+    private VisWorld vw;
+    private VisCanvas vc;
+    private HashMap<Integer, VisWorld.Buffer> buffers = new HashMap<Integer, VisWorld.Buffer>();
 
     public CameraPlayer(Config config, int columns) throws CameraException, IOException, ConfigException
     {
+        super("Camera Player");
+        
         Util.verifyConfig(config);
         
     	if(ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
@@ -93,12 +96,11 @@ public class CameraPlayer implements LCMSubscriber, ImageReader.Listener
     {
     	vw = new VisWorld();
     	vc = new VisCanvas(vw);
-    	jf = new JFrame("Camera player");
-    	jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    	setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    	setSize(Toolkit.getDefaultToolkit().getScreenSize());
     	
-    	jf.add(vc);
-    	jf.setSize(500, 500);
-    	jf.setVisible(true);
+    	add(vc);
+    	setVisible(true);
     }
     
 
@@ -187,7 +189,7 @@ public class CameraPlayer implements LCMSubscriber, ImageReader.Listener
         }
     }
 
-	public void handleImage(byte[] imageBuffer, ImageSourceFormat ifmt, double timeStamp, int camera) 
+	public void handleImage(byte[] imageBuffer, ImageSourceFormat ifmt, long timeStamp, int camera) 
 	{
         BufferedImage image = ImageConvert.convertToImage(ifmt.format,ifmt.width, ifmt.height, imageBuffer);
 

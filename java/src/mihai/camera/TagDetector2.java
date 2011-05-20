@@ -364,7 +364,6 @@ public class TagDetector2
                     if (edgeCost >= 0)
                         edges[nedges++] = (((long) y*width+x)<<IDA_SHIFT) + (((long) (y+1)*width+x-1)<<IDB_SHIFT) + edgeCost;
 
-                    // XXX Would 8 connectivity help for rotated tags?
                     // (Probably not much, so long as input filtering
                     // hasn't been disabled.)
                 }
@@ -682,7 +681,6 @@ public class TagDetector2
             long tagCode = 0;
 
             // Try reading off the bits.
-            // XXX: todo: multiple samples within each cell and vote?
             for (int iy = tagFamily.d-1; iy >= 0; iy--) {
                 for (int ix = 0; ix < tagFamily.d; ix++) {
                     double y = (tagFamily.blackBorder + iy + .5) / dd;

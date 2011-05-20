@@ -153,7 +153,7 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
     }
     
     
-    public void handleImage(byte[] im, ImageSourceFormat ifmt, double time, int camera)
+    public void handleImage(byte[] im, ImageSourceFormat ifmt, long time, int camera)
     {
         synchronized(lock)
         {
