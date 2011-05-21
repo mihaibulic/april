@@ -262,8 +262,7 @@ public class Camera implements ImageReader.Listener
         }
     }
     
-    // FIXME use more robust method here 
-    // FIXME eliminate magic numbers/make them parameters rather then hardcoded
+    // FIXME use more rigerous method here 
     public boolean isCertain()
     {
         return (potentialPositions.size() > 0);

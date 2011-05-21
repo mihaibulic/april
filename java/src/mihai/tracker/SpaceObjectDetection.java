@@ -1,5 +1,7 @@
 package mihai.tracker;
 
+import april.jmat.LinAlg;
+
 public class SpaceObjectDetection
 {
     public boolean singularity = false;
@@ -25,5 +27,14 @@ public class SpaceObjectDetection
         this.id = id;
         this.timeStamp = timestamp;
         this.xyzrpy = xyzrpy;
+        transformation = LinAlg.xyzrpyToMatrix(xyzrpy);
+    }
+    
+    public SpaceObjectDetection(int id, long timestamp, double[][] transformation)
+    {
+        this.id = id;
+        this.timeStamp = timestamp;
+        this.transformation = transformation;
+        this.xyzrpy = LinAlg.matrixToXyzrpy(transformation);
     }
 }

@@ -37,11 +37,9 @@ public class PointLocator
         Distance distance = new Distance(points);
 
         double[] eps = new double[length];
-        boolean skip[] = new boolean[length];
         for(int i = 0; i < eps.length; i++)
         {
             eps[i] = 0.0001;
-            skip[i] = false;
         }
         
         int count = 0;
