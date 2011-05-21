@@ -49,8 +49,9 @@ public class ObjectTracker extends JFrame implements Track.Listener
     
     private Object lock = new Object();
     private boolean newObjects = false;
-    private ArrayList< ArrayList<ImageObjectDetection> > objectsL = new ArrayList<ArrayList<ImageObjectDetection> >();
-    private ArrayList< HashMap<Integer, ImageObjectDetection> > objectsH = new ArrayList< HashMap<Integer, ImageObjectDetection> > ();
+    private ArrayList<Track> tracks;
+    private HashMap< Integer, ArrayList<ImageObjectDetection> > objectsL = new HashMap< Integer, ArrayList<ImageObjectDetection> >();
+    private HashMap< Integer, HashMap<Integer, ImageObjectDetection> > objectsH = new HashMap< Integer, HashMap<Integer, ImageObjectDetection> > ();
     
     private LCM lcm = LCM.getSingleton();
 
@@ -70,15 +71,17 @@ public class ObjectTracker extends JFrame implements Track.Listener
         
         if(verbose) System.out.print("ObjectTracker-Constructor: starting imagereaders...");
         ArrayList<String> urls = ImageSource.getCameraURLs();
-        ArrayList<Track> tracks = new ArrayList<Track>();
+        tracks = new ArrayList<Track>();
         for(String url : urls)
         {
         	Track test = new Track(config.getChild(CamUtil.getUrl(config, url)), url);
         	if(test.isGood())
         	{
-        		objectsL.add(new ArrayList<ImageObjectDetection>());
+        		objectsL.put(test.getIndex(), new ArrayList<ImageObjectDetection>());
+        		objectsH.put(test.getIndex(), new HashMap<Integer, ImageObjectDetection>());
         		test.addListener(this);
         		test.start();
+        		tracks.add(test);
         	}
         }
         if(verbose) System.out.println("done");
@@ -133,78 +136,84 @@ public class ObjectTracker extends JFrame implements Track.Listener
                     }
                 }
                 newObjects = false;
-            }
             
-            for(int x = 0; x < size; x++)
-            {
-                int detectionCount;
-                synchronized(lock)
-                {
-                  detectionCount = objectsL.get(x).size();
-                }
-                
-                for(int y = 0; y < detectionCount; y++)
-                {
-                    ImageObjectDetection find;
-                    
-                    synchronized(lock)
-                    {
-                      find = objectsL.get(x).get(y);
-                    }
-                    
-                    detections.clear();
-                    detections.add(find);
-                    
-                    for(int z = 0; z < size; z++)
-                    {
-                        if(x!=z)
-                        {
-                            ImageObjectDetection object;
-                            synchronized(lock)
-                            {
-                              object = objectsH.get(z).get(find.id);
-                            }
-                            
-                            if(object != null)
-                            {
-                                detections.add(object);
-                            }
-                        }
-                    }
-                    
-                    SpaceObjectDetection found = triangulate(syncDetections(detections));
-                    if(!found.singularity)
-                    {
-                        if(verbose)
-                        {
-                            System.out.println("ObjectTracker-run: Detection seen (id " + found.id+" @ " +
-                                    found.xyzrpy[0]+", "+found.xyzrpy[1]+", "+found.xyzrpy[2] + ", " + 
-                                    found.xyzrpy[3]+", "+found.xyzrpy[4]+", "+found.xyzrpy[5] + ")");
-                        }
-                        
-                        object_t object = new object_t();
-                        object.id = found.id;
-                        object.utime = (long) found.timeStamp;
-                        object.xyzrpy = found.xyzrpy;
-                        object.transformation = found.transformation;
-                        
-                        lcm.publish("object"+found.id, object);
-                        
-                        if(display)
-                        {
-                            // TODO add granularity for what is displayed (only objects, certainty bubble, rays, etc.)
-                            vbObjects.addBuffered(new VisChain(LinAlg.translate(found.xyzrpy),
-                                new VisCircle(0.1, new VisDataFillStyle(Color.black)), new VisSphere(0.01, Color.green)));
-                        }
-                    }
-                }
-            }
-            
-            if(display)
-            {
-                vbObjects.switchBuffer();
-            }
-            
+	            for(int x = 0; x < size; x++)
+	            {
+	            	int mainId = tracks.get(x).getIndex();
+	                int detectionCount;
+//	                synchronized(lock)
+//	                {
+	                  detectionCount = objectsL.get(mainId).size();
+//	                }
+	                
+	                for(int y = 0; y < detectionCount; y++)
+	                {
+	                    ImageObjectDetection find;
+	                    
+//	                    synchronized(lock)
+//	                    {
+	                      find = objectsL.get(mainId).get(y);
+//	                    }
+	                    
+	                    detections.clear();
+	                    detections.add(find);
+	                    
+	                    for(int z = 0; z < size; z++)
+	                    {
+	                        if(x!=z)
+	                        {
+	                        	int auxId = tracks.get(z).getIndex();
+	                            ImageObjectDetection object;
+//	                            synchronized(lock)
+//	                            {
+	                              object = objectsH.get(auxId).get(find.id);
+//	                            }
+	                            
+	                            if(object != null)
+	                            {
+	                                detections.add(object);
+	                            }
+	                        }
+	                    }
+	                    
+	                    SpaceObjectDetection found = triangulate(syncDetections(detections));
+	                    if(!found.singularity)
+	                    {
+	                        if(verbose)
+	                        {
+	                            System.out.println("ObjectTracker-run: Detection seen (id " + found.id+" @ " +
+	                                    found.xyzrpy[0]+", "+found.xyzrpy[1]+", "+found.xyzrpy[2] + ", " + 
+	                                    found.xyzrpy[3]+", "+found.xyzrpy[4]+", "+found.xyzrpy[5] + ")");
+	                        }
+	                        
+	                        object_t object = new object_t();
+	                        object.id = found.id;
+	                        object.utime = (long) found.timeStamp;
+	                        object.xyzrpy = found.xyzrpy;
+	                        object.transformation = found.transformation;
+	                        
+	                        lcm.publish("object"+found.id, object);
+	                        
+	                        if(display)
+	                        {
+	                            // TODO add granularity for what is displayed (only objects, certainty bubble, rays, etc.)
+	                            vbObjects.addBuffered(new VisChain(LinAlg.translate(found.xyzrpy),
+	                                new VisCircle(0.1, new VisDataFillStyle(Color.black)), new VisSphere(0.01, Color.green)));
+	                        }
+	                    }
+	                    else
+	                    {
+	                    	System.out.println("s");
+	                    }
+	                }
+	            }
+	            
+	            if(display)
+	            {
+	                vbObjects.switchBuffer();
+	            }
+	            
+	        }
         }
     }
 
@@ -272,7 +281,6 @@ public class ObjectTracker extends JFrame implements Track.Listener
                 double[][] M = LinAlg.matrixAB(LinAlg.matrixAB(object.transformation, LinAlg.rotateY(theta)), LinAlg.rotateX(phi));
                 double[] rayEndPoint = LinAlg.matrixToXyzrpy(LinAlg.matrixAB(M, LinAlg.translate(new double[]{0,0,100})));
                 double[] rayStartPoint = LinAlg.matrixToXyzrpy(M);
-                System.out.println(theta  + "\t..." + phi);
                 double[] pointLine1 = LinAlg.copy(LinAlg.subtract(point, rayStartPoint), 3);
                 double[] pointLine2 = LinAlg.copy(LinAlg.subtract(point, rayEndPoint),3);
                 double[] rayVector = LinAlg.copy(LinAlg.subtract(rayEndPoint, rayStartPoint),3);
@@ -322,7 +330,25 @@ public class ObjectTracker extends JFrame implements Track.Listener
     
     private boolean shouldStop(double[] r, double[] oldR, double threshold)
     {
-        return (oldR != null && LinAlg.distance(r,oldR, 3) < threshold);
+        boolean stop = true;
+        
+        if(oldR != null)
+        {
+            for(int x = 0; x < r.length; x++)
+            {
+                if(Math.abs(oldR[x] - r[x]) > threshold)
+                {
+                    stop = false;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            stop = false;
+        }
+        
+        return stop;
     }
     
     private SpaceObjectDetection triangulate(ArrayList<ImageObjectDetection> objectDetections)
@@ -348,7 +374,6 @@ public class ObjectTracker extends JFrame implements Track.Listener
         double[] oldR = null;
         while(!shouldStop(r, oldR, threshold) && ++count < ittLimit)
         {
-            System.out.println(r[0] + "\t" + r[1] + "\t" + r[2] + "\t" + r[3]);
             double[][] _J = NumericalJacobian.computeJacobian(distance, location, eps);
             Matrix J = new Matrix(_J);
             
@@ -364,8 +389,6 @@ public class ObjectTracker extends JFrame implements Track.Listener
             oldR = r.clone();
             r = LinAlg.scale(distance.evaluate(location), -1);
         }
-        
-        System.out.println(count);
         
         // FIXME (timeStamp should be an average or something)
         return new SpaceObjectDetection(objectDetections.get(0).id, objectDetections.get(0).timeStamp, location);
@@ -524,8 +547,8 @@ public class ObjectTracker extends JFrame implements Track.Listener
     {
         synchronized(lock)
         {
-            objectsL.set(id, newObjectsL);
-            objectsH.set(id, newObjectsH);
+            objectsL.put(id, newObjectsL);
+            objectsH.put(id, newObjectsH);
             
             newObjects = true;
             lock.notify();

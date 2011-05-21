@@ -7,6 +7,7 @@ import mihai.util.PointDistortion;
 import april.jcam.ImageConvert;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
+import april.tag.TagDetector;
 
 /**
  * Temp replacement for LED tracker/finder (to be made by Ryan Anderson).
@@ -18,7 +19,8 @@ import april.tag.TagDetection;
 public class DummyLEDFinder
 {
     private PointDistortion pd;
-    private TagDetector2 td;
+//    private TagDetector2 td;
+    private TagDetector td;
     private double[] fc;
     private double[] cc;
     
@@ -32,7 +34,8 @@ public class DummyLEDFinder
     {
     	this.fc = fc;
     	this.cc = cc;
-        td = new TagDetector2(new Tag36h11(), fc, cc, kc, alpha);
+//        td = new TagDetector2(new Tag36h11(), fc, cc, kc, alpha);
+    	td = new TagDetector(new Tag36h11());
         pd = new PointDistortion(fc, cc, kc, alpha, 0.01);
     }
     
@@ -41,10 +44,11 @@ public class DummyLEDFinder
         BufferedImage image = ImageConvert.convertToImage(format, width, height, buffer);
         ArrayList<TagDetection> tags = td.process(image, cc);
         ArrayList<ImageObjectDetection> detections = new ArrayList<ImageObjectDetection>();
+        long time = System.currentTimeMillis();
         
         for (TagDetection tag: tags)
         {
-            detections.add(new ImageObjectDetection(tag.id, System.currentTimeMillis(), pd.undistort(tag.cxy), fc, cc));
+            detections.add(new ImageObjectDetection(tag.id, time, tag.cxy, fc, cc));
         }
 
         return detections;

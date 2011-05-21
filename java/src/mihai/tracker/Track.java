@@ -68,6 +68,8 @@ public class Track extends Thread implements ImageReader.Listener
         HashMap<Integer,ImageObjectDetection> objectsH = new HashMap<Integer, ImageObjectDetection>();
         ir.start();
         
+        byte[] temp;
+        
         while(run)
         {
             synchronized(lock)
@@ -84,9 +86,11 @@ public class Track extends Thread implements ImageReader.Listener
                 }
                 
                 imageReady = false;
-                objectsL.clear();
-                objectsL.addAll(dlf.getObjectUV(imageBuffer, width, height, format));
-            }              
+                temp = imageBuffer.clone();
+            }
+            
+            objectsL.clear();
+            objectsL.addAll(dlf.getObjectUV(temp, width, height, format));
             
             for(ImageObjectDetection object : objectsL)
             {

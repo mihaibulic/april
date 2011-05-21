@@ -281,9 +281,9 @@ public class ExtrinsicsCalibrator extends JFrame
     
     private void calculateItt()
     {
-        double threshold = 0.000001; // experimentally derived
-        int ittLimit = 1000;         // experimentally derived
-        int length = 6;              // xyzrpy
+        double threshold = 0.00000001; // experimentally derived
+        int ittLimit = 1000;           // experimentally derived
+        int length = 6;                // xyzrpy
         int size = length * cameras.size();
         Distance distance = new Distance(cameras);
 
@@ -295,7 +295,7 @@ public class ExtrinsicsCalibrator extends JFrame
             for(int o = 0; o < 6; o++)
             {
                 locations[i*length+o] = pos[o];
-                eps[i*length+o] = 0.0001; // units: meters
+                eps[i*length+o] = 0.000001; // units: meters
             }
         }
         
