@@ -5,8 +5,9 @@ import java.awt.Color;
 import java.awt.Toolkit;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+
 import javax.swing.JFrame;
+
 import lcm.lcm.LCM;
 import mihai.camera.CamUtil;
 import mihai.lcmtypes.object_t;
@@ -25,7 +26,9 @@ import april.util.GetOpt;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
 import april.vis.VisCircle;
+import april.vis.VisData;
 import april.vis.VisDataFillStyle;
+import april.vis.VisDataLineStyle;
 import april.vis.VisSphere;
 import april.vis.VisWorld;
 
@@ -44,14 +47,15 @@ public class ObjectTracker extends JFrame implements Track.Listener
     private VisCanvas vc = new VisCanvas(vw);
     private VisWorld.Buffer vbCameras = vw.getBuffer("cameras");
     private VisWorld.Buffer vbObjects = vw.getBuffer("objects");
+    private VisWorld.Buffer vbRays = vw.getBuffer("rays");
+    
     private boolean display;
     private boolean verbose;
     
     private Object lock = new Object();
     private boolean newObjects = false;
     private ArrayList<Track> tracks;
-    private HashMap< Integer, ArrayList<ImageObjectDetection> > objectsL = new HashMap< Integer, ArrayList<ImageObjectDetection> >();
-    private HashMap< Integer, HashMap<Integer, ImageObjectDetection> > objectsH = new HashMap< Integer, HashMap<Integer, ImageObjectDetection> > ();
+    private ObjectManager objectManager;
     
     private LCM lcm = LCM.getSingleton();
 
@@ -70,6 +74,7 @@ public class ObjectTracker extends JFrame implements Track.Listener
         this.verbose = verbose; 
         
         if(verbose) System.out.print("ObjectTracker-Constructor: starting imagereaders...");
+        objectManager = new ObjectManager();
         ArrayList<String> urls = ImageSource.getCameraURLs();
         tracks = new ArrayList<Track>();
         for(String url : urls)
@@ -77,8 +82,6 @@ public class ObjectTracker extends JFrame implements Track.Listener
         	Track test = new Track(config.getChild(CamUtil.getUrl(config, url)), url);
         	if(test.isGood())
         	{
-        		objectsL.put(test.getIndex(), new ArrayList<ImageObjectDetection>());
-        		objectsH.put(test.getIndex(), new HashMap<Integer, ImageObjectDetection>());
         		test.addListener(this);
         		test.start();
         		tracks.add(test);
@@ -93,7 +96,7 @@ public class ObjectTracker extends JFrame implements Track.Listener
     
     private void showGui(ArrayList<Track> tracks)
     {
-        System.out.println("ObjectTracker-showGUI: Tracks started. Starting display...");
+        if(verbose) System.out.println("ObjectTracker-showGUI: Tracks started. Starting display...");
         
         add(vc, BorderLayout.CENTER);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -111,14 +114,6 @@ public class ObjectTracker extends JFrame implements Track.Listener
     
     public void run()
     {
-        ArrayList<ImageObjectDetection> detections = new ArrayList<ImageObjectDetection>();
-        int size;
-
-        synchronized(lock)
-        {
-            size = objectsL.size();
-        }
-        
         if(display && verbose) System.out.println("ObjectTracker-run: Display started. Tracking objects...");
         else if(verbose) System.out.println("ObjectTracker-run: Tracks started. Tracking objects...");
         while(run)
@@ -137,80 +132,38 @@ public class ObjectTracker extends JFrame implements Track.Listener
                 }
                 newObjects = false;
             
-	            for(int x = 0; x < size; x++)
+	            for(int id : objectManager.getIds())
 	            {
-	            	int mainId = tracks.get(x).getIndex();
-	                int detectionCount;
-//	                synchronized(lock)
-//	                {
-	                  detectionCount = objectsL.get(mainId).size();
-//	                }
-	                
-	                for(int y = 0; y < detectionCount; y++)
-	                {
-	                    ImageObjectDetection find;
-	                    
-//	                    synchronized(lock)
-//	                    {
-	                      find = objectsL.get(mainId).get(y);
-//	                    }
-	                    
-	                    detections.clear();
-	                    detections.add(find);
-	                    
-	                    for(int z = 0; z < size; z++)
-	                    {
-	                        if(x!=z)
-	                        {
-	                        	int auxId = tracks.get(z).getIndex();
-	                            ImageObjectDetection object;
-//	                            synchronized(lock)
-//	                            {
-	                              object = objectsH.get(auxId).get(find.id);
-//	                            }
-	                            
-	                            if(object != null)
-	                            {
-	                                detections.add(object);
-	                            }
-	                        }
-	                    }
-	                    
-	                    SpaceObjectDetection found = triangulate(syncDetections(detections));
-	                    if(!found.singularity)
-	                    {
-	                        if(verbose)
-	                        {
-	                            System.out.println("ObjectTracker-run: Detection seen (id " + found.id+" @ " +
-	                                    found.xyzrpy[0]+", "+found.xyzrpy[1]+", "+found.xyzrpy[2] + ", " + 
-	                                    found.xyzrpy[3]+", "+found.xyzrpy[4]+", "+found.xyzrpy[5] + ")");
-	                        }
-	                        
-	                        object_t object = new object_t();
-	                        object.id = found.id;
-	                        object.utime = (long) found.timeStamp;
-	                        object.xyzrpy = found.xyzrpy;
-	                        object.transformation = found.transformation;
-	                        
-	                        lcm.publish("object"+found.id, object);
-	                        
-	                        if(display)
-	                        {
-	                            // TODO add granularity for what is displayed (only objects, certainty bubble, rays, etc.)
-	                            vbObjects.addBuffered(new VisChain(LinAlg.translate(found.xyzrpy),
-	                                new VisCircle(0.1, new VisDataFillStyle(Color.black)), new VisSphere(0.01, Color.green)));
-	                        }
-	                    }
-	                    else
-	                    {
-	                    	System.out.println("s");
-	                    }
-	                }
+                    SpaceObjectDetection found = triangulate(syncDetections(objectManager.getObjects(id)));
+                    if(!found.singularity)
+                    {
+                        if(verbose)
+                        {
+                            System.out.println("ObjectTracker-run: Detection seen (id " + found.id+" @ " +
+                                    found.xyzrpy[0]+", "+found.xyzrpy[1]+", "+found.xyzrpy[2] + ", " + 
+                                    found.xyzrpy[3]+", "+found.xyzrpy[4]+", "+found.xyzrpy[5] + ")");
+                        }
+                        
+                        object_t object = new object_t();
+                        object.id = found.id;
+                        object.utime = (long) found.timeStamp;
+                        object.xyzrpy = found.xyzrpy;
+                        object.transformation = found.transformation;
+                        
+                        lcm.publish("object"+found.id, object);
+                        
+                        if(display)
+                        {
+                            // TODO add granularity for what is displayed (only objects, certainty bubble, rays, etc.)
+                            vbObjects.addBuffered(new VisChain(LinAlg.translate(found.xyzrpy),
+                                new VisCircle(0.1, new VisDataFillStyle(Color.black)), new VisSphere(0.01, Color.green)));
+                            vbObjects.switchBuffer();
+                        }
+                        objectManager.clearObjects(id);
+                    }
 	            }
-	            
 	            if(display)
 	            {
-	                vbObjects.switchBuffer();
 	            }
 	            
 	        }
@@ -246,6 +199,49 @@ public class ObjectTracker extends JFrame implements Track.Listener
 //        return synced;
 //    }
     
+    private SpaceObjectDetection triangulate(ArrayList<ImageObjectDetection> objectDetections)
+    {
+        if(objectDetections.size() < 3) return new SpaceObjectDetection(true);
+        
+        int length = 6;
+        double threshold = 0.00001;
+        int ittLimit = 50;
+
+        double location[] = {-1,-1,-3,0,0,0}; // XXX better init
+        
+        Distance distance = new Distance(objectDetections);
+        
+        double[] eps = new double[length];
+        for(int i = 0; i < eps.length; i++)
+        {
+            eps[i] = 0.0001;
+        }
+        
+        int count = 0;
+        double[] r = LinAlg.scale(distance.evaluate(location), -1);
+        double[] oldR = null;
+        while(!shouldStop(r, oldR, threshold) && ++count < ittLimit)
+        {
+            double[][] _J = NumericalJacobian.computeJacobian(distance, location, eps);
+            Matrix J = new Matrix(_J);
+            
+            Matrix JTtimesJplusI = J.transpose().times(J).plus(Matrix.identity(length, length));
+            Matrix JTr = J.transpose().times(Matrix.columnMatrix(r));
+            Matrix dx = JTtimesJplusI.solve(JTr);
+            
+            for(int i = 0; i < length; i++)
+            {
+                location[i] += 0.1*dx.get(i,0); // scaling by 0.1 helps keep results stable 
+            }
+            
+            oldR = r.clone();
+            r = LinAlg.scale(distance.evaluate(location), -1);
+        }
+        
+        // FIXME (timeStamp should be an average or something)
+        return new SpaceObjectDetection(objectDetections.get(0).id, objectDetections.get(0).timeStamp, location);
+    }
+    
     class Distance extends Function
     {
         ArrayList<ImageObjectDetection> objects;
@@ -254,6 +250,20 @@ public class ObjectTracker extends JFrame implements Track.Listener
         public Distance(ArrayList<ImageObjectDetection> objects)
         {
             this.objects = objects;
+            
+            for(ImageObjectDetection object : objects)
+            {
+                double theta = -1*Math.atan((object.uv[0]-object.cc[0])/object.fc[0]);
+                double phi = -1*Math.atan((object.uv[1]-object.cc[1])/object.fc[1]);
+                double[][] M = LinAlg.matrixAB(object.cameraM, LinAlg.rotateY(theta));
+                M = LinAlg.matrixAB(M, LinAlg.rotateX(phi));
+                
+                ArrayList<double[]> ray = new ArrayList<double[]>();
+                ray.add(LinAlg.matrixToXyzrpy(M));
+                ray.add(LinAlg.matrixToXyzrpy(LinAlg.matrixAB(M, LinAlg.translate(0,0,-5))));
+                vbRays.addBuffered(new VisData(ray, new VisDataLineStyle(Color.green, 2)));            	
+            }
+            vbRays.switchBuffer();
         }
         
         public double[] evaluate(double[] point)
@@ -266,10 +276,6 @@ public class ObjectTracker extends JFrame implements Track.Listener
             if(distances == null)
             {
                 distances = new double[objects.size()*length];
-                for(int x = 0; x < distances.length; x++)
-                {
-                    distances[x] = 0;
-                }
             }
 
             for(int a = 0; a < objects.size(); a++)
@@ -278,7 +284,7 @@ public class ObjectTracker extends JFrame implements Track.Listener
 
                 double theta = -1*Math.atan((object.uv[0]-object.cc[0])/object.fc[0]);
                 double phi = -1*Math.atan((object.uv[1]-object.cc[1])/object.fc[1]);
-                double[][] M = LinAlg.matrixAB(LinAlg.matrixAB(object.transformation, LinAlg.rotateY(theta)), LinAlg.rotateX(phi));
+                double[][] M = LinAlg.matrixAB(LinAlg.matrixAB(object.cameraM, LinAlg.rotateY(theta)), LinAlg.rotateX(phi));
                 double[] rayEndPoint = LinAlg.matrixToXyzrpy(LinAlg.matrixAB(M, LinAlg.translate(new double[]{0,0,100})));
                 double[] rayStartPoint = LinAlg.matrixToXyzrpy(M);
                 double[] pointLine1 = LinAlg.copy(LinAlg.subtract(point, rayStartPoint), 3);
@@ -351,145 +357,6 @@ public class ObjectTracker extends JFrame implements Track.Listener
         return stop;
     }
     
-    private SpaceObjectDetection triangulate(ArrayList<ImageObjectDetection> objectDetections)
-    {
-        if(objectDetections.size() < 2) return new SpaceObjectDetection(true);
-        
-        int length = 6;
-        double threshold = 0.000001;
-        int ittLimit = 100;
-
-        double location[] = {0,0,0,0,0,0};// = calculateCentroid(points);
-        
-        Distance distance = new Distance(objectDetections);
-        
-        double[] eps = new double[length];
-        for(int i = 0; i < eps.length; i++)
-        {
-            eps[i] = 0.0001;
-        }
-        
-        int count = 0;
-        double[] r = LinAlg.scale(distance.evaluate(location), -1);
-        double[] oldR = null;
-        while(!shouldStop(r, oldR, threshold) && ++count < ittLimit)
-        {
-            double[][] _J = NumericalJacobian.computeJacobian(distance, location, eps);
-            Matrix J = new Matrix(_J);
-            
-            Matrix JTtimesJplusI = J.transpose().times(J).plus(Matrix.identity(length, length));
-            Matrix JTr = J.transpose().times(Matrix.columnMatrix(r));
-            Matrix dx = JTtimesJplusI.solve(JTr);
-            
-            for(int i = 0; i < length; i++)
-            {
-                location[i] += 0.1*dx.get(i,0); // scaling by 0.1 helps keep results stable 
-            }
-            
-            oldR = r.clone();
-            r = LinAlg.scale(distance.evaluate(location), -1);
-        }
-        
-        // FIXME (timeStamp should be an average or something)
-        return new SpaceObjectDetection(objectDetections.get(0).id, objectDetections.get(0).timeStamp, location);
-    }
-    
-//    // FIXME make more statistically rigorous
-//    private SpaceObjectDetection triangulate(ArrayList<ImageObjectDetection> objectDetections)
-//    {
-//        if(objectDetections.size() < 2) return new SpaceObjectDetection(true);
-//
-//        double theta;
-//        double phi;
-//        
-//        double transformations[][][] = new double[objectDetections.size()][4][4];
-//        double locations[][] = new double[objectDetections.size()][3];
-//        
-//        double distance[] = new double[objectDetections.size()];
-//        double lastDistance[] = new double[objectDetections.size()];
-//        double auxDelta[][];
-//        
-//        // create rays to walk for each object
-//        for(int x = 0; x < objectDetections.size(); x++)
-//        {
-//        	ImageObjectDetection object = objectDetections.get(x);
-//            theta = -1*Math.atan((object.uv[0]-object.cc[0])/object.fc[0]);
-//            phi = -1*Math.atan((object.uv[1]-object.cc[1])/object.fc[1]);
-//            transformations[x] = LinAlg.matrixAB(object.transformation, LinAlg.rotateY(theta));
-//            transformations[x] = LinAlg.matrixAB(transformations[x], LinAlg.rotateX(phi));
-//            
-//            ArrayList<double[][]> ray = new ArrayList<double[][]>();
-//            ray.add(transformations[x]);
-//     
-//            if(display) vbRays.addBuffered(new VisData(ray, new VisDataLineStyle(Color.green, 2)));
-//        }
-//        
-//        
-//        
-//        
-//        
-//        for(int z = 0; z < objectDetections.size(); z++)
-//        {
-//            boolean mainGo = true;
-//            double mainDistance = ave(transformations, transformations[z]);
-//            double oldDistance = 1 + mainDistance;
-//            while(mainGo)
-//            {
-//                mainGo = false;
-//                
-//                double[][] mainDelta = LinAlg.translate(0, 0, ((mainDistance - oldDistance)>0 ? 0.001 : -0.001));
-//                transformations[z] = LinAlg.matrixAB(transformations[z], mainDelta);
-//                
-//                double temp = oldDistance;
-//                oldDistance = mainDistance;
-//                mainDistance = ave(transformations, transformations[z]);
-//                    
-//                if(temp-oldDistance != 0 && (oldDistance-mainDistance)/(temp-oldDistance) > 0)
-//                {
-//                    mainGo = true;
-//                }
-//                
-//                for(int x = 0; x < objectDetections.size(); x++)
-//                {
-//                    boolean auxGo = true;
-//                    distance[x] = LinAlg.distance(PointLocator.calculateItt(transformations), matrixToXyz(transformations[x]));
-//                    lastDistance[x] = distance[x]+1;
-//                    while(x != z && auxGo)
-//                    {
-//                        auxGo = false;
-//
-//                        auxDelta = LinAlg.translate(0, 0, ((distance[x] - lastDistance[x])>0 ? 0.001 : -0.001));
-//                        transformations[x] = LinAlg.matrixAB(transformations[x], auxDelta);
-//
-//                        double tmp = lastDistance[x];  
-//                        lastDistance[x] = distance[x];
-//                        distance[x] = LinAlg.distance(matrixToXyz(transformations[z]), matrixToXyz(transformations[x]));
-//                        
-//                        if(tmp-lastDistance[x] != 0 && (lastDistance[x]-distance[x])/(tmp-lastDistance[x]) > 0)
-//                        {
-//                           auxGo = true; 
-//                        }
-//                        
-//                    }
-//                }
-//                
-//            }
-//            
-//            locations[z] = matrixToXyz(transformations[z]);
-//        }
-//        
-//        if(display)
-//        {
-//            for(int x = 0; x < objectDetections.size(); x++)
-//            {
-//                vbRays.addBuffered(new VisChain(transformations[x], new VisSphere(0.01, Color.cyan)));
-//            }
-//            vbRays.switchBuffer();
-//        }
-//        
-//        return new SpaceObjectDetection(objectDetections.get(0).id, PointLocator.calculateItt(locations));
-//    }
-//    
     /**
      * @param args
      * @throws Exception 
@@ -543,13 +410,11 @@ public class ObjectTracker extends JFrame implements Track.Listener
         run = false;
     }
     
-    public void handleDetections(ArrayList<ImageObjectDetection> newObjectsL, HashMap<Integer,ImageObjectDetection> newObjectsH, int id)
+    public void handleDetections(ArrayList<ImageObjectDetection> objects, double[][] transformation)
     {
         synchronized(lock)
         {
-            objectsL.put(id, newObjectsL);
-            objectsH.put(id, newObjectsH);
-            
+        	objectManager.addObjects(objects);
             newObjects = true;
             lock.notify();
         }        

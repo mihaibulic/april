@@ -6,7 +6,6 @@ import java.io.IOException;
 
 import lcm.lcm.LCM;
 import mihai.lcmtypes.image_path_t;
-import april.jcam.ImageSourceFormat;
 
 /**
  * 
@@ -24,9 +23,9 @@ public class ImageSaver extends Thread implements ImageReader.Listener
     private boolean imageReady = false;
     private byte[] imageBuffer;
     private double timeStamp = 0;
-    private int width = 0;
-    private int height = 0;
-    private String format = "";
+    private int width;
+    private int height;
+    private String format;
     
     private String url;
     private int id; 
@@ -40,6 +39,10 @@ public class ImageSaver extends Thread implements ImageReader.Listener
         this.outputDir = outputDir + "cam" + id;
         File dir = new File(this.outputDir);
         dir.mkdirs();
+        
+        width = ir.getWidth();
+        height = ir.getHeight();
+        format = ir.getFormat();
         
         ir.addListener(this);
         ir.start();
@@ -123,14 +126,11 @@ public class ImageSaver extends Thread implements ImageReader.Listener
         }
     }
 
-    public void handleImage(byte[] im, ImageSourceFormat ifmt, long time, int camera)
+    public void handleImage(byte[] im, long time, int camera)
     {
         synchronized(lock)
         {
             imageBuffer = im;
-            width = ifmt.width;
-            height = ifmt.height;
-            format = ifmt.format;
             timeStamp = time;
             imageReady = true;
             lock.notify();

@@ -1,8 +1,9 @@
 package mihai.sandbox;
 
 import java.awt.Color;
-import java.util.Random;
+
 import javax.swing.JFrame;
+
 import mihai.vis.VisCamera;
 import april.jmat.Function;
 import april.jmat.LinAlg;

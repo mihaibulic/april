@@ -58,9 +58,9 @@ public class TagTest implements ImageReader.Listener, ParameterListener
     private boolean ready = false;
     private Object lock = new Object();
     private byte[] buffer;
-    private int width;
-    private int height;
-    private String format;
+    private int width=752;
+    private int height=480;
+    private String format="GRAY8";
     
     public TagTest() throws IOException, CameraException, ConfigException
     {
@@ -271,14 +271,11 @@ public class TagTest implements ImageReader.Listener, ParameterListener
     private double count = 0;
     private long time = 0;
     
-    public void handleImage(byte[] buffer, ImageSourceFormat ifmt, long timeStamp, int camera)
+    public void handleImage(byte[] buffer, long timeStamp, int camera)
     {
         synchronized(lock)
         {
 	        this.buffer = buffer;
-	        width = ifmt.width;
-	        height = ifmt.height;
-	        format = ifmt.format;
 	        ready = true;
 	        lock.notify();
         }

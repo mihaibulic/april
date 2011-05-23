@@ -6,17 +6,16 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 import javax.swing.JFrame;
+
 import mihai.camera.CamUtil;
 import mihai.camera.ImageReader;
 import mihai.camera.TagDetector2;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.vis.VisCamera;
-
 import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageConvert;
-import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
 import april.tag.CameraUtil;
 import april.tag.Tag36h11;
@@ -47,9 +46,9 @@ public class TagAggregateTest extends JFrame implements ImageReader.Listener
     private boolean ready = false;
     
     private byte[] im;
-    private int w;
-    private int h;
-    private String f;
+    private int w=752;
+    private int h=480;
+    private String f="GRAY8";
     
     public TagAggregateTest() throws IOException, CameraException, ConfigException, InterruptedException
     {
@@ -117,14 +116,11 @@ public class TagAggregateTest extends JFrame implements ImageReader.Listener
     }
 
 
-    public void handleImage(byte[] image, ImageSourceFormat ifmt, long timeStamp, int camera)
+    public void handleImage(byte[] image, long timeStamp, int camera)
     {
         synchronized(lock)
         {
             im = image;
-            w = ifmt.width;
-            h = ifmt.height;
-            f = ifmt.format;
             ready = true;
             lock.notify();
         }

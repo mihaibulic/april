@@ -6,7 +6,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+
 import javax.swing.JFrame;
+
 import lcm.lcm.LCM;
 import lcm.lcm.LCMDataInputStream;
 import lcm.lcm.LCMSubscriber;
@@ -14,7 +16,6 @@ import mihai.camera.ImageReader;
 import mihai.lcmtypes.image_path_t;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
-import april.jcam.ImageSourceFormat;
 import april.util.GetOpt;
 import april.vis.VisCanvas;
 import april.vis.VisImage;
@@ -50,6 +51,10 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
         showGUI();
         
         ImageReader ir = new ImageReader(url);
+        width = ir.getWidth();
+        height = ir.getHeight();
+        format = ir.getFormat();
+
         ir.addListener(this);
         ir.start();
         
@@ -153,14 +158,11 @@ public class CameraExample implements LCMSubscriber, ImageReader.Listener
     }
     
     
-    public void handleImage(byte[] im, ImageSourceFormat ifmt, long time, int camera)
+    public void handleImage(byte[] im, long time, int camera)
     {
         synchronized(lock)
         {
             imageBuffer = im;
-            width = ifmt.width;
-            height = ifmt.height;
-            format = ifmt.format;
             timeStamp = time;
             bufferReady = true;
             lock.notify();

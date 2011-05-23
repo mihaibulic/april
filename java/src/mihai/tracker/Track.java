@@ -2,13 +2,12 @@ package mihai.tracker;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+
 import mihai.camera.ImageReader;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.Util;
 import april.config.Config;
-import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
 
 /**
@@ -35,15 +34,12 @@ public class Track extends Thread implements ImageReader.Listener
     private boolean imageReady = false;
     private byte[] imageBuffer;
     private long timeStamp;
-    private int width = 0;
-    private int height = 0;
-    private String format = "";
 
     private DummyLEDFinder dlf;
     
     public interface Listener
     {
-        public void handleDetections(ArrayList<ImageObjectDetection> objectsL, HashMap<Integer,ImageObjectDetection> objectsH, int id);
+        public void handleDetections(ArrayList<ImageObjectDetection> objects, double[][] transformation);
     }
     
     public Track(Config config, String url) throws ConfigException, CameraException, IOException
@@ -57,17 +53,17 @@ public class Track extends Thread implements ImageReader.Listener
         kc = config.requireDoubles("kc");
         alpha = config.requireDouble("alpha");
         
-    	dlf = new DummyLEDFinder(fc, cc, kc, alpha);
     	ir = new ImageReader(config.getRoot(), url);
+        dlf = new DummyLEDFinder(fc, cc, kc, alpha, ir.getWidth(), ir.getHeight(), ir.getFormat());
+    	
     	ir.addListener(this);
     }
 
     public void run()
     {
-        ArrayList<ImageObjectDetection> objectsL = new ArrayList<ImageObjectDetection>();
-        HashMap<Integer,ImageObjectDetection> objectsH = new HashMap<Integer, ImageObjectDetection>();
+        ArrayList<ImageObjectDetection> objects = new ArrayList<ImageObjectDetection>();
         ir.start();
-        
+
         byte[] temp;
         
         while(run)
@@ -89,22 +85,21 @@ public class Track extends Thread implements ImageReader.Listener
                 temp = imageBuffer.clone();
             }
             
-            objectsL.clear();
-            objectsL.addAll(dlf.getObjectUV(temp, width, height, format));
+            objects.clear();
+            objects.addAll(dlf.getObjectUV(temp));
             
-            for(ImageObjectDetection object : objectsL)
+            for(ImageObjectDetection object : objects)
             {
                 object.timeStamp = timeStamp;
-                object.transformation = transformation;
-                
-                objectsH.put(object.id, object);
+                object.cameraM = transformation;
+                object.cameraID = id;
             }
             
-            if(objectsL.size() > 0)
+            if(objects.size() > 0)
             {
                 for (Listener listener : listeners)
                 {
-                    listener.handleDetections(objectsL, objectsH, id);
+                    listener.handleDetections(objects, transformation);
                 }
             }
         }
@@ -135,14 +130,11 @@ public class Track extends Thread implements ImageReader.Listener
         listeners.add(listener);
     }
 
-    public void handleImage(byte[] image, ImageSourceFormat ifmt, long time, int camera)
+    public void handleImage(byte[] image, long time, int camera)
     {
         synchronized(lock)
         {
             imageBuffer = image;
-            width = ifmt.width;
-            height = ifmt.height;
-            format = ifmt.format;
             timeStamp = time;
             imageReady = true;
             lock.notify();

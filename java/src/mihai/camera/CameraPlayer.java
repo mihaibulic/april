@@ -21,7 +21,6 @@ import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
-import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
 import april.util.GetOpt;
 import april.util.TimeUtil;
@@ -42,8 +41,9 @@ public class CameraPlayer extends JFrame implements LCMSubscriber, ImageReader.L
 {
     private static final long serialVersionUID = 1L;
     static LCM lcm = LCM.getSingleton();
-    private int width = 0;
-    private int height = 0;
+    private int width;
+    private int height;
+    private String format;
     private int columns;
     
     private BufferedImage image;
@@ -73,6 +73,13 @@ public class CameraPlayer extends JFrame implements LCMSubscriber, ImageReader.L
         	irs[x].start();
         }
     	
+        // XXX make so not all cameras have to have the same width/height
+        width = irs[0].getWidth();
+        height = irs[0].getHeight();
+        format = irs[0].getFormat();
+        
+        vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { width, height });
+        
     	while(true)
         {
             TimeUtil.sleep(100);
@@ -189,19 +196,13 @@ public class CameraPlayer extends JFrame implements LCMSubscriber, ImageReader.L
         }
     }
 
-	public void handleImage(byte[] imageBuffer, ImageSourceFormat ifmt, long timeStamp, int camera) 
+	public void handleImage(byte[] imageBuffer, long timeStamp, int camera) 
 	{
-        BufferedImage image = ImageConvert.convertToImage(ifmt.format,ifmt.width, ifmt.height, imageBuffer);
+        BufferedImage image = ImageConvert.convertToImage(format, width, height, imageBuffer);
 
         VisWorld.Buffer vb = (Buffer) (buffers.containsKey(camera) ? buffers.get(camera) : vw.getBuffer("cam"+camera));
         vb.addBuffered(new VisChain(LinAlg.translate(new double[] {width*(camera%columns),-height*(camera/columns),0}), new VisImage(image)));
 
-        if(image.getWidth() != width || image.getHeight() != height)
-        {
-            width = image.getWidth();
-            height = image.getHeight();
-            vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { width, height });
-        }
         vb.switchBuffer();
         
         if(!buffers.containsKey(camera))

@@ -2,12 +2,11 @@ package mihai.tracker;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+
 import mihai.camera.TagDetector2;
-import mihai.util.PointDistortion;
 import april.jcam.ImageConvert;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
-import april.tag.TagDetector;
 
 /**
  * Temp replacement for LED tracker/finder (to be made by Ryan Anderson).
@@ -18,11 +17,13 @@ import april.tag.TagDetector;
  */
 public class DummyLEDFinder
 {
-    private PointDistortion pd;
-//    private TagDetector2 td;
-    private TagDetector td;
+    private TagDetector2 td;
     private double[] fc;
     private double[] cc;
+    
+    private int width;
+    private int height;
+    private String format;
     
     /**
      * Finds the LEDs and returns array of coordinates in pixel space along with IDs
@@ -30,16 +31,18 @@ public class DummyLEDFinder
      * @param image - Image in which to find LEDs
      * @return arraylist of led locations
      */
-    public DummyLEDFinder(double[] fc, double[] cc, double[] kc, double alpha)
+    public DummyLEDFinder(double[] fc, double[] cc, double[] kc, double alpha, int width, int height, String format)
     {
     	this.fc = fc;
     	this.cc = cc;
-//        td = new TagDetector2(new Tag36h11(), fc, cc, kc, alpha);
-    	td = new TagDetector(new Tag36h11());
-        pd = new PointDistortion(fc, cc, kc, alpha, 0.01);
+    	this.width = width;
+    	this.height = height;
+    	this.format = format;
+
+    	td = new TagDetector2(new Tag36h11(),fc, cc, kc, alpha);
     }
     
-    public ArrayList<ImageObjectDetection> getObjectUV(byte[] buffer, int width, int height, String format)
+    public ArrayList<ImageObjectDetection> getObjectUV(byte[] buffer)
     {
         BufferedImage image = ImageConvert.convertToImage(format, width, height, buffer);
         ArrayList<TagDetection> tags = td.process(image, cc);

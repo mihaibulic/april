@@ -4,7 +4,9 @@ import java.awt.Color;
 import java.awt.Toolkit;
 import java.util.ArrayList;
 import java.util.HashMap;
+
 import javax.swing.JFrame;
+
 import mihai.camera.Camera;
 import mihai.camera.Tag;
 import mihai.vis.VisCamera;

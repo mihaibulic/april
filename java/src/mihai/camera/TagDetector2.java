@@ -236,7 +236,7 @@ public class TagDetector2
     {
         if(distorionCorrection && pd == null)
         {
-            pd = new PointDistortion(fc, cc, kc, alpha, 1);
+            pd = new PointDistortion(fc, cc, kc, alpha, im.getWidth(), im.getHeight(), 1);
         }
         
         this.opticalCenter = opticalCenter;

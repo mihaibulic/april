@@ -4,15 +4,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+
 import mihai.tracker.TagComparator;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.PointLocator;
 import mihai.util.Util;
-
 import april.config.Config;
 import april.jcam.ImageConvert;
-import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
 import april.tag.CameraUtil;
 import april.tag.Tag36h11;
@@ -35,9 +34,9 @@ public class Camera implements ImageReader.Listener
 
     private int imageCount = 0;
     private ArrayList<byte[]> imageBuffers;
-    private int width = 0;
-    private int height = 0;
-    private String format = "";
+    private int width;
+    private int height;
+    private String format;
     
     private double fc[]; // Focal length, in pixels, [X Y]
     private double cc[];
@@ -70,6 +69,9 @@ public class Camera implements ImageReader.Listener
         potentialPositions = new ArrayList<double[]>();
         
         ir = new ImageReader(config.getRoot(), url);
+        width = ir.getWidth();
+        height = ir.getHeight();
+        format = ir.getFormat();
     }
     
     public boolean isGood()
@@ -243,7 +245,7 @@ public class Camera implements ImageReader.Listener
         this.mainIndex = main;
     }
     
-    public void handleImage(byte[] image, ImageSourceFormat ifmt, long timeStamp, int camera)
+    public void handleImage(byte[] image, long timeStamp, int camera)
     {
         if(imageBuffers.size() >= imageCount)
         {
@@ -256,9 +258,6 @@ public class Camera implements ImageReader.Listener
         else
         {
             imageBuffers.add(image);
-            width = ifmt.width;
-            height = ifmt.height;
-            format = ifmt.format;
         }
     }
     

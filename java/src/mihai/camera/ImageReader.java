@@ -34,7 +34,7 @@ public class ImageReader extends Thread
     
     public interface Listener
     {
-        public void handleImage(byte[] image, ImageSourceFormat ifmt, long timeStamp, int camera);
+        public void handleImage(byte[] image, long timeStamp, int camera);
     }
     
     public ImageReader(String url) throws CameraException, IOException, ConfigException
@@ -106,7 +106,7 @@ public class ImageReader extends Thread
                     
                     for (Listener listener : Listeners)
                     {
-                        listener.handleImage(imageBuffer, ifmt, timestamp, id);
+                        listener.handleImage(imageBuffer, timestamp, id);
                     }
                 }
                 else if(sync.verify() == SyncErrorDetector.RECOMMEND_ACTION)
@@ -167,6 +167,21 @@ public class ImageReader extends Thread
     public String getUrl()
     {
         return url;
+    }
+    
+    public int getWidth()
+    {
+        return ifmt.width;
+    }
+    
+    public int getHeight()
+    {
+        return ifmt.height;
+    }
+    
+    public String getFormat()
+    {
+        return ifmt.format;
     }
     
     public void addListener(Listener listener)

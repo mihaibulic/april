@@ -16,10 +16,13 @@ public class PointDistortion
     private double kc[];
     private double alpha;
     
+    private int width;
+    private int height;
+    
     private double threshold;
     private Distort d;
 
-    public PointDistortion(double fc[], double cc[], double kc[], double alpha, double threshold)
+    public PointDistortion(double fc[], double cc[], double kc[], double alpha, int width, int height, double threshold)
     {
         if(fc.length != LENGTH_FC) throw new ArrayIndexOutOfBoundsException("Focal length array contains " + fc.length + " elements (should have " + LENGTH_FC + ")");
         if(cc.length != LENGTH_CC) throw new ArrayIndexOutOfBoundsException("Principal point array contains " + cc.length + " elements (should have " + LENGTH_CC + ")");
@@ -30,6 +33,10 @@ public class PointDistortion
         this.kc = kc;
         this.alpha = alpha;
         this.threshold = threshold;
+        
+        this.width = width;
+        this.height = height;
+        
         d = new Distort();
     }
     
@@ -65,7 +72,7 @@ public class PointDistortion
     
     public double[] undistort(double[] dp)
     {
-        double udp[] = {376,240};
+        double udp[] = {width/2,height/2};
         double eps[] = {1,1};
         double r[] = LinAlg.subtract(dp, d.evaluate(udp));
         int count = 0;

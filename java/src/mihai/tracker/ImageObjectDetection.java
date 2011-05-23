@@ -18,7 +18,8 @@ public class ImageObjectDetection
     public double[] uv;
     
     // transformation to spotting camera's location from origin (NOT to object)
-    public double[][] transformation;
+    public int cameraID;
+    public double[][] cameraM;
     
     public double[] fc;
     public double[] cc;
@@ -30,5 +31,11 @@ public class ImageObjectDetection
         this.uv = uv;
         this.fc = fc;
         this.cc = cc;
+    }
+    
+    @Override
+    public boolean equals(Object other)
+    {
+    	return (cameraID == ((ImageObjectDetection)other).cameraID);
     }
 }
