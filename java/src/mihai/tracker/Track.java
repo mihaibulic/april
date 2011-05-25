@@ -1,9 +1,7 @@
 package mihai.tracker;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
-
 import mihai.camera.ImageReader;
 import mihai.camera.TagDetector2;
 import mihai.util.CameraException;
@@ -25,8 +23,8 @@ public class Track extends Thread implements ImageReader.Listener
 {
     ArrayList<Listener> listeners = new ArrayList<Listener>();
 
-    private double[][] transformation;
     private int id;
+    private double[][] transformation;
     private double fc[]; // Focal length, in pixels, [X Y]
     private double cc[]; // Principal point, [X Y] 
     private double kc[]; // Distortion
@@ -66,22 +64,6 @@ public class Track extends Thread implements ImageReader.Listener
     	td = new TagDetector2(new Tag36h11(),fc, cc, kc, alpha);
     }
 
-    // force override
-    public ArrayList<ImageObjectDetection> getObjectUV(byte[] buffer)
-    {
-        BufferedImage image = ImageConvert.convertToImage(format, width, height, buffer);
-        ArrayList<TagDetection> tags = td.process(image, cc);
-        ArrayList<ImageObjectDetection> detections = new ArrayList<ImageObjectDetection>();
-        long time = System.currentTimeMillis();
-        
-        for (TagDetection tag: tags)
-        {
-            detections.add(new ImageObjectDetection(tag.id, time, tag.cxy, fc, cc));
-        }
-
-        return detections;
-    }
-    
     public int getIndex()
     {
     	return ir.getCameraId();
@@ -115,15 +97,14 @@ public class Track extends Thread implements ImageReader.Listener
     // force override
     public void handleImage(byte[] image, long timeStamp, int camera)
     {
-        ArrayList<ImageObjectDetection> objects = getObjectUV(image);
+        ArrayList<TagDetection> tags = td.process(ImageConvert.convertToImage(format, width, height, image), cc);
+        ArrayList<ImageObjectDetection> objects = new ArrayList<ImageObjectDetection>(tags.size());
         
-        if(objects.size() > 0)
+        if(tags.size() > 0)
         {
-            for(ImageObjectDetection object : objects)
+            for(TagDetection tag : tags)
             {
-                object.timeStamp = timeStamp;
-                object.cameraM = transformation;
-                object.cameraID = id;
+                objects.add(new ImageObjectDetection(tag.id, id, timeStamp, tag.cxy, transformation, fc, cc));
             }
             
             for (Listener listener : listeners)

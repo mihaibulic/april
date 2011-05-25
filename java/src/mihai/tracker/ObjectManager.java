@@ -18,19 +18,19 @@ public class ObjectManager
 	{
 		for(ImageObjectDetection object : objects)
 		{
-			if(!objectIds.contains(object.id))
+			if(!objectIds.contains(object.objectID))
 			{
-				objectIds.add(object.id);
+				objectIds.add(object.objectID);
 			}
 			
-			if(hashedObjects.get(object.id) == null)
+			if(hashedObjects.get(object.objectID) == null)
 			{
-				hashedObjects.put(object.id, new ArrayList<ImageObjectDetection>());
+				hashedObjects.put(object.objectID, new ArrayList<ImageObjectDetection>());
 			}
 			
-			if(!hashedObjects.get(object.id).contains(object))
+			if(!hashedObjects.get(object.objectID).contains(object))
 			{
-				hashedObjects.get(object.id).add(object);
+				hashedObjects.get(object.objectID).add(object);
 			}
 		}
 	}

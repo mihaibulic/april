@@ -235,7 +235,7 @@ public class TriangulateTest extends JFrame
         System.out.println(count);
         
         // FIXME (timeStamp should be an average or something)
-        return new SpaceObjectDetection(objectDetections.get(0).id, objectDetections.get(0).timeStamp, location);
+        return new SpaceObjectDetection(objectDetections.get(0).objectID, objectDetections.get(0).timeStamp, location);
     }
     
     private boolean shouldStop(double[] r, double[] oldR, double threshold)

@@ -172,8 +172,6 @@ public class ObjectTracker extends JFrame implements Track.Listener
     // FIXME sync up images
     private ArrayList<ImageObjectDetection> syncDetections(ArrayList<ImageObjectDetection> unsynced)
     {
-        return unsynced;
-    }
 //    private ArrayList<ImageObjectDetection> syncDetections(ArrayList<ImageObjectDetection> unsynced)
 //    {
 //        ArrayList<ImageObjectDetection> synced = new ArrayList<ImageObjectDetection>();
@@ -197,6 +195,8 @@ public class ObjectTracker extends JFrame implements Track.Listener
 //        
 //        return synced;
 //    }
+        return unsynced;
+    }
     
     private SpaceObjectDetection triangulate(ArrayList<ImageObjectDetection> objectDetections)
     {
@@ -238,7 +238,7 @@ public class ObjectTracker extends JFrame implements Track.Listener
         }
         
         // FIXME (timeStamp should be an average or something)
-        return new SpaceObjectDetection(objectDetections.get(0).id, objectDetections.get(0).timeStamp, location);
+        return new SpaceObjectDetection(objectDetections.get(0).objectID, objectDetections.get(0).timeStamp, location);
     }
     
     class Distance extends Function
@@ -254,7 +254,7 @@ public class ObjectTracker extends JFrame implements Track.Listener
             {
                 double theta = -1*Math.atan((object.uv[0]-object.cc[0])/object.fc[0]);
                 double phi = -1*Math.atan((object.uv[1]-object.cc[1])/object.fc[1]);
-                double[][] M = LinAlg.matrixAB(object.cameraM, LinAlg.rotateY(theta));
+                double[][] M = LinAlg.matrixAB(object.cameraTransformation, LinAlg.rotateY(theta));
                 M = LinAlg.matrixAB(M, LinAlg.rotateX(phi));
                 
                 ArrayList<double[]> ray = new ArrayList<double[]>();
@@ -283,7 +283,7 @@ public class ObjectTracker extends JFrame implements Track.Listener
 
                 double theta = -1*Math.atan((object.uv[0]-object.cc[0])/object.fc[0]);
                 double phi = -1*Math.atan((object.uv[1]-object.cc[1])/object.fc[1]);
-                double[][] M = LinAlg.matrixAB(LinAlg.matrixAB(object.cameraM, LinAlg.rotateY(theta)), LinAlg.rotateX(phi));
+                double[][] M = LinAlg.matrixAB(LinAlg.matrixAB(object.cameraTransformation, LinAlg.rotateY(theta)), LinAlg.rotateX(phi));
                 double[] rayEndPoint = LinAlg.matrixToXyzrpy(LinAlg.matrixAB(M, LinAlg.translate(new double[]{0,0,100})));
                 double[] rayStartPoint = LinAlg.matrixToXyzrpy(M);
                 double[] pointLine1 = LinAlg.copy(LinAlg.subtract(point, rayStartPoint), 3);

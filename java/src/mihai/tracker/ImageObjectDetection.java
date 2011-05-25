@@ -9,26 +9,27 @@ package mihai.tracker;
  */
 public class ImageObjectDetection
 {
+    public int objectID;
+    public int cameraID;
+
     public long timeStamp;
-    
-    // the ID of the object
-    public int id;
-    
+
     // Pixel coordinates of center of object detection
     public double[] uv;
-    
+
     // transformation to spotting camera's location from origin (NOT to object)
-    public int cameraID;
-    public double[][] cameraM;
+    public double[][] cameraTransformation;
     
     public double[] fc;
     public double[] cc;
     
-    public ImageObjectDetection(int id, long timeStamp, double[] uv, double[] fc, double[] cc)
+    public ImageObjectDetection(int objectID, int cameraID, long timeStamp, double[] uv, double[][] cameraTransformation, double[] fc, double[] cc)
     {
-        this.id = id;
+        this.objectID = objectID;
+        this.cameraID = cameraID;
         this.timeStamp = timeStamp;
         this.uv = uv;
+        this.cameraTransformation = cameraTransformation;
         this.fc = fc;
         this.cc = cc;
     }
