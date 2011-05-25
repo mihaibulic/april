@@ -1,25 +1,12 @@
 package mihai.tracker;
 
-/**
- * id, timestamp, and uv are set by the ObjectFinder (finds objects in image)
- * transformation and xyz are set by the ObjectTracker (triangulates objectss in 3d space using multiple cameras)
- * 
- * @author Mihai Bulic
- *
- */
 public class ImageObjectDetection
 {
     public int objectID;
     public int cameraID;
-
     public long timeStamp;
-
-    // Pixel coordinates of center of object detection
-    public double[] uv;
-
-    // transformation to spotting camera's location from origin (NOT to object)
-    public double[][] cameraTransformation;
-    
+    public double[] uv; // Pixel coordinates of center of object detection
+    public double[][] cameraTransformation; // transformation to spotting camera's location from origin (NOT to object)
     public double[] fc;
     public double[] cc;
     

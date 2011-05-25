@@ -24,13 +24,13 @@ public class ImageReader extends Thread
 	
     private ArrayList<Listener> Listeners = new ArrayList<Listener>();
 
-    private boolean run = true;
+    private int id;
+    private String url;
     private ImageSource isrc;
     private ImageSourceFormat ifmt;
-    private String url;
-    private int id;
-    
     private SyncErrorDetector sync;
+
+    private boolean run = true;
     
     public interface Listener
     {
@@ -73,11 +73,11 @@ public class ImageReader extends Thread
     {
 		isrc.start();
     	
-        boolean firstTime = true;
-        double initTime = 0;
-        double lastTimestamp = 0;
-        int rollOverCounter = 0;
-        double[] times;
+//        boolean firstTime = true;
+//        double initTime = 0;
+//        double lastTimestamp = 0;
+//        int rollOverCounter = 0;
+//        double[] times;
         
         while (run)
         {
@@ -86,33 +86,33 @@ public class ImageReader extends Thread
             if (imageBuffer != null)
             {
                 sync.addTimePointGreyFrame(imageBuffer);
-                times = sync.getTimes();
+//                times = sync.getTimes();
 
-                if(firstTime)
-                {
-                    firstTime = false;
-                    initTime = times[times.length-1];
-                }
+//                if(firstTime)
+//                {
+//                    firstTime = false;
+//                    initTime = times[times.length-1];
+//                }
                 
                 if(sync.verify() == SyncErrorDetector.SYNC_GOOD)
                 {
-                    long timestamp = (long)(times[times.length-1] - initTime); // TODO use time sync stuff
-                    if(lastTimestamp > timestamp)
-                    {
-                        rollOverCounter++;
-                    }
-                    lastTimestamp = timestamp;
-                    timestamp += 128*rollOverCounter;
+//                    long timestamp = (long)(times[times.length-1] - initTime); // TODO use time sync stuff
+//                    if(lastTimestamp > timestamp)
+//                    {
+//                        rollOverCounter++;
+//                    }
+//                    lastTimestamp = timestamp;
+//                    timestamp += 128*rollOverCounter;
                     
                     for (Listener listener : Listeners)
                     {
-                        listener.handleImage(imageBuffer, timestamp, id);
+                        listener.handleImage(imageBuffer, 0, id);
                     }
                 }
-                else if(sync.verify() == SyncErrorDetector.RECOMMEND_ACTION)
+                else
                 {
                 	toggleImageSource(isrc);
-                	firstTime = true;
+//                	firstTime = true;
                 }
 	        }
     	}
