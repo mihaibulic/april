@@ -109,7 +109,7 @@ public class ImageReader extends Thread
                     {
                         listener.handleImage(imageBuffer, 0, id);
                     }
-                }
+                } 
                 else if (status == SyncErrorDetector.RECOMMEND_ACTION)
                 {
                 	toggleImageSource(isrc);
