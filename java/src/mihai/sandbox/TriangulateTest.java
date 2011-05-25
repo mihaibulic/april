@@ -2,9 +2,7 @@ package mihai.sandbox;
 
 import java.awt.Color;
 import java.util.ArrayList;
-
 import javax.swing.JFrame;
-
 import mihai.tracker.ImageObjectDetection;
 import mihai.tracker.SpaceObjectDetection;
 import mihai.vis.VisCamera;
@@ -57,10 +55,10 @@ public class TriangulateTest extends JFrame
         double[][] t3 = LinAlg.xyzrpyToMatrix(xyz3);
         double[][] t4 = LinAlg.xyzrpyToMatrix(xyz4);
         
-        o1.cameraM = t1;
-        o2.cameraM = t2;
-        o3.cameraM = t3;
-        o4.cameraM = t4;
+        o1.cameraTransformation = t1;
+        o2.cameraTransformation = t2;
+        o3.cameraTransformation = t3;
+        o4.cameraTransformation = t4;
         
         objs.add(o1);
         objs.add(o2);
@@ -141,7 +139,7 @@ public class TriangulateTest extends JFrame
 
                 double theta = -1*Math.atan((object.uv[0]-object.cc[0])/object.fc[0]);
                 double phi = -1*Math.atan((object.uv[1]-object.cc[1])/object.fc[1]);
-                double[][] M = LinAlg.matrixAB(LinAlg.matrixAB(object.cameraM, LinAlg.rotateY(theta)), LinAlg.rotateX(phi));
+                double[][] M = LinAlg.matrixAB(LinAlg.matrixAB(object.cameraTransformation, LinAlg.rotateY(theta)), LinAlg.rotateX(phi));
                 double[] rayEndPoint = LinAlg.matrixToXyzrpy(LinAlg.matrixAB(M, LinAlg.translate(new double[]{0,0,100})));
                 double[] rayStartPoint = LinAlg.matrixToXyzrpy(M);
                 System.out.println(theta  + "\t..." + phi);

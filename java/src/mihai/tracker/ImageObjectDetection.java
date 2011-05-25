@@ -23,6 +23,16 @@ public class ImageObjectDetection
     public double[] fc;
     public double[] cc;
     
+    //used only for sandbox testing
+    public ImageObjectDetection(int objectID, long timeStamp, double[] uv, double[] fc, double[] cc)
+    {
+        this.objectID = objectID;
+        this.timeStamp = timeStamp;
+        this.uv = uv;
+        this.fc = fc;
+        this.cc = cc;
+    }
+    
     public ImageObjectDetection(int objectID, int cameraID, long timeStamp, double[] uv, double[][] cameraTransformation, double[] fc, double[] cc)
     {
         this.objectID = objectID;
