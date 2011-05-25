@@ -94,7 +94,8 @@ public class ImageReader extends Thread
 //                    initTime = times[times.length-1];
 //                }
                 
-                if(sync.verify() == SyncErrorDetector.SYNC_GOOD)
+                int status = sync.verify();
+                if(status == SyncErrorDetector.SYNC_GOOD)
                 {
 //                    long timestamp = (long)(times[times.length-1] - initTime); // TODO use time sync stuff
 //                    if(lastTimestamp > timestamp)
@@ -109,7 +110,7 @@ public class ImageReader extends Thread
                         listener.handleImage(imageBuffer, 0, id);
                     }
                 }
-                else
+                else if (status == SyncErrorDetector.RECOMMEND_ACTION)
                 {
                 	toggleImageSource(isrc);
 //                	firstTime = true;
