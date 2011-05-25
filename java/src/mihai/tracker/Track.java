@@ -1,14 +1,19 @@
 package mihai.tracker;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 
 import mihai.camera.ImageReader;
+import mihai.camera.TagDetector2;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.Util;
 import april.config.Config;
+import april.jcam.ImageConvert;
 import april.jmat.LinAlg;
+import april.tag.Tag36h11;
+import april.tag.TagDetection;
 
 /**
  * Tracks a given objects in 3D space (used by ObjectTracker)
@@ -20,22 +25,20 @@ public class Track extends Thread implements ImageReader.Listener
 {
     ArrayList<Listener> listeners = new ArrayList<Listener>();
 
-    private boolean run = true;
-    
     private double[][] transformation;
     private int id;
     private double fc[]; // Focal length, in pixels, [X Y]
     private double cc[]; // Principal point, [X Y] 
     private double kc[]; // Distortion
-    private double alpha; // Skew
+    private double alpha;// Skew
 
     private ImageReader ir;
-    private Object lock = new Object();
-    private boolean imageReady = false;
-    private byte[] imageBuffer;
-    private long timeStamp;
 
-    private DummyLEDFinder dlf;
+    // pull out into subclass
+    private TagDetector2 td;
+    private int width;
+    private int height;
+    private String format;
     
     public interface Listener
     {
@@ -55,54 +58,28 @@ public class Track extends Thread implements ImageReader.Listener
         
     	ir = new ImageReader(config.getRoot(), url);
     	ir.addListener(this);
-
-    	dlf = new DummyLEDFinder(fc, cc, kc, alpha, ir.getWidth(), ir.getHeight(), ir.getFormat());
+    	
+        // pull out into subclass
+    	width = ir.getWidth();
+    	height = ir.getHeight();
+    	format = ir.getFormat();
+    	td = new TagDetector2(new Tag36h11(),fc, cc, kc, alpha);
     }
 
-    public void run()
+    // force override
+    public ArrayList<ImageObjectDetection> getObjectUV(byte[] buffer)
     {
-        ArrayList<ImageObjectDetection> objects = new ArrayList<ImageObjectDetection>();
-        byte[] temp;
-
-        ir.start();
+        BufferedImage image = ImageConvert.convertToImage(format, width, height, buffer);
+        ArrayList<TagDetection> tags = td.process(image, cc);
+        ArrayList<ImageObjectDetection> detections = new ArrayList<ImageObjectDetection>();
+        long time = System.currentTimeMillis();
         
-        while(run)
+        for (TagDetection tag: tags)
         {
-            synchronized(lock)
-            {
-                try
-                {
-                    while(!imageReady)
-                    {
-                        lock.wait();
-                    }
-                } catch (InterruptedException e)
-                {
-                    e.printStackTrace();
-                }
-                
-                imageReady = false;
-                temp = imageBuffer.clone();
-            }
-            
-            objects.clear();
-            objects.addAll(dlf.getObjectUV(temp));
-            
-            for(ImageObjectDetection object : objects)
-            {
-                object.timeStamp = timeStamp;
-                object.cameraM = transformation;
-                object.cameraID = id;
-            }
-            
-            if(objects.size() > 0)
-            {
-                for (Listener listener : listeners)
-                {
-                    listener.handleDetections(objects, transformation);
-                }
-            }
+            detections.add(new ImageObjectDetection(tag.id, time, tag.cxy, fc, cc));
         }
+
+        return detections;
     }
     
     public int getIndex()
@@ -120,9 +97,14 @@ public class Track extends Thread implements ImageReader.Listener
     	return ir.isGood();
     }
     
+    public void start()
+    {
+        ir.start();
+    }
+    
     public void kill()
     {
-        run = false;
+        ir.kill();
     }
 
     public void addListener(Listener listener)
@@ -130,14 +112,24 @@ public class Track extends Thread implements ImageReader.Listener
         listeners.add(listener);
     }
 
-    public void handleImage(byte[] image, long time, int camera)
+    // force override
+    public void handleImage(byte[] image, long timeStamp, int camera)
     {
-        synchronized(lock)
+        ArrayList<ImageObjectDetection> objects = getObjectUV(image);
+        
+        if(objects.size() > 0)
         {
-            imageBuffer = image;
-            timeStamp = time;
-            imageReady = true;
-            lock.notify();
-        }        
+            for(ImageObjectDetection object : objects)
+            {
+                object.timeStamp = timeStamp;
+                object.cameraM = transformation;
+                object.cameraID = id;
+            }
+            
+            for (Listener listener : listeners)
+            {
+                listener.handleDetections(objects, transformation);
+            }
+        }
     }
 }
