@@ -46,25 +46,25 @@ public class Track extends Thread implements ImageReader.Listener
     {
     	Util.verifyConfig(config);
 
-    	transformation = LinAlg.xyzrpyToMatrix(config.requireDoubles("xyzrpy"));
     	id = config.requireInt("id");
         fc = config.requireDoubles("fc");
         cc = config.requireDoubles("cc");
         kc = config.requireDoubles("kc");
         alpha = config.requireDouble("alpha");
+        transformation = LinAlg.xyzrpyToMatrix(config.requireDoubles("xyzrpy"));
         
     	ir = new ImageReader(config.getRoot(), url);
-        dlf = new DummyLEDFinder(fc, cc, kc, alpha, ir.getWidth(), ir.getHeight(), ir.getFormat());
-    	
     	ir.addListener(this);
+
+    	dlf = new DummyLEDFinder(fc, cc, kc, alpha, ir.getWidth(), ir.getHeight(), ir.getFormat());
     }
 
     public void run()
     {
         ArrayList<ImageObjectDetection> objects = new ArrayList<ImageObjectDetection>();
-        ir.start();
-
         byte[] temp;
+
+        ir.start();
         
         while(run)
         {

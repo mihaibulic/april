@@ -57,7 +57,7 @@ public class ImageReader extends Thread
     	int maxfps = config.requireInt("fps");
     	this.url = url;
 
-    	config = config.getChild(CamUtil.getUrl(config, url));
+    	config = config.getChild(Util.getSubUrl(config, url));
     	Util.verifyConfig(config);
     	id = config.requireInt("id");
     	

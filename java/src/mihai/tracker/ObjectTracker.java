@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import javax.swing.JFrame;
 
 import lcm.lcm.LCM;
-import mihai.camera.CamUtil;
 import mihai.lcmtypes.object_t;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
@@ -79,7 +78,7 @@ public class ObjectTracker extends JFrame implements Track.Listener
         tracks = new ArrayList<Track>();
         for(String url : urls)
         {
-        	Track test = new Track(config.getChild(CamUtil.getUrl(config, url)), url);
+        	Track test = new Track(config.getChild(Util.getSubUrl(config, url)), url);
         	if(test.isGood())
         	{
         		test.addListener(this);

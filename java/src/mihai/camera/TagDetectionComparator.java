@@ -1,4 +1,4 @@
-package mihai.tracker;
+package mihai.camera;
 
 import java.util.Comparator;
 import april.tag.TagDetection;
@@ -9,7 +9,7 @@ import april.tag.TagDetection;
  * @author Mihai Bulic
  *
  */
-public class TagComparator implements Comparator<TagDetection>
+public class TagDetectionComparator implements Comparator<TagDetection>
 {
     public int compare(TagDetection tag1, TagDetection tag2)
     {

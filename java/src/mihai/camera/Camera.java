@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 
-import mihai.tracker.TagComparator;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.PointLocator;
@@ -101,7 +100,7 @@ public class Camera implements ImageReader.Listener
             detections.addAll(td.process(ImageConvert.convertToImage(format, width, height, buffer), cc));
         }
         
-        Collections.sort(detections, new TagComparator());
+        Collections.sort(detections, new TagDetectionComparator());
         
         int end = 0;
         tagsL = new ArrayList< Tag >();

@@ -64,7 +64,7 @@ public class ExtrinsicsCalibrator extends JFrame
         cameras = new ArrayList<Camera>();
         for(String url : urls)
         {
-            Camera test = new Camera(config.getChild(CamUtil.getUrl(config, url)), url);
+            Camera test = new Camera(config.getChild(Util.getSubUrl(config, url)), url);
             if(test.isGood())
             {
                 cameras.add(test);
