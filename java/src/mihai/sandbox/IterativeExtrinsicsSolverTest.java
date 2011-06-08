@@ -50,7 +50,7 @@ public class IterativeExtrinsicsSolverTest extends JFrame
             
             vb.addBuffered(new VisChain(cameras[i].getTransformationMatrix(), new VisCamera(colors[i], 0.08)));
             
-            for(Tag tag : cameras[i].getTags())
+            for(Tag tag : cameras[i].getTagsList())
             {
                 vb.addBuffered(new VisChain(cameras[i].getTransformationMatrix(), tag.getTransformationMatrix(), new VisRectangle(0.15, 0.15, new VisDataFillStyle(colors[i]))));
             }
@@ -187,8 +187,8 @@ public class IterativeExtrinsicsSolverTest extends JFrame
             
             for(int c = 0; c < cameras.length; c++)
             {
-                tagsH[c] = cameras[c].getTagsH();
-                tagsL[c] = cameras[c].getTags();
+                tagsH[c] = cameras[c].getTagsHashMap();
+                tagsL[c] = cameras[c].getTagsList();
             }
         }
         

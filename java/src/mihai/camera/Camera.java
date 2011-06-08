@@ -29,7 +29,8 @@ public class Camera implements ImageReader.Listener
     private ArrayList<TagDetection> detections;
     private ArrayList< Tag > tagsL;
     private ArrayList<double[]> potentialPositions;
-    private double[] position;
+    private double[] xyzrpy;
+    private double[][] matrix;
 
     private int imageCount = 0;
     private ArrayList<byte[]> imageBuffers;
@@ -51,14 +52,16 @@ public class Camera implements ImageReader.Listener
     {
         this.tagsL = tagsL;
         this.tagsH = tagsH;
-        this.position = position;
+        this.xyzrpy = position;
+        this.matrix = LinAlg.xyzrpyToMatrix(this.xyzrpy);
     }
     
     public Camera(Config config, String url) throws CameraException, IOException, ConfigException
     {
         Util.verifyConfig(config);
     	
-    	position = config.requireDoubles("xyzrpy");
+    	xyzrpy = config.requireDoubles("xyzrpy");
+    	matrix = LinAlg.xyzrpyToMatrix(xyzrpy);
         fc = config.requireDoubles("fc");
         cc = config.requireDoubles("cc");
         kc = config.requireDoubles("kc");
@@ -71,11 +74,6 @@ public class Camera implements ImageReader.Listener
         width = ir.getWidth();
         height = ir.getHeight();
         format = ir.getFormat();
-    }
-    
-    public boolean isGood()
-    {
-    	return ir.isGood();
     }
     
     public void aggregateTags(int size, double tagSize) throws InterruptedException
@@ -136,45 +134,46 @@ public class Camera implements ImageReader.Listener
     {
         potentialPositions.add(LinAlg.matrixToXyzrpy(matrix));
     }
-
+    
     public void clearPotentialPositions()
     {
         potentialPositions.clear();
     }
     
-    /**
-     * @return xyzrpy coordinates
-     */
-    public ArrayList<double[]> getPotentialPositions()
-    {
-        return potentialPositions;
-    }
-    
-    public Tag getTag(int index)
-    {
-        return tagsL.get(index);
-    }
-
-    public double[] getTagH(int id)
-    {
-        return tagsH.get(id);
-    }
-    
-    public HashMap<Integer,double[]> getTagsH()
+    public HashMap<Integer,double[]> getTagsHashMap()
     {
         return tagsH;
     }
     
-    public ArrayList<Tag> getTags()
+    public ArrayList<Tag> getTagsList()
     {
         return tagsL;
     }
     
-    public double[] getFocal()
+    public int getTagCount()
     {
-    	return fc;
+        return tagsL.size();
     }
     
+    public double[] getXyzrpy()
+    {
+        return xyzrpy;
+    }
+    public double[][] getTransformationMatrix()
+    {
+        return matrix;
+    }
+    
+    public ImageReader getReader()
+    {
+        return ir;
+    }
+
+    public String getUrl()
+    {
+        return ir.getUrl();
+    }
+
     public int getCameraId()
     {
         return ir.getCameraId();
@@ -184,35 +183,29 @@ public class Camera implements ImageReader.Listener
     {
         return mainIndex;
     }
-    
-    public double[] getXyzrpy()
+
+    public double[] getFocal()
     {
-        return position;
+        return fc;
     }
     
-    public ImageReader getReader()
+    /**
+     * @return xyzrpy coordinates
+     */
+    public ArrayList<double[]> getPotentialPositions()
     {
-        return ir;
+        return potentialPositions;
     }
 
-    public int getTagCountH()
+    // FIXME use more rigerous method here 
+    public boolean isCertain()
     {
-        return tagsH.size();
+        return (potentialPositions.size() > 0);
     }
     
-    public int getTagCount()
+    public boolean isGood()
     {
-        return tagsL.size();
-    }
-    
-    public double[][] getTransformationMatrix()
-    {
-        return LinAlg.xyzrpyToMatrix(position);
-    }
-    
-    public String getUrl()
-    {
-        return ir.getUrl();
+        return ir.isGood();
     }
     
     public void setMain(int main)
@@ -223,24 +216,28 @@ public class Camera implements ImageReader.Listener
     public void setPosition()
     {
         double[][] points = new double[potentialPositions.size()][6];
-        position = PointLocator.calculateItt(potentialPositions.toArray(points));
+        xyzrpy = PointLocator.calculateItt(potentialPositions.toArray(points));
+        matrix = LinAlg.xyzrpyToMatrix(xyzrpy);
     }
     
     public void setPosition(double[] xyzrpy)
     {
-        this.position = xyzrpy;
+        this.xyzrpy = xyzrpy;
+        matrix = LinAlg.xyzrpyToMatrix(xyzrpy);
         mainIndex = -1; // camera positions are now not relative to one another anymore
     }
     
     public void setPosition(double[] xyzrpy, int main)
     {
-        this.position = xyzrpy;
+        this.xyzrpy = xyzrpy;
+        matrix = LinAlg.xyzrpyToMatrix(xyzrpy);
         this.mainIndex = main;
     }
     
     public void setPosition(double[][] matrix, int main)
     {
-        this.position = LinAlg.matrixToXyzrpy(matrix);
+        this.matrix = matrix;
+        this.xyzrpy = LinAlg.matrixToXyzrpy(matrix);
         this.mainIndex = main;
     }
     
@@ -258,12 +255,6 @@ public class Camera implements ImageReader.Listener
         {
             imageBuffers.add(image);
         }
-    }
-    
-    // FIXME use more rigerous method here 
-    public boolean isCertain()
-    {
-        return (potentialPositions.size() > 0);
     }
 }
 

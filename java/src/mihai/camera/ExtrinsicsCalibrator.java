@@ -109,7 +109,7 @@ public class ExtrinsicsCalibrator extends JFrame
                     double[][] camM = cam.getTransformationMatrix();
                     vbCameras.addBuffered(new VisChain(camM, new VisCamera(colors[x], 0.08)));
                     
-                    for (Tag tag : cam.getTags())   
+                    for (Tag tag : cam.getTagsList())   
                     {
                         double tagM[][] = tag.getTransformationMatrix();
                         vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
@@ -231,8 +231,8 @@ public class ExtrinsicsCalibrator extends JFrame
         int auxIndex = 0;
         double mainM[][];
         double auxM[][];
-        ArrayList<Tag> mainTags = mainCam.getTags();
-        ArrayList<Tag> auxTags = auxCam.getTags();
+        ArrayList<Tag> mainTags = mainCam.getTagsList();
+        ArrayList<Tag> auxTags = auxCam.getTagsList();
         
         auxCam.setMain(main);
         auxCam.clearPotentialPositions();
@@ -379,8 +379,8 @@ public class ExtrinsicsCalibrator extends JFrame
             
             for(int c = 0; c < cameras.size(); c++)
             {
-                tagsH[c] = cameras.get(c).getTagsH();
-                tagsL[c] = cameras.get(c).getTags();
+                tagsH[c] = cameras.get(c).getTagsHashMap();
+                tagsL[c] = cameras.get(c).getTagsList();
             }
         }
         

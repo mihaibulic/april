@@ -10,7 +10,9 @@ public class ImageObjectDetection
     public double[] fc;
     public double[] cc;
     
-    //used only for sandbox testing
+    /**
+     * @deprecated - used only for sandbox testing
+     */
     public ImageObjectDetection(int objectID, long timeStamp, double[] uv, double[] fc, double[] cc)
     {
         this.objectID = objectID;

@@ -1,6 +1,5 @@
 package mihai.camera;
 
-import java.util.ArrayList;
 import april.jmat.LinAlg;
 
 public class Tag
@@ -8,8 +7,6 @@ public class Tag
     private double[] xyzrpy;
     private double[][] matrix;
     private int id;
-    
-    public ArrayList<Integer> spotters = new ArrayList<Integer>();
     
     public Tag(double[] xyzrpy, double[][] matrix, int id)
     {
@@ -45,10 +42,5 @@ public class Tag
     public double[][] getTransformationMatrix()
     {
         return matrix;
-    }
-    
-    public void addSpotter(int id)
-    {
-        spotters.add(id);
     }
 }
