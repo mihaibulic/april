@@ -14,6 +14,15 @@ public class Util
         	throw new ConfigException(ConfigException.NULL_CONFIG);
     	}
     }
+
+    /**
+     * Verifies if the given URL is valid
+     */
+    public static boolean isValidUrl(Config config, String url)
+    {
+        config = config.getChild(getSubUrl(config, url));
+        return (config != null && config.getBoolean("valid", false));
+    }
     
     /**
      * given the URL of a camera, it returns the suburl which corresponds to an entry in the config file

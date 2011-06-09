@@ -23,8 +23,6 @@ public class ConfigException extends Exception
         		msg += "Unknown error";
 		}
     
-		printStackTrace();
 	    System.err.println(msg);
-	    System.exit(1);
 	}
 }

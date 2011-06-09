@@ -7,9 +7,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-
 import javax.swing.JFrame;
-
 import lcm.lcm.LCM;
 import lcm.lcm.LCMDataInputStream;
 import lcm.lcm.LCMSubscriber;
@@ -23,12 +21,10 @@ import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.jmat.LinAlg;
 import april.util.GetOpt;
-import april.util.TimeUtil;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
 import april.vis.VisImage;
 import april.vis.VisWorld;
-import april.vis.VisWorld.Buffer;
 
 /**
  * Plays back the video from all cameras. Images are selected from the LCM message stream of image paths.
@@ -41,62 +37,63 @@ public class CameraPlayer extends JFrame implements LCMSubscriber, ImageReader.L
 {
     private static final long serialVersionUID = 1L;
     static LCM lcm = LCM.getSingleton();
-    private int width;
-    private int height;
-    private String format;
+
     private int columns;
+    private int maxWidth;
+    private int maxHeight;
+    private HashMap<Integer, Integer> widthHash = new HashMap<Integer, Integer>();
+    private HashMap<Integer, Integer> heightHash = new HashMap<Integer, Integer>();
+    private HashMap<Integer, String> formatHash = new HashMap<Integer, String>();
     
     private BufferedImage image;
-    
     private VisWorld vw;
     private VisCanvas vc;
-    private HashMap<Integer, VisWorld.Buffer> buffers = new HashMap<Integer, VisWorld.Buffer>();
-
+    private ArrayList<Integer> cameraPosition = new ArrayList<Integer>();
+    
     public CameraPlayer(Config config, int columns) throws CameraException, IOException, ConfigException
     {
         super("Camera Player");
         
         Util.verifyConfig(config);
-        
     	if(ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
-    	
-        this.columns = columns;
-        ArrayList<String> urls = ImageSource.getCameraURLs();
-        ImageReader irs[] = new ImageReader[urls.size()];
-
-        setGUI();
-        
-        for (int x = 0; x < irs.length; x++)
+        ArrayList<ImageReader> irs = new ArrayList<ImageReader>();
+        for (String url : ImageSource.getCameraURLs())
         {
-        	irs[x] = new ImageReader(config, urls.get(x));
-        	irs[x].addListener(this);
-        	irs[x].start();
+            ImageReader test = new ImageReader(config, url);
+            if(test.isGood())
+            {
+                test.addListener(this);
+                
+                if(test.getWidth() > maxWidth) maxWidth = test.getWidth();
+                if(test.getHeight() > maxHeight) maxHeight = test.getHeight();
+
+                cameraPosition.add(test.getCameraId());
+                widthHash.put(test.getCameraId(), test.getWidth());
+                heightHash.put(test.getCameraId(), test.getHeight());
+                formatHash.put(test.getCameraId(), test.getFormat());
+                test.start();
+                irs.add(test);
+            }
         }
     	
         // XXX make so not all cameras have to have the same width/height
-        width = irs[0].getWidth();
-        height = irs[0].getHeight();
-        format = irs[0].getFormat();
-        
-        vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { width, height });
-        
-    	while(true)
+        if(irs.size() > 0)
         {
-            TimeUtil.sleep(100);
+            this.columns = columns;
+            setGUI();
+            vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { columns*maxWidth, maxHeight*Math.ceil((double)irs.size()/(columns*maxWidth))});
+        }
+        else
+        {
+            throw new CameraException(CameraException.NO_CAMERA);
         }
     }
     
     public CameraPlayer(int columns)
     {
         this.columns = columns;
-        
         setGUI();
         lcm.subscribeAll(this);
-        
-        while(true)
-        {
-            TimeUtil.sleep(100);
-        }
     }
 
     private void setGUI() 
@@ -110,7 +107,6 @@ public class CameraPlayer extends JFrame implements LCMSubscriber, ImageReader.L
     	setVisible(true);
     }
     
-
     public static void main(String[] args) throws CameraException, IOException, ConfigException
     {
         GetOpt opts = new GetOpt();
@@ -156,8 +152,7 @@ public class CameraPlayer extends JFrame implements LCMSubscriber, ImageReader.L
         	
         	new CameraPlayer(config, opts.getInt("columns"));
         }
-        
-        if(opts.getBoolean("all"))
+        else if(opts.getBoolean("all"))
         {
             new CameraPlayer(opts.getInt("columns"));
         }
@@ -175,20 +170,20 @@ public class CameraPlayer extends JFrame implements LCMSubscriber, ImageReader.L
                 new FileInputStream(new File(imagePath.img_path)).read(buffer);
                 image = ImageConvert.convertToImage(imagePath.format,imagePath.width, imagePath.height, buffer);
                 
-                VisWorld.Buffer vb = (Buffer) (buffers.containsKey(camera) ? buffers.get(camera) : vw.getBuffer("cam"+camera));
-                vb.addBuffered(new VisChain(LinAlg.translate(new double[] {width*(camera%columns),-height*(camera/columns),0}), new VisImage(image)));
-                if(image.getWidth() != width || image.getHeight() != height)
+                int position = cameraPosition.indexOf(camera);
+                if(position == -1)
                 {
-                    width = image.getWidth();
-                    height = image.getHeight();
-                    vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { width, height });
+                    position = cameraPosition.size();
+                    cameraPosition.add(camera);
                 }
-                vb.switchBuffer();
                 
-                if(!buffers.containsKey(camera))
-                {
-                    buffers.put(camera, vb);
-                }
+                VisWorld.Buffer vb = vw.getBuffer("cam" + camera);
+                vb.addBuffered(new VisChain(LinAlg.translate(new double[] {maxWidth*(position%columns),-maxHeight*(position/columns),0}), new VisImage(image)));
+                
+                if(image.getWidth() > maxWidth) maxWidth = image.getWidth();
+                if(image.getHeight() > maxHeight) maxHeight = image.getHeight();
+                vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { columns*maxWidth, maxHeight*Math.ceil((double)cameraPosition.size()/(columns*maxWidth))});
+                vb.switchBuffer();
             }
         } catch (IOException e)
         {
@@ -198,16 +193,11 @@ public class CameraPlayer extends JFrame implements LCMSubscriber, ImageReader.L
 
 	public void handleImage(byte[] imageBuffer, long timeStamp, int camera) 
 	{
-        BufferedImage image = ImageConvert.convertToImage(format, width, height, imageBuffer);
-
-        VisWorld.Buffer vb = (Buffer) (buffers.containsKey(camera) ? buffers.get(camera) : vw.getBuffer("cam"+camera));
-        vb.addBuffered(new VisChain(LinAlg.translate(new double[] {width*(camera%columns),-height*(camera/columns),0}), new VisImage(image)));
-
+	    int position = cameraPosition.indexOf(camera);
+	 
+	    BufferedImage image = ImageConvert.convertToImage(formatHash.get(camera), widthHash.get(camera), heightHash.get(camera), imageBuffer);
+	    VisWorld.Buffer vb = vw.getBuffer("cam" + camera);
+        vb.addBuffered(new VisChain(LinAlg.translate(new double[] {maxWidth*(position%columns),-maxHeight*(position/columns),0}), new VisImage(image)));
         vb.switchBuffer();
-        
-        if(!buffers.containsKey(camera))
-        {
-            buffers.put(camera, vb);
-        }
 	}
 }

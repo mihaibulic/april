@@ -30,7 +30,7 @@ public class ImageReader extends Thread
     private ImageSourceFormat ifmt;
     private SyncErrorDetector sync;
 
-    private boolean run = true;
+    private boolean run;
     
     public interface Listener
     {
@@ -50,23 +50,25 @@ public class ImageReader extends Thread
     public ImageReader(Config config, String url) throws CameraException, IOException, ConfigException
     {
         Util.verifyConfig(config);
-    	
-    	this.config = config;
-    	boolean loRes = config.requireBoolean("loRes");
-    	boolean color16 = config.requireBoolean("color16");
-    	int maxfps = config.requireInt("fps");
-    	this.url = url;
 
-    	config = config.getChild(Util.getSubUrl(config, url));
-    	Util.verifyConfig(config);
-    	id = config.requireInt("id");
-    	
-        if (maxfps > (loRes ? CameraException.MAX_LO_RES : CameraException.MAX_HI_RES)) throw new CameraException(CameraException.FPS);
-        setIsrc(loRes, color16, maxfps, url);
-        
-        config = config.getRoot().getChild("sync");
-        Util.verifyConfig(config);
-        sync = new SyncErrorDetector(config);
+    	run = Util.isValidUrl(config, url);
+    	if(run)
+    	{
+    	    this.url = url;
+    	    this.config = config;
+    	    
+    	    boolean loRes = config.requireBoolean("loRes");
+    	    boolean color16 = config.requireBoolean("color16");
+    	    int maxfps = config.requireInt("fps");
+    	    id = config.getChild(Util.getSubUrl(config, url)).requireInt("id");
+    	    
+    	    if (maxfps > (loRes ? CameraException.MAX_LO_RES : CameraException.MAX_HI_RES)) throw new CameraException(CameraException.FPS);
+    	    setIsrc(loRes, color16, maxfps, url);
+
+    	    config = config.getRoot().getChild("sync");
+	        Util.verifyConfig(config);
+    	    sync = new SyncErrorDetector(config);
+    	}
     }
 
     public void run()
@@ -83,17 +85,17 @@ public class ImageReader extends Thread
         {
             byte imageBuffer[] = isrc.getFrame();
             
-            if (imageBuffer != null)
+            if(imageBuffer != null)
             {
                 sync.addTimePointGreyFrame(imageBuffer);
 //                times = sync.getTimes();
-
+//
 //                if(firstTime)
 //                {
 //                    firstTime = false;
 //                    initTime = times[times.length-1];
 //                }
-                
+//                
                 int status = sync.verify();
                 if(status == SyncErrorDetector.SYNC_GOOD)
                 {
@@ -112,7 +114,13 @@ public class ImageReader extends Thread
                 } 
                 else if (status == SyncErrorDetector.RECOMMEND_ACTION)
                 {
-                	toggleImageSource(isrc);
+                	try
+                    {
+                        toggleImageSource(isrc);
+                    } catch (ConfigException e)
+                    {
+                        e.printStackTrace();
+                    }
 //                	firstTime = true;
                 }
 	        }
@@ -140,29 +148,31 @@ public class ImageReader extends Thread
     private void setIsrc(boolean loRes, boolean color16, int fps, String urls) throws IOException
     {
         isrc = ImageSource.make(urls);
-
-        // 760x480 8 = 0, 760x480 16 = 1, 380x240 8 = 2, 380x240 16 = 3
-        // converts booleans to 1/0 and combines them into an int
-        isrc.setFormat(Integer.parseInt("" + (loRes ? 1 : 0) + (color16 ? 1 : 0), 2));
-        isrc.setFeatureValue(11, fps); // frame-rate, idx=11
-
+        
         int features[] = config.getInts("isrc_feature");
         for(int x = 0; x < features.length; x++)
         {
         	isrc.setFeatureValue(x, features[x]);
         }
 
-    	ifmt = isrc.getCurrentFormat();
+        // 760x480 8 = 0, 760x480 16 = 1, 380x240 8 = 2, 380x240 16 = 3
+        // converts booleans to 1/0 and combines them into an int
+        isrc.setFormat(Integer.parseInt("" + (loRes ? 1 : 0) + (color16 ? 1 : 0), 2));
+        isrc.setFeatureValue(11, fps); // frame-rate, idx=11
+
+        ifmt = isrc.getCurrentFormat();
     }
     
-    private void toggleImageSource(ImageSource isrc)
+    private void toggleImageSource(ImageSource isrc) throws ConfigException
     {
         isrc.stop();
         int currentFormat = isrc.getCurrentFormatIndex();
         isrc.setFormat(currentFormat);
 
         isrc.start();
-        sync = new SyncErrorDetector(config.getChild("sync"));
+        config = config.getRoot().getChild("sync");
+        Util.verifyConfig(config);
+        sync = new SyncErrorDetector(config);
     }
 
     public String getUrl()
