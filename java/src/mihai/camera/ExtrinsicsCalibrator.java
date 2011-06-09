@@ -2,24 +2,21 @@ package mihai.camera;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Toolkit;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import javax.swing.JFrame;
+import javax.swing.JPanel;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.Util;
 import mihai.vis.VisCamera;
 import april.config.Config;
-import april.config.ConfigFile;
 import april.jcam.ImageSource;
 import april.jmat.Function;
 import april.jmat.LinAlg;
 import april.jmat.Matrix;
 import april.jmat.NumericalJacobian;
-import april.util.GetOpt;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
 import april.vis.VisDataLineStyle;
@@ -32,7 +29,7 @@ import april.vis.VisWorld;
  * @author Mihai Bulic
  *
  */
-public class ExtrinsicsCalibrator extends JFrame
+public class ExtrinsicsCalibrator extends JPanel
 {
     private static final long serialVersionUID = 1L;
     
@@ -53,7 +50,8 @@ public class ExtrinsicsCalibrator extends JFrame
     
     public ExtrinsicsCalibrator(Config config, boolean display, boolean verbose) throws ConfigException, CameraException, IOException, InterruptedException
     {
-        super("Extrinsics Calibrator");
+        super();
+        setLayout(new BorderLayout());
         
         Util.verifyConfig(config);
         
@@ -120,73 +118,12 @@ public class ExtrinsicsCalibrator extends JFrame
             
             if(display)
             {
-                showGui();
+                add(vc, BorderLayout.CENTER);
+                
+                vbTags.switchBuffer();
+                vbCameras.switchBuffer();
             }
         }
-    }
-
-    private void showGui()
-    {
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLayout(new BorderLayout());
-        add(vc, BorderLayout.CENTER);
-        setSize(Toolkit.getDefaultToolkit().getScreenSize());
-    	
-        vbTags.switchBuffer();
-        vbCameras.switchBuffer();
-        setVisible(true);
-    }
-
-    public static void main(String[] args) throws IOException, ConfigException, CameraException, InterruptedException
-    {
-        GetOpt opts = new GetOpt();
-        
-        opts.addBoolean('h', "help", false, "See this help screen");
-        opts.addString('n', "config", System.getenv("CONFIG")+"/camera.config", "location of config file");
-        opts.addString('r', "resolution", "", "lo=380x240, hi=760x480 (overrides config resolution)");
-        opts.addString('c', "colors", "", "gray8 or gray16 (overrides config color setting)");
-        opts.addString('f', "fps", "", "framerate to use if player (overrides config framerate) ");
-        opts.addString('t', "tagSize", "", "size of tags used in meters (overrides config framerate)");
-        opts.addBoolean('d', "display", true, "if true will display a GUI with the camera and tag locations");
-        opts.addBoolean('v', "verbose", true, "if true will print out more information regarding calibrator's status");
-
-        if (!opts.parse(args))
-        {
-            System.out.println("option error: " + opts.getReason());
-        }
-
-        if (opts.getBoolean("help"))
-        {
-            System.out.println("Usage: Calibrate relative positions of multiple cameras.");
-            opts.doHelp();
-            System.exit(1);
-        }
-        
-        Config config = new ConfigFile(opts.getString("config"));
-        Util.verifyConfig(config);
-    	if(!opts.getString("resolution").isEmpty())
-    	{
-    		config.setBoolean("loRes", opts.getString("resolution").contains("lo"));
-    	}
-    	if(!opts.getString("colors").isEmpty())
-    	{
-    		config.setBoolean("color16", opts.getString("colors").contains("16"));
-    	}
-    	if(!opts.getString("fps").isEmpty())
-    	{
-    		config.setInt("fps", Integer.parseInt(opts.getString("fps")));
-    	}
-    	if(!opts.getString("tagSize").isEmpty())
-    	{
-    		config.setDouble("tagSize", Double.parseDouble(opts.getString("tagSize")));
-    	}
-
-        if (ImageSource.getCameraURLs().size() == 0) 
-        {
-            throw new CameraException(CameraException.NO_CAMERA);
-        }
-
-        new ExtrinsicsCalibrator(config, opts.getBoolean("display"), opts.getBoolean("verbose"));
     }
 
     private void getAllCorrespondences() throws CameraException
