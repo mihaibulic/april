@@ -2,7 +2,7 @@ package mihai.sandbox;
 
 import april.jmat.LinAlg;
 
-public class linalgtest
+public class Linalgtest
 {
     private static double[] matrixab(double[] a, double[] b)
     {

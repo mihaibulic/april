@@ -14,12 +14,12 @@ public class GuiIntrinsicsCalibrator extends JFrame
 {
     private static final long serialVersionUID = 1L;
 
-    public GuiIntrinsicsCalibrator(Config config, String url) throws IOException, ConfigException, CameraException
+    public GuiIntrinsicsCalibrator(Config config, String configPath, String url) throws IOException, ConfigException, CameraException
     {
-        super("Quick Intrinsics Calibrator");
+        super("Intrinsics Calibrator");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(Toolkit.getDefaultToolkit().getScreenSize());
-        add(new IntrinsicsCalibrator(config, url));
+        add(new IntrinsicsCalibrator(config, configPath, url));
         setVisible(true);
     }
     
@@ -45,7 +45,7 @@ public class GuiIntrinsicsCalibrator extends JFrame
             opts.doHelp();
             System.exit(1);
         }
-        
+
         Config config = new ConfigFile(opts.getString("config"));
         if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
 
@@ -72,7 +72,6 @@ public class GuiIntrinsicsCalibrator extends JFrame
             }
         }
         
-        new GuiIntrinsicsCalibrator(config, url);
+        new GuiIntrinsicsCalibrator(config, opts.getString("config"), url);
     }
-
 }

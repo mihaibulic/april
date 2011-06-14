@@ -10,7 +10,7 @@ import mihai.camera.ImageReader;
 import mihai.camera.TagDetector2;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
-import mihai.util.UndistortFast;
+import mihai.util.Distortion;
 import mihai.util.Util;
 import mihai.vis.VisCamera;
 import april.config.Config;
@@ -50,7 +50,7 @@ public class TagTest implements ImageReader.Listener, ParameterListener
     private VisWorld.Buffer vbTag = vw.getBuffer("tags");
     private VisWorld.Buffer vbTagOld = vw.getBuffer("tagsO");
 
-    private UndistortFast df;
+    private Distortion df;
     
     private boolean ready = false;
     private Object lock = new Object();
@@ -88,7 +88,7 @@ public class TagTest implements ImageReader.Listener, ParameterListener
         td = new TagDetector2(new Tag36h11(), fc, cc, kc, alpha);
         tdOld = new TagDetector(new Tag36h11());
         
-        df = new UndistortFast(fc, cc, kc, alpha, 752, 480);
+        df = new Distortion(fc, cc, kc, alpha, 752, 480, 0.1);
         
         ir.start();
         jf.setVisible(true);

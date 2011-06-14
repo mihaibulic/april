@@ -20,12 +20,6 @@ public class PointLocator
         return calculateItt(points);
     }
     
-    /**
-     * 
-     * @param points
-     * @return
-     */
-    
     public static double[] calculateItt(double[][] points)
     {
         int length = points[0].length;

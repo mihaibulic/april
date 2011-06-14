@@ -244,8 +244,7 @@ public class ExtrinsicsCalibrator extends JPanel
         {
             double[][] _J = NumericalJacobian.computeJacobian(distance, locations, eps);
             Matrix J = new Matrix(_J);
-            
-            Matrix JTtimesJplusI = J.transpose().times(J).plus(Matrix.identity(size, size));
+            Matrix JTtimesJplusI = (J.transpose().times(J)).plus(Matrix.identity(size, size));
             Matrix JTr = J.transpose().times(Matrix.columnMatrix(r));
             Matrix dx = JTtimesJplusI.solve(JTr);
             

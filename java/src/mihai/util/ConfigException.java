@@ -6,6 +6,7 @@ public class ConfigException extends Exception
 	
 	public static final int INDICES_URL_LENGTH = 1;
 	public static final int NULL_CONFIG = 2;
+	public static final int INVALID_VARIABLE = 3;
 	
 	public ConfigException(int error)
 	{
@@ -18,7 +19,10 @@ public class ConfigException extends Exception
 				break;
 			case NULL_CONFIG:
 				msg += "Config file is null";
-				break;	
+				break;
+			case INVALID_VARIABLE:
+                msg += "Variable not found";
+                break;  
         	default:
         		msg += "Unknown error";
 		}

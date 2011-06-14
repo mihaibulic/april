@@ -1,4 +1,4 @@
-package mihai.util;
+package mihai.sandbox;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -8,74 +8,15 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
+import mihai.util.ConfigException;
 import april.config.Config;
 import april.config.ConfigFile;
 
-public class Util
+public class ConfigUtil
 {
-    
     /**
-     *ex: lets say we want to set root->child2->kid3->v1 to {1, 2, 3} in the following config 
-     *      structure which is in a config file located under /home/april/test.config
-     *                  root
-     *                  /   \
-     *            child1    child2
-     *            /    \    /    \
-     *       kid1    kid2  kid3   kid4
-     *       /  \    / \   / \    / \
-     *     v1   v2  v1 v2 v1 v2  v1 v2       
-     * 
-     * @param configPath - The filepath to the config file to be modified
-     *         ex: "/home/april/test.config"
-     * @param path - the path internal to the config file to find the variable to be changed
-     *         ex: {"child2", "kid3"}
-     * @param variable - the variable name that will be changed
-     *         ex: "v1"
-     * @param value - the new value for the variable to be changed
-     *         ex: {1, 2, 3}
-     * @return - the new Config which contains the new variable value
-     * @throws ConfigException
-     * @throws IOException
-     */
-    public static Config setValues(String configPath, String[] path, String variable, double[] value) throws ConfigException, IOException
-    {
-        String[] stringValue = new String[value.length];
-        for(int x = 0; x < stringValue.length; x++)
-        {
-            if(Math.abs(value[x]) < 0.001)
-                value[x] = 0;
-            
-            stringValue[x] = Double.toString(round(value[x],4));
-        }
-        
-        return setValues(configPath, path, variable, stringValue);
-    }
-    
-    /**
-     *ex: lets say we want to set root->child2->kid3->v1 to "{ ":)", ":(", ":*", ";)" }" 
-     *      in the following config structure which is in a config file located 
-     *      under /home/april/test.config
-     *                  root
-     *                  /   \
-     *            child1    child2
-     *            /    \    /    \
-     *       kid1    kid2  kid3   kid4
-     *       /  \    / \   / \    / \
-     *     v1   v2  v1 v2 v1 v2  v1 v2       
-     * 
-     * @param configPath - The filepath to the config file to be modified
-     *         ex: "/home/april/test.config"
-     * @param path - the path internal to the config file to find the variable to be changed
-     *         ex: {"child2", "kid3"}
-     * @param variable - the variable name that will be changed
-     *         ex: "v1"
-     * @param value - the new value for the variable to be changed
-     *         ex: "{ ":)", ":(", ":*", ";)" }"
-     * @return - the new Config which contains the new variable value
-     * @throws ConfigException
-     * @throws IOException
+     * same as setValue except this is used when the variable to be set is an array
      */
     public static Config setValues(String configPath, String[] path, String variable, String[] value) throws ConfigException, IOException
     {
@@ -146,37 +87,6 @@ public class Util
         }
         
         return new ConfigFile(configPath);
-    }
-    
-    /**
-     *ex: lets say we want to set root->child2->kid3->v1 to 1 in the following config 
-     *      structure which is in a config file located under /home/april/test.config
-     *                  root
-     *                  /   \
-     *            child1    child2
-     *            /    \    /    \
-     *       kid1    kid2  kid3   kid4
-     *       /  \    / \   / \    / \
-     *     v1   v2  v1 v2 v1 v2  v1 v2       
-     * 
-     * @param configPath - The filepath to the config file to be modified
-     *         ex: "/home/april/test.config"
-     * @param path - the path internal to the config file to find the variable to be changed
-     *         ex: {"child2", "kid3"}
-     * @param variable - the variable name that will be changed
-     *         ex: "v1"
-     * @param value - the new value for the variable to be changed
-     *         ex: 1
-     * @return - the new Config which contains the new variable value
-     * @throws ConfigException
-     * @throws IOException
-     */
-    public static Config setValue(String configPath, String[] path, String variable, double value) throws ConfigException, IOException
-    {
-        if(Math.abs(value) < 0.001)
-            value = 0;
-        
-        return setValue(configPath, path, variable, Double.toString(round(value,4)));
     }
     
     /**
@@ -266,53 +176,5 @@ public class Util
         }
         
         return new ConfigFile(configPath);
-    }
-    
-    /**
-     * Verifies a given node of the config file is valid
-     */
-    public static void verifyConfig(Config config) throws ConfigException
-    {
-        if(config == null || !config.getBoolean("valid", false))
-    	{
-        	throw new ConfigException(ConfigException.NULL_CONFIG);
-    	}
-    }
-
-    /**
-     * Verifies if the given URL is valid
-     */
-    public static boolean isValidUrl(Config config, String url)
-    {
-        config = config.getChild(getSubUrl(config, url));
-        return (config != null && config.getBoolean("valid", false));
-    }
-    
-    /**
-     * given the URL of a camera, it returns the suburl which corresponds to an entry in the config file
-     *   It does this simply by removing the default prefix of the url
-     */
-    public static String getSubUrl(Config config, String url)
-    {
-        String prefix = config.requireString("default_url");
-        
-        if(url.contains(prefix))
-        {
-            url = url.substring(url.indexOf(prefix) + prefix.length());
-        }
-
-        return url;
-    }
-    
-    public static double round(double number, int decimals)
-    {
-        String format = "#.";
-        for(int x = 0; x < decimals; x++)
-        {
-            format += "#";
-        }
-        
-        DecimalFormat twoDForm = new DecimalFormat(format);
-        return Double.valueOf(twoDForm.format(number));
     }
 }

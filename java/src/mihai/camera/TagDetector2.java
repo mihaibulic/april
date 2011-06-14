@@ -4,7 +4,7 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
-import mihai.util.PointDistortion;
+import mihai.util.Distortion;
 import april.image.FloatImage;
 import april.image.Homography33;
 import april.image.SigProc;
@@ -125,7 +125,7 @@ public class TagDetector2
     private double kc[];
     private double alpha;
     private boolean distorionCorrection;
-    private PointDistortion pd;
+    private Distortion pd;
     
     public TagDetector2(TagFamily tagFamily, double fc[], double cc[], double kc[], double alpha)
     {
@@ -236,7 +236,7 @@ public class TagDetector2
     {
         if(distorionCorrection && pd == null)
         {
-            pd = new PointDistortion(fc, cc, kc, alpha, im.getWidth(), im.getHeight(), 1);
+            pd = new Distortion(fc, cc, kc, alpha, im.getWidth(), im.getHeight(), 1);
         }
         
         this.opticalCenter = opticalCenter;
