@@ -1,10 +1,11 @@
-package mihai.camera;
+package mihai.calibration;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-
+import mihai.camera.ImageReader;
+import mihai.camera.TagDetector2;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.PointLocator;

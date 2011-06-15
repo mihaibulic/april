@@ -1,4 +1,4 @@
-package mihai.camera;
+package mihai.calibration;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import javax.swing.JButton;
 import javax.swing.JPanel;
+import mihai.camera.ImageReader;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.Distortion;
@@ -19,6 +20,7 @@ import april.jmat.Function;
 import april.jmat.LinAlg;
 import april.jmat.Matrix;
 import april.jmat.NumericalJacobian;
+import april.jmat.SingularValueDecomposition;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import april.tag.TagDetector;
@@ -49,6 +51,7 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
     private VisWorld.Buffer vbImage;
     private VisWorld.Buffer vbDirections;
     private VisWorld.Buffer vbStatus;
+    private VisWorld.Buffer vbGray;
 
     private final static int CORNERS = 4;
     private final static int MOSAIC_WIDTH = 6;
@@ -101,6 +104,8 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
             vbStatus.setDrawOrder(2);
             vbDirections = vw.getBuffer("directions");
             vbDirections.setDrawOrder(3);
+            vbGray = vw.getBuffer("gray");
+            vbGray.setDrawOrder(4);
             
             ir.addListener(this);
             ir.start();
@@ -165,7 +170,7 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
         vbDirections.addBuffered(new VisText(VisText.ANCHOR.TOP, 
                 "DIRECTIONS: Place tag mosaic in front of camera such that all tag corners are visible\n" + 
                 "NOTE: make sure the mosaic is flat and takes up most of the camera image.  " + 
-                "Also make sure it is not angled with respect to the camera\n" + 
+                "Also make sure it is not angled too much with respect to the camera\n" + 
                 "HINT: Cover up one tag to prevent the software from detecting all tags until " + 
                 "the mosaic is in good position"));
         vbDirections.switchBuffer();
@@ -232,12 +237,9 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
     private Config calibrationSolver(double[][] tagCorners, int width, int height, String format, 
             Config config, String configPath, String url) throws ConfigException, IOException
     {
-//        fc = new double[]{ 477.58538, 477.44867 }; // better init?
-//        cc = new double[]{ 382.09257, 257.16459 };
-//        kc = new double[]{ -0.29415, 0.12798, 0.00056, 0.00014, 0.00000 };
         fc = new double[]{ 500, 500}; // better init?
         cc = new double[]{ width/2.0, height/2.0};
-        kc = new double[]{ 0,0,0,0,0 };
+        kc = new double[]{ 0, 0, 0, 0, 0 };
         alpha = 0;
 
         double i[] = getI(fc,cc,kc,alpha);
@@ -251,17 +253,17 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
         double eps[] = new double[i.length];
         for (int x = 0; x < eps.length; x++)
         {
-            eps[x] = 0.000001;
+            eps[x] = 0.00001;
         }
 
-        vbStatus.addBuffered(new VisChain(new VisRectangle(new double[] { 0, 0 }, new double[] { width, height }, 
+        vbGray.addBuffered(new VisChain(new VisRectangle(new double[] { 0, 0 }, new double[] { width, height }, 
                 new VisDataFillStyle(new Color(0x55FFFFFF, true)))));
-        vbStatus.switchBuffer();
+        vbGray.switchBuffer();
 
         String[] dots = {".   ", "..  ", "... ", "...."};
         int count = 0;
-        int ittLimit = 250;
-        double threshold = 3.6;
+        int ittLimit = 500;
+        double threshold = 0.3;
         while (!shouldStop(r, oldR, threshold) && ++count < ittLimit && !reset)
         {
             vbDirections.addBuffered(new VisText(VisText.ANCHOR.TOP, "Please wait while calibration takes place" + dots[count%dots.length] + "\n " +
@@ -274,8 +276,10 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
             // compute jacobian
             double _J[][] = NumericalJacobian.computeJacobian(s, i, eps);
             Matrix J = new Matrix(_J);
+            Matrix JtJ = J.transpose().times(J);
             
-            Matrix JTtimesJplusI = (J.transpose().times(J)).plus(Matrix.identity(i.length, i.length));
+            SingularValueDecomposition svd = new SingularValueDecomposition(JtJ);
+            Matrix JTtimesJplusI = JtJ.plus(scaledIdentityMatrix(i.length, scale(svd.getSingularValues())));
             Matrix JTr = J.transpose().times(Matrix.columnMatrix(r));
             
             Matrix dx = null;
@@ -285,9 +289,7 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
             } catch(Exception e)
             {
                 e.printStackTrace();
-                vbStatus.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, 
-                    "<<red, big>>Error: unable to calculate intrinsics from given image, please try again"));
-                reset = true;
+                errorReset();
                 break;
             }
 
@@ -307,28 +309,64 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
             }
 
             // compute residual
+            vbStatus.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, 
+                    "count: " + count + ", min: " + Util.round(LinAlg.magnitude(r),3)));
+            vbStatus.switchBuffer();
             oldR = r.clone();
             r = LinAlg.scale(s.evaluate(i), -1);
         }
         
-        fc = getFc(oldI);
-        cc = getCc(oldI);
-        kc = getKc(oldI);
-        alpha = getAlpha(oldI);
-        
-        config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "fc", fc);
-        config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "cc", cc);
-        config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "kc", kc);
-        config = Util.setValue(configPath, new String[]{Util.getSubUrl(config, url)}, "alpha", alpha);
+        if(shouldStop(r, oldR, threshold))
+        {
+            fc = getFc(oldI);
+            cc = getCc(oldI);
+            kc = getKc(oldI);
+            alpha = getAlpha(oldI);
+            
+            config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "fc", fc);
+            config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "cc", cc);
+            config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "kc", kc);
+            config = Util.setValue(configPath, new String[]{Util.getSubUrl(config, url)}, "alpha", alpha);
+        }
+        else
+        {
+            errorReset();
+        }
         
         return config;
     }
-
-    private static boolean shouldStop(double[] r, double[] oldR, double threshold)
+    
+    private double scale(double[] values)
     {
-        System.out.println("\t\t\t\t"+LinAlg.magnitude(r));
+        double max = Double.MIN_VALUE;
         
-        return (oldR != null && LinAlg.magnitude(r) < r.length*threshold && LinAlg.magnitude(r) < LinAlg.magnitude(oldR));
+        for(double v : values)
+        {
+            if(v > max)
+            {
+                max = v;
+            }
+        }
+        
+        return max/100000; // The max is much too large.  Without making it smaller, the step sizes become incredibly small
+    }
+    
+    private Matrix scaledIdentityMatrix(int size, double scale)
+    {
+        return new Matrix(LinAlg.scale(Matrix.identity(size, size).copyArray(), scale));
+    }
+
+    private void errorReset()
+    {
+        vbStatus.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, 
+        "<<red, big>>Error: unable to calculate intrinsics from given image, please try again"));
+        vbStatus.switchBuffer();
+        reset = true;
+    }
+    
+    private boolean shouldStop(double[] r, double[] oldR, double threshold)
+    {
+        return (oldR != null && LinAlg.magnitude(r) < r.length*threshold && LinAlg.magnitude(r) > LinAlg.magnitude(oldR));
     }
     
     class Straightness extends Function
@@ -376,9 +414,9 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
                 for (int x = 0; x < MOSAIC_WIDTH; x++)
                 {
                     topLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 0]);
-//                    topLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 1]);
+                    topLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 1]);
                     botLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 2]);
-//                    botLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 3]);
+                    botLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 3]);
                 }
                 straightness[cur++] = fitLine(topLine);
                 straightness[cur++] = fitLine(botLine);
@@ -389,46 +427,81 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
                 ArrayList<double[]> botLine = new ArrayList<double[]>();
                 for (int y = 0; y < MOSAIC_HEIGHT; y++)
                 {
-//                    topLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 0]);
+                    topLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 0]);
                     topLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 2]);
-//                    botLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 1]);
+                    botLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 1]);
                     botLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 3]);
                 }
                 straightness[cur++] = fitLine(topLine);
                 straightness[cur++] = fitLine(botLine);
             }
 
-            for(double s : straightness)
-                System.out.println(s);
-            
             return straightness;
         }
      
         public double fitLine(ArrayList<double[]> points)
         {
-            ArrayList<double[]> x = new ArrayList<double[]>(points.size());
-            ArrayList<double[]> y = new ArrayList<double[]>(points.size());
+            double ave[] = {0,0};
+            for(double[] p : points)
+            {
+                ave = LinAlg.add(p, ave);
+            }
+            ave = LinAlg.scale(ave, 1.0/points.size());
             
+            double XXminusYY = 0;
+            double xy = 0;
             for(int i = 0; i < points.size(); i++)
             {
-                x.add(new double[]{(i+1)*100, points.get(i)[0]});
-                y.add(new double[]{(i+1)*100, points.get(i)[1]});
+                double p[] = LinAlg.subtract(points.get(i), ave);
+                XXminusYY += (p[0]*p[0])-(p[1]*p[1]); 
+                xy += p[0]*p[1]; // (x^2 - y^2)/xy
+                points.set(i, p);
             }
             
-            return Math.max(LinAlg.fitLine(x)[2], LinAlg.fitLine(y)[2]);
+            double error = 0;
+            if(xy != 0)
+            {
+                double a = XXminusYY/xy;
+                
+                double roots[] = { Math.atan((-a + Math.sqrt(4+sq(a)))/2), 
+                                   Math.atan((-a - Math.sqrt(4+sq(a)))/2) };
+        
+                double errors[] = {0,0};
+                for(int i = 0; i < roots.length; i++)
+                {
+                    for(double[] p: points)
+                    {
+                        //y'  =  -x sin(q) + y cos(q)
+                        errors[i] += sq(-p[0]*Math.sin(roots[i]) + p[1]*Math.cos(roots[i]));  
+                    }
+                }
+                
+                error = Math.min(errors[0], errors[1]);
+            }
+            else // special case: all points have either the same x or the same y values (clearly this means the error of the line is 0)
+            {
+                error = 0;
+            }
+            
+            return error/points.size();
+        }
+        
+        private double sq(double a)
+        {
+            return a*a;
         }
     }
     
     private void print(double[][] tagCorners, int width, int height, String format)
     {
         vbDirections.addBuffered(new VisText(VisText.ANCHOR.TOP, 
-                "Calibration complete.  Below are the intrinsic camera parameters:\n" + 
+                "Calibration is complete.  The intrinsics have been written to the config file:\n" + 
                 "focal length (x,y):  " + Util.round(fc[0],0) + ", " + Util.round(fc[1],0) + "\n" + 
                 "image center (x,y):  " + Util.round(cc[0],0) + ", " + Util.round(cc[1],0) + "\n" + 
                 "distortion parameters:  "+Util.round(kc[0],3)+", "+Util.round(kc[1],3)+", "+Util.round(kc[2],3)+", "+Util.round(kc[3],3)+", "+Util.round(kc[4],3) + "\n" +
                 "alpha:  " + Util.round(alpha,3)));
         vbDirections.switchBuffer();
-        vbStatus.switchBuffer();
+        vbGray.switchBuffer();
 
         Distortion d = new Distortion(fc, cc, kc, alpha, width, height, 0.1);
         TagDetector td = new TagDetector(new Tag36h11());

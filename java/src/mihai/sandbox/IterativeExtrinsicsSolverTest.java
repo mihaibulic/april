@@ -7,8 +7,8 @@ import java.util.HashMap;
 
 import javax.swing.JFrame;
 
-import mihai.camera.Camera;
-import mihai.camera.Tag;
+import mihai.calibration.Camera;
+import mihai.calibration.Tag;
 import mihai.vis.VisCamera;
 import april.jmat.Function;
 import april.jmat.LinAlg;

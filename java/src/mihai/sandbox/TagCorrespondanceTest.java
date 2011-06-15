@@ -5,7 +5,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Random;
 import javax.swing.JFrame;
-import mihai.camera.Camera;
+import mihai.calibration.Camera;
 import mihai.util.CameraException;
 import mihai.vis.VisCamera;
 import april.config.Config;

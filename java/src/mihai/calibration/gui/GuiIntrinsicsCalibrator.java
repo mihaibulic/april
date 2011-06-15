@@ -1,8 +1,10 @@
-package mihai.camera;
+package mihai.calibration.gui;
 
 import java.awt.Toolkit;
+import java.io.File;
 import java.io.IOException;
 import javax.swing.JFrame;
+import mihai.calibration.IntrinsicsCalibrator;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import april.config.Config;
@@ -28,7 +30,7 @@ public class GuiIntrinsicsCalibrator extends JFrame
         GetOpt opts = new GetOpt();
         
         opts.addBoolean('h', "help", false, "See this help screen");
-        opts.addString('n', "config", System.getenv("CONFIG")+"/camera.config", "location of config file");
+        opts.addString('n', "config", System.getenv("APRIL_CONFIG")+File.separator+"camera.config", "location of config file");
         opts.addString('u', "url", "dc1394://", "url of camera to use (only need to set if multiple dc1394 cameras are connected)");
         opts.addString('r', "resolution", "", "lo=380x240, hi=760x480 (overrides config resolution)");
         opts.addString('c', "colors", "", "gray8 or gray16 (overrides config color setting)");

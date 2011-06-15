@@ -1,4 +1,4 @@
-package mihai.camera;
+package mihai.calibration;
 
 import java.awt.BorderLayout;
 import java.awt.Color;

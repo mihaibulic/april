@@ -1,4 +1,4 @@
-package mihai.camera;
+package mihai.calibration;
 
 import java.util.ArrayList;
 import april.tag.TagDetection;

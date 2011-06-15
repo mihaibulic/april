@@ -8,9 +8,10 @@ public class ConfigException extends Exception
 	public static final int NULL_CONFIG = 2;
 	public static final int INVALID_VARIABLE = 3;
 	
+	private String msg = "Config Exception: ";
+	
 	public ConfigException(int error)
 	{
-		String msg = "Config Exception: ";
 		
 		switch(error)
 		{
@@ -28,5 +29,10 @@ public class ConfigException extends Exception
 		}
     
 	    System.err.println(msg);
+	}
+	
+	public String getErrorMessage()
+	{
+	    return msg;
 	}
 }

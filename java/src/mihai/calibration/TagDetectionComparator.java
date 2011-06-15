@@ -1,4 +1,4 @@
-package mihai.camera;
+package mihai.calibration;
 
 import java.util.Comparator;
 import april.tag.TagDetection;

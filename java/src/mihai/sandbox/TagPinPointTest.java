@@ -4,7 +4,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Random;
 import javax.swing.JFrame;
-import mihai.camera.Tag;
+import mihai.calibration.Tag;
 import mihai.util.PointLocator;
 import mihai.vis.VisCamera;
 import april.jmat.LinAlg;
