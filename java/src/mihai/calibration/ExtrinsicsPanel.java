@@ -403,16 +403,16 @@ public class ExtrinsicsPanel extends Broadcaster
             }
             vbDirections.switchBuffer();
             calculateItt();
-            
+
+            String output = "";
             for(int x = 0; x < cameras.size(); x++)
             {
                 Camera cam = cameras.get(x);
                 
                 double[] pos = cam.getXyzrpy();
-                directions.add("");
-                directions.add("camera: " + cam.getCameraId()); 
-                directions.add("    (x,y,z): " + Util.round(pos[0],3) + ", " + Util.round(pos[1],3) + ", " + Util.round(pos[2],3));
-                directions.add("    (r,p,y): " + Util.round(pos[3],3) + ", " + Util.round(pos[4],3) + ", " + Util.round(pos[5],3));
+                output += "camera: " + cam.getCameraId() + "\n"; 
+                output += "    (x,y,z): " + Util.round(pos[0],3) + ", " + Util.round(pos[1],3) + ", " + Util.round(pos[2],3) + "\n";
+                output += "    (r,p,y): " + Util.round(pos[3],3) + ", " + Util.round(pos[4],3) + ", " + Util.round(pos[5],3) + "\n\n";
 
                 try
                 {
@@ -437,10 +437,7 @@ public class ExtrinsicsPanel extends Broadcaster
                 }
             }
                 
-            for(int x = 0; x < directions.size(); x++)
-            {
-                vbDirections.addBuffered(new VisText(new double[]{text[0],text[1]-0.075*x}, VisText.ANCHOR.LEFT,directions.get(x)));
-            }
+            vbDirections.addBuffered(new VisText(VisText.ANCHOR.TOP_LEFT,output));
             vbDirections.switchBuffer();
             vbTags.switchBuffer();
             vbCameras.switchBuffer();

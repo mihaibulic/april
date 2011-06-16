@@ -20,6 +20,7 @@ import april.jmat.NumericalJacobian;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
 import april.vis.VisSphere;
+import april.vis.VisText;
 import april.vis.VisWorld;
 
 public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
@@ -31,6 +32,7 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
     private VisCanvas vc;
     private VisWorld.Buffer vbCameras;
     private VisWorld.Buffer vbObjects;
+    private VisWorld.Buffer vbDirections;
 //    private VisWorld.Buffer vbRays;
     
     private boolean display;
@@ -61,6 +63,11 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
             vbCameras = vw.getBuffer("cameras");
             vbCameras.setDrawOrder(3);
             vc.getViewManager().viewGoal.fit2D(new double[] { -1, -1 }, new double[] { 1, 1});
+            
+            vbDirections = vw.getBuffer("directions");
+            vbDirections.setDrawOrder(4);
+            vbDirections.addBuffered(new VisText(VisText.ANCHOR.TOP_LEFT,"Objects are now being tracked and published via LCM"));
+            vbDirections.switchBuffer();
         }
         
     }
