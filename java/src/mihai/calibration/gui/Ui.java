@@ -7,6 +7,7 @@ import java.awt.Insets;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import javax.swing.Box;
@@ -20,6 +21,7 @@ import javax.swing.JSeparator;
 import javax.swing.border.EmptyBorder;
 import mihai.calibration.ExtrinsicsPanel;
 import mihai.calibration.IntrinsicsPanel;
+import mihai.camera.CameraPlayerPanel;
 import mihai.tracker.ObjectTrackerPanel;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
@@ -41,10 +43,10 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
     private final static int SIZE = 6;
     private final static int INTRO = 0;
     private final static int CONFIG = 1;
-    private final static int SETTINGS = 2;
-    private final static int INTRINSICS = 5; // this is last so intrinsics+# can be unique
+    private final static int CAMERAS = 2;
     private final static int EXTRINSICS = 3;
     private final static int TRACK = 4;
+    private final static int INTRINSICS = 5; // this is last so intrinsics+# can be unique
     
     private ArrayList<Broadcaster> cards;
     private ArrayList<Broadcaster> intrinsics;
@@ -57,9 +59,10 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
 
     public Ui()
     {
-        super("Mult-Camera Calibrator");
+        super("Multi-Camera Calibrator");
         setLayout(new BorderLayout());
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setIconImage(Toolkit.getDefaultToolkit().getImage(System.getenv("APRIL_DOCS") + File.separator+"april-logo.png"));
         
         urls = new ArrayList<String>();
         cards = new ArrayList<Broadcaster>(SIZE);
@@ -69,7 +72,7 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
         {
             cards.add(INTRO, new IntroPanel(INTRO));
             cards.add(CONFIG, new ConfigPanel(CONFIG));
-            cards.add(SETTINGS, new SettingsPanel(SETTINGS));
+            cards.add(CAMERAS, new NullPanel(0));
             cards.add(EXTRINSICS, new NullPanel(0));
             cards.add(TRACK, new NullPanel(0));
             cards.add(INTRINSICS, new NullPanel(0));
@@ -84,7 +87,7 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
         }
         
         JPanel welcomePanel = new JPanel(new BorderLayout());
-        JLabel welcome = new JLabel("Mulit-Camera Calibrator", JLabel.CENTER);
+        JLabel welcome = new JLabel("Multi-Camera Calibrator", JLabel.CENTER);
         welcome.setFont(new Font("Serif", Font.PLAIN, 32));
         welcomePanel.add(welcome, BorderLayout.NORTH);
         welcomePanel.add(new JLabel("presented by the APRIL Lab", JLabel.CENTER), BorderLayout.CENTER);
@@ -141,12 +144,6 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
                 nextButton.setEnabled(false);
                 setSize(screenSize.width/2, screenSize.height);
             }
-            else if(card == SETTINGS)
-            {
-                nextButton.setEnabled(false);
-                cards.get(card).go(configPath);
-                setSize(screenSize.width, screenSize.height);
-            }
             else if(card >= INTRINSICS)
             {
                 int i = card-INTRINSICS;
@@ -155,8 +152,16 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
                 card = INTRINSICS;
                 setSize(screenSize.width, screenSize.height);
             }
+            else if(card == CAMERAS)
+            {
+                cards.get(card).go(configPath, urls.toArray(new String[urls.size()]));
+                cards.get(card).displayMsg("", false);
+                setSize(screenSize.width, screenSize.height);
+            }
             else if(card == EXTRINSICS)
             {
+                nextButton.setEnabled(false);
+                backButton.setEnabled(false);
                 cards.get(card).go(configPath, urls.toArray(new String[urls.size()]));
                 setSize(screenSize.width, screenSize.height);
             }
@@ -187,22 +192,22 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
         }
         else if(currentCard == CONFIG)
         {
-            setCurrentCard(SETTINGS);
-        }
-        else if(currentCard == SETTINGS)
-        {
             setCurrentCard(INTRINSICS);
         }
         else if(currentCard >= INTRINSICS)
         {
-            if(currentCard < INTRINSICS+urls.size()-1)
+            if(currentCard+1 == INTRINSICS+urls.size())
             {
-                setCurrentCard(INTRINSICS+1);
+                setCurrentCard(CAMERAS);
             }
             else
             {
-                setCurrentCard(EXTRINSICS);
+                setCurrentCard(INTRINSICS+1);
             }
+        }
+        else if(currentCard == CAMERAS)
+        {
+            setCurrentCard(EXTRINSICS);
         }
         else if(currentCard == EXTRINSICS)
         {
@@ -216,7 +221,7 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
         {
             setCurrentCard(INTRO);
         }
-        else if(currentCard == SETTINGS)
+        else if(currentCard == INTRINSICS)
         {
             setCurrentCard(CONFIG);
         }
@@ -224,13 +229,13 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
         {
             setCurrentCard(INTRINSICS-1);
         }
-        else if(currentCard == INTRINSICS)
+        else if(currentCard == CAMERAS)
         {
-            setCurrentCard(SETTINGS);
+            setCurrentCard(INTRINSICS+urls.size()-1);
         }
         else if(currentCard == EXTRINSICS)
         {
-            setCurrentCard(INTRINSICS+urls.size()-1);
+            setCurrentCard(CAMERAS);
         }
         else if(currentCard == TRACK)
         {
@@ -266,7 +271,20 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
     {
         if(id == currentCard)
         {
-            if(id == CONFIG)
+            if(id == EXTRINSICS)
+            {
+                if(ready == true)
+                {
+                    nextButton.setEnabled(true);
+                    backButton.setEnabled(true);
+                }
+                else
+                {
+                    setCurrentCard(CAMERAS);
+                    cards.get(CAMERAS).displayMsg("Error: no tags detected", true);
+                }
+            }
+            else if(id == CONFIG)
             {
                 try
                 {
@@ -284,12 +302,8 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
                     JOptionPane.showMessageDialog(this, e.getMessage());
                     e.printStackTrace();
                 }
-            }
-            else if(id == SETTINGS)
-            {
-                settingsDone = ready;
                 
-                nextButton.setEnabled(settingsDone);
+                settingsDone = ready;
                 if(settingsDone)
                 {
                     try
@@ -307,15 +321,10 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
                                 System.out.println(url);
                             }
                         }
-                        
-//                        for(int x = 0; x < info.length; x++)
-//                        {
-//                            urls.add(info[x]);
-//                            cards.add(x+INTRINSICS, new IntrinsicsPanel(INTRINSICS, info[x]));
-//                        }
 
+                        cards.set(CAMERAS, new CameraPlayerPanel(CAMERAS, 2));
                         cards.set(EXTRINSICS, new ExtrinsicsPanel(EXTRINSICS, urls.toArray(new String[urls.size()])));
-                        cards.set(TRACK, new ObjectTrackerPanel(TRACK, true, false));
+                        cards.set(TRACK, new ObjectTrackerPanel(TRACK, true));
                         
                         for(Broadcaster b : cards)
                         {

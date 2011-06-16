@@ -180,12 +180,17 @@ public class IntrinsicsPanel extends Broadcaster implements ImageReader.Listener
         }
         
         vc.getViewManager().viewGoal.fit2D(new double[] { 100, 125 }, new double[] { imageWidth - 100, imageHeight - 75 });
-        vbDirections.addBuffered(new VisText(VisText.ANCHOR.TOP, 
-                "DIRECTIONS: Place tag mosaic in front of camera such that all tag corners are visible\n" + 
-                "NOTE: make sure the mosaic is flat, takes up as much of the image as possible, \n" +
-                "and is as close to the edges of the image as possible (where the majority of distortion is present).\n" + 
-                "HINT: Cover up one tag to prevent the software from detecting all tags until " + 
-                "the mosaic is in good position"));
+        
+        double text = imageHeight+80;
+        String directions[] = {"DIRECTIONS: Place tag mosaic in front of camera such that all tag corners are visible", 
+                                "NOTE: make sure the mosaic is flat, takes up as much of the image as possible,",
+                                "       and is as close to the edges of the image as possible (where the majority of distortion is present).", 
+                                "HINT: Cover up one tag to prevent the software from detecting all tags until the mosaic is in good position"};
+        for(int x = 0; x < directions.length; x++)
+        {
+            vbDirections.addBuffered(new VisText(new double[]{0,text-18*x}, VisText.ANCHOR.LEFT,directions[x]));
+            
+        }
         vbDirections.switchBuffer();
 
         reset = false;
@@ -675,6 +680,17 @@ public class IntrinsicsPanel extends Broadcaster implements ImageReader.Listener
     @Override
     public void stop()
     {
-        kill = true;        
+        kill = true;
+        try
+        {
+            ir.kill();
+        } catch (InterruptedException e)
+        {
+            e.printStackTrace();
+        }
     }
+    
+    @Override
+    public void displayMsg(String msg, boolean error)
+    {}
 }

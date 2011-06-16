@@ -51,4 +51,7 @@ public class ConfigPanel extends Broadcaster implements ActionListener
         }
     }
 
+    @Override
+    public void displayMsg(String msg, boolean error)
+    {}
 }

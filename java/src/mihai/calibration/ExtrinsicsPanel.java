@@ -2,19 +2,10 @@ package mihai.calibration;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Insets;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.JButton;
-import javax.swing.JPanel;
-import javax.swing.JSeparator;
-import javax.swing.border.EmptyBorder;
 import mihai.calibration.gui.Broadcaster;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
@@ -33,7 +24,7 @@ import april.vis.VisRectangle;
 import april.vis.VisText;
 import april.vis.VisWorld;
 
-public class ExtrinsicsPanel extends Broadcaster implements ActionListener
+public class ExtrinsicsPanel extends Broadcaster
 {
     private static final long serialVersionUID = 1L;
     
@@ -43,16 +34,13 @@ public class ExtrinsicsPanel extends Broadcaster implements ActionListener
     private VisWorld.Buffer vbCameras;
     private VisWorld.Buffer vbTags;
 
-    private JButton beginButton;
-    private JButton cancelButton;
-    private String beginButtonText = "Begin";
-    private String cancelButtonText = "Cancel";
-    
-    private Color[] colors = {Color.BLACK, Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.LIGHT_GRAY};
+    private Color[] colors = {Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.LIGHT_GRAY};
     private ArrayList <Camera> cameras;
+    private double tagSize;
+    private String configPath;
+    private Config config;
     
-    private boolean run = false;
-    private Object lock = new Object();
+    private Calibrate calibrate;
     private boolean kill = false;
     
     public ExtrinsicsPanel(int id, String[] urls) throws ConfigException, CameraException, IOException, InterruptedException
@@ -61,6 +49,7 @@ public class ExtrinsicsPanel extends Broadcaster implements ActionListener
         
         vw = new VisWorld();
         vc = new VisCanvas(vw);
+        vc.setBackground(Color.BLACK);
         vbTags = vw.getBuffer("tags");
         vbTags.setDrawOrder(1);
         vbCameras = vw.getBuffer("cameras");
@@ -68,20 +57,7 @@ public class ExtrinsicsPanel extends Broadcaster implements ActionListener
         vbDirections = vw.getBuffer("directions");
         vbDirections.setDrawOrder(3);
         
-        beginButton = new JButton(beginButtonText);
-        cancelButton = new JButton(cancelButtonText);
-        beginButton.addActionListener(this);
-        cancelButton.addActionListener(this);
-        Box buttonBox = new Box(BoxLayout.X_AXIS);
-        buttonBox.setBorder(new EmptyBorder(new Insets(5, 10, 5, 10)));
-        buttonBox.add(beginButton);
-        buttonBox.add(Box.createHorizontalStrut(10));
-        buttonBox.add(cancelButton);
-        buttonBox.add(Box.createHorizontalStrut(30));
-        JSeparator separator = new JSeparator();
-        JPanel buttonPanel = new JPanel(new BorderLayout());
-        buttonPanel.add(separator, BorderLayout.NORTH);
-        buttonPanel.add(buttonBox, java.awt.BorderLayout.EAST);
+        vc.getViewManager().viewGoal.fit2D(new double[] { -1, -1 }, new double[] { 1, 1});
         
         add(vc, BorderLayout.CENTER);
     }
@@ -362,12 +338,123 @@ public class ExtrinsicsPanel extends Broadcaster implements ActionListener
         return cameras;
     }
 
+    class Calibrate extends Thread
+    {
+        public void run()
+        {
+            VisWorld.Buffer vbDirections = vw.getBuffer("directions");
+
+            double text[] = {-2.875, 1.35};
+            ArrayList<String> directions = new ArrayList<String>();
+            directions.add("Please wait while calibrating:");
+            directions.add("    Aggregating tags (~10 seconds/camera)...");
+            
+            for(int x = 0; x < directions.size(); x++)
+            {
+                vbDirections.addBuffered(new VisText(new double[]{text[0],text[1]-0.1*x}, VisText.ANCHOR.LEFT,directions.get(x)));
+                
+            }
+            vbDirections.switchBuffer();
+            
+            for (Camera camera : cameras)
+            {
+                try
+                {
+                    camera.aggregateTags(15, tagSize);
+                } catch (InterruptedException e)
+                {
+                    e.printStackTrace();
+                    return;
+                }
+            }
+
+            Collections.sort(cameras, new CameraComparator());
+            
+            try
+            {
+                directions.add("    Gathering tag correspondences...");
+                for(int x = 0; x < directions.size(); x++)
+                {
+                    vbDirections.addBuffered(new VisText(new double[]{text[0],text[1]-0.1*x}, VisText.ANCHOR.LEFT,directions.get(x)));
+                    
+                }
+                vbDirections.switchBuffer();
+                getAllCorrespondences();
+                
+                directions.add("    Initializing extrinsics (coarse adjustments)...");
+                for(int x = 0; x < directions.size(); x++)
+                {
+                    vbDirections.addBuffered(new VisText(new double[]{text[0],text[1]-0.1*x}, VisText.ANCHOR.LEFT,directions.get(x)));
+                }
+                vbDirections.switchBuffer();
+                initializeExtrinsics();
+            } catch (CameraException e)
+            {
+                e.printStackTrace();
+                alertListener(false);
+                return;
+            }
+            
+            directions.add("    Itteratively resolving extrinsics (fine adjustments)...");
+            for(int x = 0; x < directions.size(); x++)
+            {
+                vbDirections.addBuffered(new VisText(new double[]{text[0],text[1]-0.1*x}, VisText.ANCHOR.LEFT,directions.get(x)));
+                
+            }
+            vbDirections.switchBuffer();
+            calculateItt();
+            
+            for(int x = 0; x < cameras.size(); x++)
+            {
+                Camera cam = cameras.get(x);
+                
+                double[] pos = cam.getXyzrpy();
+                directions.add("");
+                directions.add("camera: " + cam.getCameraId()); 
+                directions.add("    (x,y,z): " + Util.round(pos[0],3) + ", " + Util.round(pos[1],3) + ", " + Util.round(pos[2],3));
+                directions.add("    (r,p,y): " + Util.round(pos[3],3) + ", " + Util.round(pos[4],3) + ", " + Util.round(pos[5],3));
+
+                try
+                {
+                    Util.setValues(configPath, new String[]{Util.getSubUrl(config, cam.getUrl())}, "xyzrpy", pos);
+                } catch (ConfigException e)
+                {
+                    e.printStackTrace();
+                } catch (IOException e)
+                {
+                    e.printStackTrace();
+                }
+                
+                
+                double[][] camM = cam.getTransformationMatrix();
+                vbCameras.addBuffered(new VisChain(camM, new VisCamera(colors[x], 0.08)));
+                
+                for (Tag tag : cam.getTagsList())   
+                {
+                    double tagM[][] = tag.getTransformationMatrix();
+                    vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
+                            new VisDataLineStyle(colors[x], 2))));
+                }
+            }
+                
+            for(int x = 0; x < directions.size(); x++)
+            {
+                vbDirections.addBuffered(new VisText(new double[]{text[0],text[1]-0.075*x}, VisText.ANCHOR.LEFT,directions.get(x)));
+            }
+            vbDirections.switchBuffer();
+            vbTags.switchBuffer();
+            vbCameras.switchBuffer();
+            
+            alertListener(true);
+        }
+    }
+    
     @Override
     public void go(String configPath, String...urls)
     {
-        Config config = null;
         try
         {
+            this.configPath = configPath;
             config = new ConfigFile(configPath);
             Util.verifyConfig(config);
         } catch (IOException e)
@@ -378,7 +465,7 @@ public class ExtrinsicsPanel extends Broadcaster implements ActionListener
             e.printStackTrace();
         }
         
-        double tagSize = config.requireDouble("extrinsics_tag_size");
+        tagSize = config.requireDouble("extrinsics_tag_size");
 
         cameras = new ArrayList<Camera>();
         for(String url : urls)
@@ -401,69 +488,9 @@ public class ExtrinsicsPanel extends Broadcaster implements ActionListener
                 e.printStackTrace();
             }
         }
-        
-        
-        synchronized(lock)
-        {
-            while(!run)
-            {
-                try
-                {
-                    lock.wait();
-                } catch (InterruptedException e)
-                {
-                    e.printStackTrace();
-                }
-            }
-            
-            for (Camera camera : cameras)
-            {
-                try
-                {
-                    camera.aggregateTags(15, tagSize);
-                } catch (InterruptedException e)
-                {
-                    e.printStackTrace();
-                }
-            }
     
-            Collections.sort(cameras, new CameraComparator());
-            
-            try
-            {
-                getAllCorrespondences();
-                initializeExtrinsics();
-            } catch (CameraException e)
-            {
-                e.printStackTrace();
-            }
-            
-            calculateItt();
-            String output = "";
-            for(int x = 0; x < cameras.size(); x++)
-            {
-                Camera cam = cameras.get(x);
-                
-                double[] pos = cam.getXyzrpy();
-                output += "camera: " + cam.getCameraId() + 
-                                "\n(x,y,z): " + pos[0] + ", " + pos[1] + ", " + pos[2] +
-                                "\n(r,p,y): " + pos[3] + ", " + pos[4] + ", " + pos[5] + "\n\n";
-                
-                double[][] camM = cam.getTransformationMatrix();
-                vbCameras.addBuffered(new VisChain(camM, new VisCamera(colors[x], 0.08)));
-                
-                for (Tag tag : cam.getTagsList())   
-                {
-                    double tagM[][] = tag.getTransformationMatrix();
-                    vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
-                            new VisDataLineStyle(colors[x], 2))));
-                }
-            }
-                
-            vbDirections.addBuffered(new VisText(VisText.ANCHOR.TOP_LEFT, output));
-            vbTags.switchBuffer();
-            vbCameras.switchBuffer();
-        }
+        calibrate = new Calibrate();
+        calibrate.start();
     }
     
     @Override
@@ -472,23 +499,17 @@ public class ExtrinsicsPanel extends Broadcaster implements ActionListener
         kill = true;
         for(Camera cam : cameras)
         {
-            cam.kill();
-        }
-    }
-
-    public void actionPerformed(ActionEvent ae)
-    {
-        if(ae.getActionCommand().equals(beginButtonText))
-        {
-            synchronized(lock)
+            try
             {
-                lock.notify();
+                cam.kill();
+            } catch (InterruptedException e)
+            {
+                e.printStackTrace();
             }
-        }   
-        else if(ae.getActionCommand().equals(cancelButtonText))
-        {
-            kill = true;
         }
     }
+    
+    @Override
+    public void displayMsg(String msg, boolean error)
+    {}
 }
-

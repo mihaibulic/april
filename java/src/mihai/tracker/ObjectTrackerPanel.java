@@ -2,7 +2,6 @@ package mihai.tracker;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Toolkit;
 import java.io.IOException;
 import java.util.ArrayList;
 import lcm.lcm.LCM;
@@ -20,10 +19,6 @@ import april.jmat.Matrix;
 import april.jmat.NumericalJacobian;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
-import april.vis.VisCircle;
-import april.vis.VisData;
-import april.vis.VisDataFillStyle;
-import april.vis.VisDataLineStyle;
 import april.vis.VisSphere;
 import april.vis.VisWorld;
 
@@ -32,14 +27,13 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
     private static final long serialVersionUID = 1L;
     private boolean run = true;
 
-    private VisWorld vw = new VisWorld();
-    private VisCanvas vc = new VisCanvas(vw);
-    private VisWorld.Buffer vbCameras = vw.getBuffer("cameras");
-    private VisWorld.Buffer vbObjects = vw.getBuffer("objects");
-    private VisWorld.Buffer vbRays = vw.getBuffer("rays");
+    private VisWorld vw;
+    private VisCanvas vc;
+    private VisWorld.Buffer vbCameras;
+    private VisWorld.Buffer vbObjects;
+//    private VisWorld.Buffer vbRays;
     
     private boolean display;
-    private boolean verbose;
     
     private Object lock = new Object();
     private boolean newObjects = false;
@@ -48,74 +42,85 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
     
     private LCM lcm = LCM.getSingleton();
 
-    private Color[] colors = {Color.BLACK, Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.LIGHT_GRAY};
+    private Color[] colors = {Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.LIGHT_GRAY};
     
-    public ObjectTrackerPanel(int id, boolean display, boolean verbose) throws ConfigException, CameraException, IOException 
+    public ObjectTrackerPanel(int id, boolean display) throws ConfigException, CameraException, IOException 
     {
         super(id, new BorderLayout());
         
         this.display = display;
-        this.verbose = verbose; 
+        
+        if(display)
+        {
+            vw = new VisWorld();
+            vc = new VisCanvas(vw);
+            //        vbRays = vw.getBuffer("rays");
+//            vbRays.setDrawOrder(1);
+            vbObjects = vw.getBuffer("objects");
+            vbObjects.setDrawOrder(2);
+            vbCameras = vw.getBuffer("cameras");
+            vbCameras.setDrawOrder(3);
+            vc.getViewManager().viewGoal.fit2D(new double[] { -1, -1 }, new double[] { 1, 1});
+        }
+        
     }
     
-    public void run()
+    class Tracker extends Thread
     {
-        if(display && verbose) System.out.println("ObjectTracker-run: Display started. Tracking objects...");
-        else if(verbose) System.out.println("ObjectTracker-run: Tracks started. Tracking objects...");
-        while(run)
+        public void run()
         {
-            synchronized(lock)
-            {
-                while(!newObjects)
-                {
-                    try
-                    {
-                        lock.wait();
-                    } catch(InterruptedException e)
-                    {
-                        e.printStackTrace();
-                    }
-                }
-                newObjects = false;
+            int count = 0;
             
-	            for(int id : objectManager.getIds())
-	            {
-                    SpaceObjectDetection found = triangulate(syncDetections(objectManager.getObjects(id)));
-                    if(!found.singularity)
+            while(run)
+            {
+                synchronized(lock)
+                {
+                    while(!newObjects)
                     {
-                        if(verbose)
+                        try
+                        {
+                            lock.wait();
+                        } catch(InterruptedException e)
+                        {
+                            e.printStackTrace();
+                        }
+                    }
+                    newObjects = false;
+                
+    	            for(int id : objectManager.getIds())
+    	            {
+                        SpaceObjectDetection found = triangulate(syncDetections(objectManager.getObjects(id)));
+                        if(!found.singularity)
                         {
                             System.out.println("ObjectTracker-run: Detection seen (id " + found.id+" @ " +
                                     found.xyzrpy[0]+", "+found.xyzrpy[1]+", "+found.xyzrpy[2] + ", " + 
                                     found.xyzrpy[3]+", "+found.xyzrpy[4]+", "+found.xyzrpy[5] + ")");
+                            
+                            object_t object = new object_t();
+                            object.id = found.id;
+                            object.utime = (long) found.timeStamp;
+                            object.xyzrpy = found.xyzrpy;
+                            object.transformation = found.transformation;
+                            
+                            lcm.publish("object"+found.id, object);
+                            
+                            if(display)
+                            {
+                                // TODO add granularity for what is displayed (only objects, certainty bubble, rays, etc.)
+                                vbObjects.addBuffered(new VisChain(LinAlg.translate(found.xyzrpy),new VisSphere(0.02, Color.white)));
+                            }
+                            objectManager.clearObjects(id);
                         }
-                        
-                        object_t object = new object_t();
-                        object.id = found.id;
-                        object.utime = (long) found.timeStamp;
-                        object.xyzrpy = found.xyzrpy;
-                        object.transformation = found.transformation;
-                        
-                        lcm.publish("object"+found.id, object);
-                        
-                        if(display)
-                        {
-                            // TODO add granularity for what is displayed (only objects, certainty bubble, rays, etc.)
-                            vbObjects.addBuffered(new VisChain(LinAlg.translate(found.xyzrpy),
-                                new VisCircle(0.1, new VisDataFillStyle(Color.black)), new VisSphere(0.01, Color.green)));
-                            vbObjects.switchBuffer();
-                        }
-                        objectManager.clearObjects(id);
-                    }
-	            }
-	            if(display)
-	            {
-	            }
-	            
-	        }
+    	            }
+    	            if(display && count++ % 2 == 0) 
+    	            {
+                        vbObjects.switchBuffer();
+    	            }
+    	        }
+            }
         }
     }
-
+    
     // FIXME sync up images
     private ArrayList<ImageObjectDetection> syncDetections(ArrayList<ImageObjectDetection> unsynced)
     {
@@ -147,7 +152,7 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
     
     private SpaceObjectDetection triangulate(ArrayList<ImageObjectDetection> objectDetections)
     {
-        if(objectDetections.size() < 3) return new SpaceObjectDetection(true);
+        if(objectDetections.size() < 2) return new SpaceObjectDetection(true);
         
         int length = 6;
         double threshold = 0.00001;
@@ -197,19 +202,19 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         {
             this.objects = objects;
             
-            for(ImageObjectDetection object : objects)
-            {
-                double theta = -1*Math.atan((object.uv[0]-object.cc[0])/object.fc[0]);
-                double phi = -1*Math.atan((object.uv[1]-object.cc[1])/object.fc[1]);
-                double[][] M = LinAlg.matrixAB(object.cameraTransformation, LinAlg.rotateY(theta));
-                M = LinAlg.matrixAB(M, LinAlg.rotateX(phi));
-                
-                ArrayList<double[]> ray = new ArrayList<double[]>();
-                ray.add(LinAlg.matrixToXyzrpy(M));
-                ray.add(LinAlg.matrixToXyzrpy(LinAlg.matrixAB(M, LinAlg.translate(0,0,-5))));
-                vbRays.addBuffered(new VisData(ray, new VisDataLineStyle(Color.green, 2)));            	
-            }
-            vbRays.switchBuffer();
+//            for(ImageObjectDetection object : objects)
+//            {
+//                double theta = -1*Math.atan((object.uv[0]-object.cc[0])/object.fc[0]);
+//                double phi = -1*Math.atan((object.uv[1]-object.cc[1])/object.fc[1]);
+//                double[][] M = LinAlg.matrixAB(object.cameraTransformation, LinAlg.rotateY(theta));
+//                M = LinAlg.matrixAB(M, LinAlg.rotateX(phi));
+//                
+//                ArrayList<double[]> ray = new ArrayList<double[]>();
+//                ray.add(LinAlg.matrixToXyzrpy(M));
+//                ray.add(LinAlg.matrixToXyzrpy(LinAlg.matrixAB(M, LinAlg.translate(0,0,-5))));
+//                vbRays.addBuffered(new VisData(ray, new VisDataLineStyle(Color.green, 2)));            	
+//            }
+//            vbRays.switchBuffer();
         }
         
         public double[] evaluate(double[] point)
@@ -303,11 +308,6 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         return stop;
     }
     
-    public void kill()
-    {
-        run = false;
-    }
-    
     public void handleDetections(ArrayList<ImageObjectDetection> objects, double[][] transformation)
     {
         synchronized(lock)
@@ -321,8 +321,17 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
     @Override
     public void stop()
     {
-        // TODO Auto-generated method stub
-        
+        run = false;
+        for(Track t : tracks)
+        {
+            try
+            {
+                t.kill();
+            } catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
@@ -333,7 +342,6 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
             Config config = new ConfigFile(configPath);
             Util.verifyConfig(config);
         
-            if(verbose) System.out.print("ObjectTracker-Constructor: starting imagereaders...");
             objectManager = new ObjectManager();
             tracks = new ArrayList<Track>();
             for(String url : urls)
@@ -343,6 +351,7 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
                     Track test = new Track(config.getChild(Util.getSubUrl(config, url)), url);
                     if(test.isGood())
                     {
+                        System.out.print("*");
                         test.addListener(this);
                         test.start();
                         tracks.add(test);
@@ -366,14 +375,10 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
             e.printStackTrace();
         }
         
-        if(verbose) System.out.println("done");
-
         if(display) 
         {
-            if(verbose) System.out.println("ObjectTracker-showGUI: Tracks started. Starting display...");
-            
-            add(vc, BorderLayout.CENTER);
-            setSize(Toolkit.getDefaultToolkit().getScreenSize());
+            vc.setBackground(Color.black);
+            add(vc);
             
             for(int x = 0; x < tracks.size(); x++)
             {
@@ -383,6 +388,10 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
             vbCameras.switchBuffer();
         }
         
-        run();
+        (new Tracker()).start();
     }
+    
+    @Override
+    public void displayMsg(String msg, boolean error)
+    {}
 }

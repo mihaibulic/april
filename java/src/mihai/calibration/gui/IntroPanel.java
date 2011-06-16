@@ -72,4 +72,8 @@ public class IntroPanel extends Broadcaster
     {
         //This method doesn't do anything since this panel doesn't do anything
     }
+    @Override
+    public void displayMsg(String msg, boolean error)
+    {}
+    
 }

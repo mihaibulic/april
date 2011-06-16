@@ -84,7 +84,7 @@ public class Track extends Thread implements ImageReader.Listener
         ir.start();
     }
     
-    public void kill()
+    public void kill() throws InterruptedException
     {
         ir.kill();
     }
@@ -100,17 +100,14 @@ public class Track extends Thread implements ImageReader.Listener
         ArrayList<TagDetection> tags = td.process(ImageConvert.convertToImage(format, width, height, image), cc);
         ArrayList<ImageObjectDetection> objects = new ArrayList<ImageObjectDetection>(tags.size());
         
-        if(tags.size() > 0)
+        for(TagDetection tag : tags)
         {
-            for(TagDetection tag : tags)
-            {
-                objects.add(new ImageObjectDetection(tag.id, id, timeStamp, tag.cxy, transformation, fc, cc));
-            }
-            
-            for (Listener listener : listeners)
-            {
-                listener.handleDetections(objects, transformation);
-            }
+            objects.add(new ImageObjectDetection(tag.id, id, timeStamp, tag.cxy, transformation, fc, cc));
+        }
+        
+        for (Listener listener : listeners)
+        {
+            listener.handleDetections(objects, transformation);
         }
     }
 }

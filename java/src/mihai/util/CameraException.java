@@ -43,6 +43,5 @@ public class CameraException extends Exception
         }
         
         System.err.println(msg);
-        System.exit(1);
     }
 }

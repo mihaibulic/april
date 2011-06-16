@@ -17,4 +17,8 @@ public class NullPanel extends Broadcaster
     @Override
     public void stop()
     {}
+    
+    @Override
+    public void displayMsg(String msg, boolean error)
+    {}
 }

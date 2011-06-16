@@ -92,6 +92,7 @@ public class Camera implements ImageReader.Listener
                 imageBuffers.wait();
             }
         }
+        ir.kill();
         
         TagDetector2 td = new TagDetector2(new Tag36h11(), fc, cc, kc, alpha);
         for(byte[] buffer: imageBuffers)
@@ -209,7 +210,7 @@ public class Camera implements ImageReader.Listener
         return ir.isGood();
     }
     
-    public void kill()
+    public void kill() throws InterruptedException
     {
         ir.kill();
     }
@@ -251,7 +252,6 @@ public class Camera implements ImageReader.Listener
     {
         if(imageBuffers.size() >= imageCount)
         {
-            ir.kill();
             synchronized(imageBuffers)
             {
                 imageBuffers.notify();

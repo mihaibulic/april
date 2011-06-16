@@ -15,6 +15,7 @@ public abstract class Broadcaster extends JPanel
         public void handle(int id, boolean ready, String ...info);
     }
     
+    public abstract void displayMsg(String msg, boolean error);
     public abstract void go(String configPath, String ...urls);
     public abstract void stop();
     

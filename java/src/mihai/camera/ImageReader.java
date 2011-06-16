@@ -32,6 +32,8 @@ public class ImageReader extends Thread
     private SyncErrorDetector sync;
 
     private boolean run;
+    private boolean done = false;
+    private Object lock = new Object(); 
     
     public interface Listener
     {
@@ -128,6 +130,11 @@ public class ImageReader extends Thread
     	}
         
         isrc.stop();
+        synchronized(lock)
+        {
+            done = true;
+            lock.notify();
+        }
     }
 
     private static Config setConfig(boolean loRes, boolean color16, int maxfps) throws IOException
@@ -201,12 +208,16 @@ public class ImageReader extends Thread
         Listeners.add(listener);
     }
     
-    /**
-     * Stops the imageReader thread in a safe way
-     */
-    public void kill()
+    public void kill() throws InterruptedException
     {
         run = false;
+        synchronized(lock)
+        {
+            while(!done)
+            {
+                lock.wait();
+            }
+        }
     }
     
     public boolean isGood()
