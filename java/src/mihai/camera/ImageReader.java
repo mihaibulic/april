@@ -12,6 +12,7 @@ import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
+import april.util.TimeUtil;
 
 /**
  * Sets camera to a certain resolution, color format, and framerate and reads off images (byte[]) and handles this for all subscribed listeners
@@ -112,7 +113,7 @@ public class ImageReader extends Thread
                     
                     for (Listener listener : Listeners)
                     {
-                        listener.handleImage(imageBuffer, 0, id);
+                        listener.handleImage(imageBuffer, TimeUtil.utime(), id);
                     }
                 } 
                 else if (status == SyncErrorDetector.RECOMMEND_ACTION)
