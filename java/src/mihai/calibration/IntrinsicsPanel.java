@@ -2,13 +2,19 @@ package mihai.calibration;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JPanel;
+import javax.swing.JSeparator;
+import javax.swing.border.EmptyBorder;
+import mihai.calibration.gui.Broadcaster;
 import mihai.camera.ImageReader;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
@@ -16,6 +22,7 @@ import mihai.util.Distortion;
 import mihai.util.PointUtil;
 import mihai.util.Util;
 import april.config.Config;
+import april.config.ConfigFile;
 import april.jcam.ImageConvert;
 import april.jmat.Function;
 import april.jmat.LinAlg;
@@ -34,7 +41,7 @@ import april.vis.VisRectangle;
 import april.vis.VisText;
 import april.vis.VisWorld;
 
-public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener, ActionListener
+public class IntrinsicsPanel extends Broadcaster implements ImageReader.Listener, ActionListener
 {
     private static final long serialVersionUID = 1L;
     
@@ -53,6 +60,9 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
     private VisWorld.Buffer vbStatus;
     private VisWorld.Buffer vbGray;
 
+    private JButton resetButton;
+    private String resetButtonText = "Reset";
+    
     private TagDetection tagsShort[][];
     private TagDetection tagsLong[][];
     private int shortTagLoc[][];
@@ -79,11 +89,9 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
     private static final int KC_4 = 8;
     private static final int ALPHA = 9;
 
-    public IntrinsicsCalibrator(Config config, String configPath, String url) throws IOException, ConfigException, CameraException
+    public IntrinsicsPanel(int id, String url) throws IOException, ConfigException, CameraException
     {
-        super(new BorderLayout());
-
-        Util.verifyConfig(config);
+        super(id, new BorderLayout());
 
         vw = new VisWorld();
         vc = new VisCanvas(vw);
@@ -98,22 +106,17 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
         vbGray.setDrawOrder(4);
         add(vc, BorderLayout.CENTER);
         
-        JButton resetButton = new JButton("Reset Calibration");
-        add(resetButton, BorderLayout.SOUTH);
+        resetButton = new JButton(resetButtonText);
         resetButton.addActionListener(this);
-        
-        ir = new ImageReader(config, url);
-        if (ir.isGood())
-        {
-            int imageWidth = ir.getWidth();
-            int imageHeight = ir.getHeight();
-            String format = ir.getFormat();
-            
-            ir.addListener(this);
-            ir.start();
-
-            new Calibrate(config, configPath, url, imageWidth, imageHeight, format).start();
-        }
+        Box buttonBox = new Box(BoxLayout.X_AXIS);
+        buttonBox.setBorder(new EmptyBorder(new Insets(5, 10, 5, 10)));
+        buttonBox.add(resetButton);
+        buttonBox.add(Box.createHorizontalStrut(30));
+        JSeparator separator = new JSeparator();
+        JPanel buttonPanel = new JPanel(new BorderLayout());
+        buttonPanel.add(separator, BorderLayout.NORTH);
+        buttonPanel.add(buttonBox, java.awt.BorderLayout.EAST);
+        add(buttonPanel, BorderLayout.SOUTH);
     }
 
     class Calibrate extends Thread
@@ -176,7 +179,7 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
             tagIDs.add(x + MOSAIC_OFFSET);
         }
         
-        vc.getViewManager().viewGoal.fit2D(new double[] { 100, 100 }, new double[] { imageWidth - 100, imageHeight - 100 });
+        vc.getViewManager().viewGoal.fit2D(new double[] { 100, 125 }, new double[] { imageWidth - 100, imageHeight - 75 });
         vbDirections.addBuffered(new VisText(VisText.ANCHOR.TOP, 
                 "DIRECTIONS: Place tag mosaic in front of camera such that all tag corners are visible\n" + 
                 "NOTE: make sure the mosaic is flat, takes up as much of the image as possible, \n" +
@@ -629,16 +632,49 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
         }
     }
 
-    public void kill()
-    {
-        kill = true;
-    }
-    
     public void actionPerformed(ActionEvent ae)
     {
-        if(ae.getActionCommand().equals("Reset Calibration"))
+        if(ae.getActionCommand().equals(resetButtonText))
         {
             reset = true;
         }
+    }
+    
+    @Override
+    public void go(String configPath, String...urls)
+    {
+        try
+        {
+            Config config = new ConfigFile(configPath);
+            Util.verifyConfig(config);
+            ir = new ImageReader(config, urls[0]);
+
+            if (ir.isGood())
+            {
+                int imageWidth = ir.getWidth();
+                int imageHeight = ir.getHeight();
+                String format = ir.getFormat();
+                
+                ir.addListener(this);
+                ir.start();
+                
+                new Calibrate(config, configPath, urls[0], imageWidth, imageHeight, format).start();
+            }
+        } catch (IOException e)
+        {
+            e.printStackTrace();
+        }catch (ConfigException e)
+        {
+            e.printStackTrace();
+        } catch (CameraException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void stop()
+    {
+        kill = true;        
     }
 }

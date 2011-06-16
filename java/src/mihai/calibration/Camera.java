@@ -209,6 +209,11 @@ public class Camera implements ImageReader.Listener
         return ir.isGood();
     }
     
+    public void kill()
+    {
+        ir.kill();
+    }
+    
     public void setMain(int main)
     {
         mainIndex = main;

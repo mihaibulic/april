@@ -12,10 +12,10 @@ public abstract class Broadcaster extends JPanel
     
     public interface Listener
     {
-        public void handle(int id, boolean ready, String info);
+        public void handle(int id, boolean ready, String ...info);
     }
     
-    public abstract void go();
+    public abstract void go(String configPath, String ...urls);
     public abstract void stop();
     
     public Broadcaster(int id, LayoutManager layout)

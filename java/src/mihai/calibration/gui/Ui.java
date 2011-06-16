@@ -8,6 +8,7 @@ import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.util.ArrayList;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -17,30 +18,36 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSeparator;
 import javax.swing.border.EmptyBorder;
+import mihai.calibration.ExtrinsicsPanel;
+import mihai.calibration.IntrinsicsPanel;
+import mihai.tracker.ObjectTrackerPanel;
+import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.Util;
 import april.config.Config;
 import april.config.ConfigFile;
+import april.jcam.ImageSource;
 
 public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
 {
     private static final long serialVersionUID = 1L;
     
-    private Config config;
+    private Config config = null;
+    private String configPath = null;
+    private ArrayList<String> urls;
+    private boolean settingsDone = false;
     
     private int currentCard = 0;
-    private final static int MIN = 0;
-    private final static int MAX = 6;
-    private final static int SIZE = 7;
+    private final static int SIZE = 6;
     private final static int INTRO = 0;
     private final static int CONFIG = 1;
-    private final static int CAMERAS = 2;
-    private final static int SETTINGS = 3;
-    private final static int INTRINSICS = 4;
-    private final static int EXTRINSICS = 5;
-    private final static int TRACK = 6;
+    private final static int SETTINGS = 2;
+    private final static int INTRINSICS = 5; // this is last so intrinsics+# can be unique
+    private final static int EXTRINSICS = 3;
+    private final static int TRACK = 4;
     
-    private Broadcaster[] cards = new Broadcaster[SIZE];
+    private ArrayList<Broadcaster> cards;
+    private ArrayList<Broadcaster> intrinsics;
     private JPanel mainPanel;
     
     private JButton nextButton;
@@ -54,21 +61,23 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
         setLayout(new BorderLayout());
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         
+        urls = new ArrayList<String>();
+        cards = new ArrayList<Broadcaster>(SIZE);
+        intrinsics = new ArrayList<Broadcaster>();
+        
         try
         {
-            cards[INTRO] = new IntroPanel(INTRO);
-            cards[CONFIG] = new ConfigPanel(CONFIG);
-            cards[CAMERAS] = new IntroPanel(CAMERAS);
-            cards[SETTINGS] = new IntroPanel(SETTINGS);
-            cards[INTRINSICS] = new IntroPanel(INTRINSICS);
-            cards[EXTRINSICS] = new IntroPanel(EXTRINSICS);
-            cards[TRACK] = new IntroPanel(TRACK);
+            cards.add(INTRO, new IntroPanel(INTRO));
+            cards.add(CONFIG, new ConfigPanel(CONFIG));
+            cards.add(SETTINGS, new SettingsPanel(SETTINGS));
+            cards.add(EXTRINSICS, new NullPanel(0));
+            cards.add(TRACK, new NullPanel(0));
+            cards.add(INTRINSICS, new NullPanel(0));
             
             for(Broadcaster b : cards)
             {
                 b.setListener(this);
             }
-            cards[TRACK] = new IntroPanel(TRACK);
         } catch (IOException e)
         {
             e.printStackTrace();
@@ -111,9 +120,9 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
     public void setCurrentCard(int card)
     {
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        setSize(screenSize.width, screenSize.height);
         nextButton.setEnabled(true);
         backButton.setEnabled(true);
+        currentCard = card;
         
         if(mainPanel != null)
         {
@@ -122,66 +131,110 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
         }
         try
         {
-            switch(card)
+            if(card == INTRO)
             {
-                case INTRO:
-                    backButton.setEnabled(false);
-                    setSize(screenSize.width/2, screenSize.height);
-                    break;
-                case CONFIG:
-                    nextButton.setEnabled(false);
-                    break;
-                case CAMERAS:
-                    
-                    break;
-                case SETTINGS:
-                    
-                    break;
-                case INTRINSICS:
-                    
-                    break;
-                case EXTRINSICS:
-                    
-                    break;
-                case TRACK:
-                    nextButton.setEnabled(false);
-                    break;
-                default:
-                    throw new InvalidCardException();
+                backButton.setEnabled(false);
+                setSize(screenSize.width/2, screenSize.height);
+            }
+            else if(card == CONFIG)
+            {
+                nextButton.setEnabled(false);
+                setSize(screenSize.width/2, screenSize.height);
+            }
+            else if(card == SETTINGS)
+            {
+                nextButton.setEnabled(false);
+                cards.get(card).go(configPath);
+                setSize(screenSize.width, screenSize.height);
+            }
+            else if(card >= INTRINSICS)
+            {
+                int i = card-INTRINSICS;
+                intrinsics.get(i).go(configPath, urls.get(i));
+                cards.set(INTRINSICS, intrinsics.get(i));
+                card = INTRINSICS;
+                setSize(screenSize.width, screenSize.height);
+            }
+            else if(card == EXTRINSICS)
+            {
+                cards.get(card).go(configPath, urls.toArray(new String[urls.size()]));
+                setSize(screenSize.width, screenSize.height);
+            }
+            else if(card == TRACK)
+            {
+                nextButton.setEnabled(false);
+                cards.get(card).go(configPath, urls.toArray(new String[urls.size()]));
+                setSize(screenSize.width, screenSize.height);
+            }
+            else
+            {
+                throw new InvalidCardException();   
             }
         } catch (InvalidCardException e)
         {
             e.printStackTrace();
         }
 
-        mainPanel = cards[card];
-        ((Broadcaster)mainPanel).go();
+        mainPanel = cards.get(card);
         add(mainPanel, BorderLayout.CENTER);
-        
-        currentCard = card;
     }
     
     public void gotoNextCard() throws InvalidCardException
     {
-        if(currentCard+1 >= MIN && currentCard+1 <= MAX)
+        if(currentCard == INTRO)
         {
-            setCurrentCard(++currentCard);
+            setCurrentCard(CONFIG);
         }
-        else
+        else if(currentCard == CONFIG)
         {
-            throw new InvalidCardException();
+            setCurrentCard(SETTINGS);
+        }
+        else if(currentCard == SETTINGS)
+        {
+            setCurrentCard(INTRINSICS);
+        }
+        else if(currentCard >= INTRINSICS)
+        {
+            if(currentCard < INTRINSICS+urls.size()-1)
+            {
+                setCurrentCard(INTRINSICS+1);
+            }
+            else
+            {
+                setCurrentCard(EXTRINSICS);
+            }
+        }
+        else if(currentCard == EXTRINSICS)
+        {
+            setCurrentCard(TRACK);
         }
     }
     
     public void gotoLastCard() throws InvalidCardException
     {
-        if(currentCard-1 >= MIN && currentCard-1 <= MAX)
+        if(currentCard == CONFIG)
         {
-            setCurrentCard(--currentCard);
+            setCurrentCard(INTRO);
         }
-        else
+        else if(currentCard == SETTINGS)
         {
-            throw new InvalidCardException();
+            setCurrentCard(CONFIG);
+        }
+        else if(currentCard > INTRINSICS)
+        {
+            setCurrentCard(INTRINSICS-1);
+        }
+        else if(currentCard == INTRINSICS)
+        {
+            setCurrentCard(SETTINGS);
+        }
+        else if(currentCard == EXTRINSICS)
+        {
+            setCurrentCard(INTRINSICS+urls.size()-1);
+        }
+        else if(currentCard == TRACK)
+        {
+            setCurrentCard(EXTRINSICS);
         }
     }
     
@@ -209,51 +262,80 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
         }
     }
 
-    public void handle(int id, boolean ready, String info)
+    public void handle(int id, boolean ready, String ...info )
     {
         if(id == currentCard)
         {
-            switch(id)
+            if(id == CONFIG)
             {
-                case INTRO:
-                    break;
-                case CONFIG:
+                try
+                {
+                    configPath = info[0];
+                    config = new ConfigFile(configPath);
+                    Util.verifyConfig(config);
+                    nextButton.setEnabled(ready);
+                } catch (IOException e)
+                {
+                    JOptionPane.showMessageDialog(this, "IO Exception: Unable to open file");
+                    e.printStackTrace();
+                    
+                } catch (ConfigException e)
+                {
+                    JOptionPane.showMessageDialog(this, e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+            else if(id == SETTINGS)
+            {
+                settingsDone = ready;
+                
+                nextButton.setEnabled(settingsDone);
+                if(settingsDone)
+                {
                     try
                     {
-                        config = new ConfigFile(info);
-                        Util.verifyConfig(config);
-                        nextButton.setEnabled(ready);
-                    } catch (IOException e)
-                    {
-                        JOptionPane.showMessageDialog(this, "IO Exception: Unable to open file");
-                        e.printStackTrace();
+                        ArrayList<String> allUrls = ImageSource.getCameraURLs();
                         
+                        int x = 0;
+                        for(String url : allUrls)
+                        {
+                            if(Util.isValidUrl(config, url))
+                            {
+                                urls.add(url);
+                                intrinsics.add(new IntrinsicsPanel(intrinsics.size()+INTRINSICS, url));
+                                x++;
+                                System.out.println(url);
+                            }
+                        }
+                        
+//                        for(int x = 0; x < info.length; x++)
+//                        {
+//                            urls.add(info[x]);
+//                            cards.add(x+INTRINSICS, new IntrinsicsPanel(INTRINSICS, info[x]));
+//                        }
+
+                        cards.set(EXTRINSICS, new ExtrinsicsPanel(EXTRINSICS, urls.toArray(new String[urls.size()])));
+                        cards.set(TRACK, new ObjectTrackerPanel(TRACK, true, false));
+                        
+                        for(Broadcaster b : cards)
+                        {
+                            b.setListener(this);
+                        }
                     } catch (ConfigException e)
                     {
-                        JOptionPane.showMessageDialog(this, e.getMessage());
                         e.printStackTrace();
-                    }
-                    break;
-                case CAMERAS:
-                    break;
-                case SETTINGS:
-                    break;
-                case INTRINSICS:
-                    break;
-                case EXTRINSICS:
-                    break;
-                case TRACK:
-                    break;
-                default:
-                    try
+                    } catch (CameraException e)
                     {
-                        throw new InvalidCardException();
-                    } catch (InvalidCardException e)
+                        e.printStackTrace();
+                    } catch (IOException e)
+                    {
+                        e.printStackTrace();
+                    } catch (InterruptedException e)
                     {
                         e.printStackTrace();
                     }
+                }
             }
         }
     }
-
 }

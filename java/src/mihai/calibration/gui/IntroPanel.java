@@ -63,7 +63,7 @@ public class IntroPanel extends Broadcaster
     }
 
     @Override
-    public void go()
+    public void go(String configPath, String...urls)
     {
         //This method doesn't do anything since this panel doesn't do anything
     }

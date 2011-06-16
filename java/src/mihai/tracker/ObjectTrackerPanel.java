@@ -5,10 +5,8 @@ import java.awt.Color;
 import java.awt.Toolkit;
 import java.io.IOException;
 import java.util.ArrayList;
-
-import javax.swing.JFrame;
-
 import lcm.lcm.LCM;
+import mihai.calibration.gui.Broadcaster;
 import mihai.lcmtypes.object_t;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
@@ -16,12 +14,10 @@ import mihai.util.Util;
 import mihai.vis.VisCamera;
 import april.config.Config;
 import april.config.ConfigFile;
-import april.jcam.ImageSource;
 import april.jmat.Function;
 import april.jmat.LinAlg;
 import april.jmat.Matrix;
 import april.jmat.NumericalJacobian;
-import april.util.GetOpt;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
 import april.vis.VisCircle;
@@ -31,13 +27,7 @@ import april.vis.VisDataLineStyle;
 import april.vis.VisSphere;
 import april.vis.VisWorld;
 
-/**
- * Tracks objects in 3d space given object detections from multiple cameras and known extrinsic camera parameters
- * 
- * @author Mihai Bulic
- *
- */
-public class ObjectTracker extends JFrame implements Track.Listener
+public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
 {
     private static final long serialVersionUID = 1L;
     private boolean run = true;
@@ -60,55 +50,12 @@ public class ObjectTracker extends JFrame implements Track.Listener
 
     private Color[] colors = {Color.BLACK, Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.LIGHT_GRAY};
     
-    
-    // TODO detect boundary tags and publish under boundary channel (use int[256][3])
-    
-    public ObjectTracker(Config config, boolean display, boolean verbose) throws ConfigException, CameraException, IOException 
+    public ObjectTrackerPanel(int id, boolean display, boolean verbose) throws ConfigException, CameraException, IOException 
     {
-        super("Object Tracker");
+        super(id, new BorderLayout());
         
-    	Util.verifyConfig(config);
-
         this.display = display;
         this.verbose = verbose; 
-        
-        if(verbose) System.out.print("ObjectTracker-Constructor: starting imagereaders...");
-        objectManager = new ObjectManager();
-        ArrayList<String> urls = ImageSource.getCameraURLs();
-        tracks = new ArrayList<Track>();
-        for(String url : urls)
-        {
-        	Track test = new Track(config.getChild(Util.getSubUrl(config, url)), url);
-        	if(test.isGood())
-        	{
-        		test.addListener(this);
-        		test.start();
-        		tracks.add(test);
-        	}
-        }
-        if(verbose) System.out.println("done");
-
-        if(display) showGui(tracks);
-        
-        run();
-    }
-    
-    private void showGui(ArrayList<Track> tracks)
-    {
-        if(verbose) System.out.println("ObjectTracker-showGUI: Tracks started. Starting display...");
-        
-        add(vc, BorderLayout.CENTER);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(Toolkit.getDefaultToolkit().getScreenSize());
-        
-        for(int x = 0; x < tracks.size(); x++)
-        {
-            double[][] camM = tracks.get(x).getTransformationMatrix();
-            vbCameras.addBuffered(new VisChain(camM, new VisCamera(colors[x], 0.08)));
-        }
-        vbCameras.switchBuffer();
-
-        setVisible(true);
     }
     
     public void run()
@@ -356,54 +303,6 @@ public class ObjectTracker extends JFrame implements Track.Listener
         return stop;
     }
     
-    /**
-     * @param args
-     * @throws Exception 
-     */
-    public static void main(String[] args) throws Exception
-    {
-    	GetOpt opts = new GetOpt();
-        
-        opts.addBoolean('h', "help", false, "See this help screen");
-        opts.addString('n', "config", System.getenv("CONFIG")+"/camera.config", "location of config file");
-        opts.addString('r', "resolution", "", "lo=380x240, hi=760x480 (overrides config resolution)");
-        opts.addString('c', "colors", "", "gray8 or gray16 (overrides config color setting)");
-        opts.addString('f', "fps", "", "framerate to use if player (overrides config framerate) ");
-        opts.addBoolean('d', "display", true, "if true will display a GUI with the camera and tag locations");
-        opts.addBoolean('v', "verbose", true, "if true will print out more information regarding calibrator's status");
-        
-        if (!opts.parse(args))
-        {
-            System.out.println("option error: " + opts.getReason());
-        }
-
-        if (opts.getBoolean("help"))
-        {
-            System.out.println("Usage: Track objects in 3D space.");
-            opts.doHelp();
-            System.exit(1);
-        }
-        
-        Config config = new ConfigFile(opts.getString("config"));
-        if(config == null) throw new ConfigException(ConfigException.NULL_CONFIG);
-    	if(!opts.getString("resolution").isEmpty())
-    	{
-    		config.setBoolean("loRes", opts.getString("resolution").contains("lo"));
-    	}
-    	if(!opts.getString("colors").isEmpty())
-    	{
-    		config.setBoolean("color16", opts.getString("colors").contains("16"));
-    	}
-    	if(!opts.getString("fps").isEmpty())
-    	{
-    		config.setInt("fps", Integer.parseInt(opts.getString("fps")));
-    	}
-
-        if (ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
-
-        new ObjectTracker(config, opts.getBoolean("display"), opts.getBoolean("verbose")); 
-    }
-    
     public void kill()
     {
         run = false;
@@ -417,5 +316,73 @@ public class ObjectTracker extends JFrame implements Track.Listener
             newObjects = true;
             lock.notify();
         }        
+    }
+
+    @Override
+    public void stop()
+    {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void go(String configPath, String... urls)
+    {
+        try
+        {
+            Config config = new ConfigFile(configPath);
+            Util.verifyConfig(config);
+        
+            if(verbose) System.out.print("ObjectTracker-Constructor: starting imagereaders...");
+            objectManager = new ObjectManager();
+            tracks = new ArrayList<Track>();
+            for(String url : urls)
+            {
+                try
+                {
+                    Track test = new Track(config.getChild(Util.getSubUrl(config, url)), url);
+                    if(test.isGood())
+                    {
+                        test.addListener(this);
+                        test.start();
+                        tracks.add(test);
+                    }
+                } catch (ConfigException e)
+                {
+                    e.printStackTrace();
+                } catch (CameraException e)
+                {
+                    e.printStackTrace();
+                } catch (IOException e)
+                {
+                    e.printStackTrace();
+                }
+            }
+        } catch (IOException e1)
+        {
+            e1.printStackTrace();
+        } catch (ConfigException e)
+        {
+            e.printStackTrace();
+        }
+        
+        if(verbose) System.out.println("done");
+
+        if(display) 
+        {
+            if(verbose) System.out.println("ObjectTracker-showGUI: Tracks started. Starting display...");
+            
+            add(vc, BorderLayout.CENTER);
+            setSize(Toolkit.getDefaultToolkit().getScreenSize());
+            
+            for(int x = 0; x < tracks.size(); x++)
+            {
+                double[][] camM = tracks.get(x).getTransformationMatrix();
+                vbCameras.addBuffered(new VisChain(camM, new VisCamera(colors[x], 0.08)));
+            }
+            vbCameras.switchBuffer();
+        }
+        
+        run();
     }
 }
