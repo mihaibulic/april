@@ -1,11 +1,12 @@
 package mihai.util;
 
+import java.util.ArrayList;
 import april.jmat.Function;
 import april.jmat.LinAlg;
 import april.jmat.Matrix;
 import april.jmat.NumericalJacobian;
 
-public class PointLocator
+public class PointUtil
 {
     public static double[] calculateItt(double[][][] transformations)
     {
@@ -118,5 +119,66 @@ public class PointLocator
         }
         
         return average;
+    }
+    
+    /**
+     * @param points
+     * @return {px, py, t, e} where
+     *      (px, py) = point on the fitted line
+     *      t = theta value of the line
+     *      e = error of fit
+     */
+    public static double[] fitLine(ArrayList<double[]> points)
+    {
+        double line[] = null;
+        
+        double ave[] = {0,0};
+        for(double[] p : points)
+        {
+            ave = LinAlg.add(p, ave);
+        }
+        ave = LinAlg.scale(ave, 1.0/points.size());
+        
+        double XXminusYY = 0;
+        double xy = 0;
+        for(int i = 0; i < points.size(); i++)
+        {
+            double p[] = LinAlg.subtract(points.get(i), ave);
+            XXminusYY += (p[0]*p[0])-(p[1]*p[1]); 
+            xy += p[0]*p[1]; // (x^2 - y^2)/xy
+            points.set(i, p);
+        }
+        
+        if(xy != 0)
+        {
+            double a = XXminusYY/xy;
+            
+            double roots[] = { Math.atan((-a + Math.sqrt(4+sq(a)))/2), 
+                               Math.atan((-a - Math.sqrt(4+sq(a)))/2) };
+    
+            double errors[] = {0,0};
+            for(int i = 0; i < roots.length; i++)
+            {
+                for(double[] p: points)
+                {
+                    //y'  =  -x sin(q) + y cos(q)
+                    errors[i] += sq(-p[0]*Math.sin(roots[i]) + p[1]*Math.cos(roots[i]));  
+                }
+            }
+            
+            line = new double[]{ave[0], ave[1], roots[0], errors[0]/points.size()};
+            if(errors[0] > errors[1])
+            {
+                line[2] = roots[1];
+                line[3] = errors[1]/points.size();
+            }
+        }
+        else // XXX must fix because this is not right
+        {
+            System.out.println("*");
+            line = new double[]{ave[0], ave[1], 0, 0};
+        }
+        
+        return line;
     }
 }

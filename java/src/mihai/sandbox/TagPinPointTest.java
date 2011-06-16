@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.Random;
 import javax.swing.JFrame;
 import mihai.calibration.Tag;
-import mihai.util.PointLocator;
+import mihai.util.PointUtil;
 import mihai.vis.VisCamera;
 import april.jmat.LinAlg;
 import april.vis.VisCanvas;
@@ -57,7 +57,7 @@ public class TagPinPointTest extends JFrame
                 points[b] = detections.get(start+b).getXyzrpy();
             }
             
-            locations.add(new Tag(PointLocator.calculateItt(points), last_id)); 
+            locations.add(new Tag(PointUtil.calculateItt(points), last_id)); 
         }
         
         VisWorld vw = new VisWorld();

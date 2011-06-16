@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.StringTokenizer;
 import april.config.Config;
 import april.config.ConfigFile;
 
@@ -17,6 +18,8 @@ public class Util
 {
     
     /**
+     * WARNING: if value is < 0.001 it will be written as 0 to avoid scientific notation
+     * 
      *ex: lets say we want to set root->child2->kid3->v1 to {1, 2, 3} in the following config 
      *      structure which is in a config file located under /home/april/test.config
      *                  root
@@ -30,6 +33,7 @@ public class Util
      * @param configPath - The filepath to the config file to be modified
      *         ex: "/home/april/test.config"
      * @param path - the path internal to the config file to find the variable to be changed
+     *         make array of size 0 if it is in root
      *         ex: {"child2", "kid3"}
      * @param variable - the variable name that will be changed
      *         ex: "v1"
@@ -54,101 +58,8 @@ public class Util
     }
     
     /**
-     *ex: lets say we want to set root->child2->kid3->v1 to "{ ":)", ":(", ":*", ";)" }" 
-     *      in the following config structure which is in a config file located 
-     *      under /home/april/test.config
-     *                  root
-     *                  /   \
-     *            child1    child2
-     *            /    \    /    \
-     *       kid1    kid2  kid3   kid4
-     *       /  \    / \   / \    / \
-     *     v1   v2  v1 v2 v1 v2  v1 v2       
+     * WARNING: if value is < 0.001 it will be written as 0 to avoid scientific notation
      * 
-     * @param configPath - The filepath to the config file to be modified
-     *         ex: "/home/april/test.config"
-     * @param path - the path internal to the config file to find the variable to be changed
-     *         ex: {"child2", "kid3"}
-     * @param variable - the variable name that will be changed
-     *         ex: "v1"
-     * @param value - the new value for the variable to be changed
-     *         ex: "{ ":)", ":(", ":*", ";)" }"
-     * @return - the new Config which contains the new variable value
-     * @throws ConfigException
-     * @throws IOException
-     */
-    public static Config setValues(String configPath, String[] path, String variable, String[] value) throws ConfigException, IOException
-    {
-        int index = 0;
-        boolean found = false;
-        
-        try
-        {
-            BufferedReader in = new BufferedReader(new InputStreamReader(new DataInputStream(new FileInputStream(configPath))));
-            
-            String strLine = null;
-            ArrayList<String> file = new ArrayList<String>();
-            while ((strLine = in.readLine()) != null)   
-            {
-                String copy = strLine;
-                if(copy.contains("//"))
-                {
-                    copy = strLine.substring(0, strLine.indexOf("//"));
-                }
-
-                if(index < path.length)
-                {
-                    if(copy.contains(path[index]))
-                    {
-                        index++;
-                    }
-                }
-                else if(copy.contains(variable))
-                {
-                    String[] split = strLine.split("[=,;, ,\t,\n]");
-                    for(String token : split)
-                    {
-                        if(token.equals(variable))
-                        {
-                            found = true;
-                            String front = strLine.substring(0, strLine.indexOf("[")+1);
-                            String back  = strLine.substring(strLine.indexOf("]"), strLine.length());
-                            strLine = front;
-                            for(int x = 0; x < value.length; x++)
-                            {
-                                strLine += value[x] + ((x < value.length-1) ? ", " : ""); 
-                            }
-                            strLine += back;
-                            break;
-                        }
-                    }
-                }
-                file.add(strLine);
-            }
-            in.close();
-            File f = new File(System.getenv("CONFIG")+"/camera.config");
-            f.delete();
-            
-            BufferedWriter out = new BufferedWriter(new FileWriter(configPath));
-            for(String o : file)
-            {
-                out.write(o + "\n");            
-            }
-            out.close();
-        } catch (IOException e)
-        {
-            e.printStackTrace();
-        }
-        
-        if(!found)
-        {
-            throw new ConfigException(ConfigException.INVALID_VARIABLE);
-        }
-        
-        return new ConfigFile(configPath);
-    }
-    
-    /**
      *ex: lets say we want to set root->child2->kid3->v1 to 1 in the following config 
      *      structure which is in a config file located under /home/april/test.config
      *                  root
@@ -162,6 +73,7 @@ public class Util
      * @param configPath - The filepath to the config file to be modified
      *         ex: "/home/april/test.config"
      * @param path - the path internal to the config file to find the variable to be changed
+     *         make array of size 0 if it is in root
      *         ex: {"child2", "kid3"}
      * @param variable - the variable name that will be changed
      *         ex: "v1"
@@ -193,6 +105,7 @@ public class Util
      * @param configPath - The filepath to the config file to be modified
      *         ex: "/home/april/test.config"
      * @param path - the path internal to the config file to find the variable to be changed
+     *         make array of size 0 if it is in root
      *         ex: {"child2", "kid3"}
      * @param variable - the variable name that will be changed
      *         ex: "v1"
@@ -204,7 +117,38 @@ public class Util
      */
     public static Config setValue(String configPath, String[] path, String variable, String value) throws ConfigException, IOException
     {
+        return setValues(configPath, path, variable, new String[]{value});
+    }
+    
+    /**
+     *ex: lets say we want to set root->child2->kid3->v1 to "{ ":)", ":(", ":*", ";)" }" 
+     *      in the following config structure which is in a config file located 
+     *      under /home/april/test.config
+     *                  root
+     *                  /   \
+     *            child1    child2
+     *            /    \    /    \
+     *       kid1    kid2  kid3   kid4
+     *       /  \    / \   / \    / \
+     *     v1   v2  v1 v2 v1 v2  v1 v2       
+     * 
+     * @param configPath - The filepath to the config file to be modified
+     *         ex: "/home/april/test.config"
+     * @param path - the path internal to the config file to find the variable to be changed
+     *         make array of size 0 if it is in root
+     *         ex: {"child2", "kid3"}
+     * @param variable - the variable name that will be changed
+     *         ex: "v1"
+     * @param value - the new value for the variable to be changed
+     *         ex: "{ ":)", ":(", ":*", ";)" }"
+     * @return - the new Config which contains the new variable value
+     * @throws ConfigException
+     * @throws IOException
+     */
+    public static Config setValues(String configPath, String[] path, String variable, String[] value) throws ConfigException, IOException
+    {
         int index = 0;
+        int depth = 0;
         boolean found = false;
         
         try
@@ -213,46 +157,57 @@ public class Util
             
             String strLine = null;
             ArrayList<String> file = new ArrayList<String>();
-            while ((strLine = in.readLine()) != null)   
+            while ((strLine = in.readLine()) != null)
             {
-                String copy = strLine;
-                if(copy.contains("//"))
+                if(!found)
                 {
-                    copy = strLine.substring(0, strLine.indexOf("//"));
-                }
-
-                if(index < path.length)
-                {
-                    if(copy.contains(path[index]))
+                    String copy = strLine;
+                    if(copy.contains("//"))
                     {
-                        index++;
+                        copy = strLine.substring(0, strLine.indexOf("//"));
                     }
-                }
-                else if(copy.contains(variable))
-                {
-                    String[] split = strLine.split("[=,;, ,\t,\n]");
-                    for(String token : split)
+
+                    if(copy.contains("{"))
                     {
-                        if(token.equals(variable))
-                        {
-                            found = true;
-                            String front = strLine.substring(0, strLine.indexOf("=")+1);
-                            String back  = strLine.substring(strLine.indexOf(";"), strLine.length());
-                            strLine = front + " " + value + back;
-                            break;
+                        depth++;
+                        StringTokenizer st = new StringTokenizer(copy, "[=;\t\n{} "); 
+                        while(st.hasMoreTokens())
+                        { 
+                            if(index < path.length && st.nextToken().equals(path[index]))
+                            {
+                                index++;
+                            }
+                        }
+                    }
+                    else if(copy.contains("}"))
+                    {
+                        depth--;
+                    }
+                    else if(copy.contains(variable) && index == path.length && depth == path.length)
+                    {
+                        StringTokenizer st = new StringTokenizer(copy, "[=;\t\n{} "); 
+                        while(st.hasMoreTokens())
+                        { 
+                            String key = st.nextToken(); 
+                            if(key.equals(variable))
+                            {
+                                found = true;
+                                strLine = setLine(value, strLine);
+                                break;
+                            }
                         }
                     }
                 }
                 file.add(strLine);
             }
             in.close();
-            File f = new File(System.getenv("CONFIG")+"/camera.config");
+            File f = new File(configPath);
             f.delete();
             
             BufferedWriter out = new BufferedWriter(new FileWriter(configPath));
             for(String o : file)
             {
-                out.write(o + "\n");            
+                out.write(o + "\n");
             }
             out.close();
         } catch (IOException e)
@@ -262,10 +217,34 @@ public class Util
         
         if(!found)
         {
+            System.out.println(index + "\t" + depth);
             throw new ConfigException(ConfigException.INVALID_VARIABLE);
         }
         
         return new ConfigFile(configPath);
+    }
+
+    private static String setLine(String[] value, String strLine)
+    {
+        if(value.length > 1)
+        {
+            String front = strLine.substring(0, strLine.indexOf("[")+1);
+            String back  = strLine.substring(strLine.indexOf("]"), strLine.length());
+            strLine = front;
+            for(int x = 0; x < value.length; x++)
+            {
+                strLine += value[x] + ((x < value.length-1) ? ", " : ""); 
+            }
+            strLine += back;
+        }
+        else
+        {
+            String front = strLine.substring(0, strLine.indexOf("=")+1);
+            String back  = strLine.substring(strLine.indexOf(";"), strLine.length());
+            strLine = front + " " + value[0] + " " + back;
+        }
+        
+        return strLine;
     }
     
     /**

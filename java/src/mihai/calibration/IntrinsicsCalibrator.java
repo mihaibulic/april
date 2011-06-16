@@ -13,6 +13,7 @@ import mihai.camera.ImageReader;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.Distortion;
+import mihai.util.PointUtil;
 import mihai.util.Util;
 import april.config.Config;
 import april.jcam.ImageConvert;
@@ -37,7 +38,6 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
 {
     private static final long serialVersionUID = 1L;
     
-    private JButton resetButton;
     private boolean reset = true;
     private boolean kill = false;
     
@@ -53,11 +53,16 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
     private VisWorld.Buffer vbStatus;
     private VisWorld.Buffer vbGray;
 
+    private TagDetection tagsShort[][];
+    private TagDetection tagsLong[][];
+    private int shortTagLoc[][];
+    private int longTagLoc[][];
+    
     private final static int CORNERS = 4;
-    private final static int MOSAIC_WIDTH = 6;
-    private final static int MOSAIC_HEIGHT = 8;
+    private final static int MOSAIC_SHORT_SIZE = 6;
+    private final static int MOSAIC_LONG_SIZE = 8;
     private final static int MOSAIC_OFFSET = 10;
-    private final static int MOSAIC_SIZE = MOSAIC_HEIGHT*MOSAIC_WIDTH;
+    private final static int MOSAIC_SIZE = MOSAIC_LONG_SIZE*MOSAIC_SHORT_SIZE;
 
     private double fc[];
     private double cc[];
@@ -76,60 +81,59 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
 
     public IntrinsicsCalibrator(Config config, String configPath, String url) throws IOException, ConfigException, CameraException
     {
-        super();
-        setLayout(new BorderLayout());
+        super(new BorderLayout());
 
         Util.verifyConfig(config);
 
         vw = new VisWorld();
         vc = new VisCanvas(vw);
+        vc.setBackground(Color.BLACK);
+        vbImage = vw.getBuffer("image");
+        vbImage.setDrawOrder(1);
+        vbStatus = vw.getBuffer("status");
+        vbStatus.setDrawOrder(2);
+        vbDirections = vw.getBuffer("directions");
+        vbDirections.setDrawOrder(3);
+        vbGray = vw.getBuffer("gray");
+        vbGray.setDrawOrder(4);
         add(vc, BorderLayout.CENTER);
         
-        resetButton = new JButton("Reset Calibration");
+        JButton resetButton = new JButton("Reset Calibration");
         add(resetButton, BorderLayout.SOUTH);
         resetButton.addActionListener(this);
         
         ir = new ImageReader(config, url);
         if (ir.isGood())
         {
-            int width = ir.getWidth();
-            int height = ir.getHeight();
+            int imageWidth = ir.getWidth();
+            int imageHeight = ir.getHeight();
             String format = ir.getFormat();
-            
-            vc.setBackground(Color.BLACK);
-
-            vbImage = vw.getBuffer("image");
-            vbImage.setDrawOrder(1);
-            vbStatus = vw.getBuffer("status");
-            vbStatus.setDrawOrder(2);
-            vbDirections = vw.getBuffer("directions");
-            vbDirections.setDrawOrder(3);
-            vbGray = vw.getBuffer("gray");
-            vbGray.setDrawOrder(4);
             
             ir.addListener(this);
             ir.start();
 
-            new Calibrate(config, configPath, url, width, height, format).start();
+            new Calibrate(config, configPath, url, imageWidth, imageHeight, format).start();
         }
     }
 
     class Calibrate extends Thread
     {
-        Config config;
-        String configPath;
-        String url;
-        int width;
-        int height;
-        String format;
+        private Config config;
+        private String configPath;
+        private String url;
+
+        private int imageWidth;
+        private int imageHeight;
+        private String format;
         
-        public Calibrate(Config config, String configPath, String url, int width, int height, String format)
+        public Calibrate(Config config, String configPath, String url, int imageWidth, int imageHeight, String format)
         {
             this.config = config;
             this.configPath = configPath;
             this.url = url;
-            this.width = width;
-            this.height = height;
+            
+            this.imageWidth = imageWidth;
+            this.imageHeight = imageHeight;
             this.format = format;
         }
         
@@ -137,11 +141,11 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
         {
             while(!kill)
             {
-                double[][] tagCorners = getTags(width, height, format);
+                double[][] tagCorners = getTags(imageWidth, imageHeight, format);
 
                 try
                 {
-                    config = calibrationSolver(tagCorners, width, height, format, config, configPath, url);
+                    config = calibrationSolver(tagCorners, imageWidth, imageHeight, format, config, configPath, url);
                 } catch (ConfigException e)
                 {
                     e.printStackTrace();
@@ -150,31 +154,38 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
                     e.printStackTrace();
                 }
                 
-                print(tagCorners, width, height, format);
+                print(tagCorners, imageWidth, imageHeight, format);
             }
         }
     }
     
-    private double[][] getTags(int width, int height, String format)
+    private double[][] getTags(int imageWidth, int imageHeight, String format)
     {
-        BufferedImage image;
         double[][] tagCorners = new double[MOSAIC_SIZE * CORNERS][2];
         TagDetector td = new TagDetector(new Tag36h11());
+        tagsShort = new TagDetection[MOSAIC_SHORT_SIZE-2][2]; // not using tags on the end
+        tagsLong = new TagDetection[MOSAIC_LONG_SIZE-2][2];  // not using tags on the end
+        shortTagLoc = new int[][]{{11,12,13,14},{53,54,55,56}};
+        longTagLoc = new int[][]{{16,22,28,34,40,46},{21,27,33,39,45,51}};
+        
+        BufferedImage image = null;
+        
         ArrayList<Integer> tagIDs = new ArrayList<Integer>(MOSAIC_SIZE);
         for (int x = 0; x < MOSAIC_SIZE; x++)
         {
             tagIDs.add(x + MOSAIC_OFFSET);
         }
-
-        vc.getViewManager().viewGoal.fit2D(new double[] { 100, 100 }, new double[] { width - 100, height - 100 });
+        
+        vc.getViewManager().viewGoal.fit2D(new double[] { 100, 100 }, new double[] { imageWidth - 100, imageHeight - 100 });
         vbDirections.addBuffered(new VisText(VisText.ANCHOR.TOP, 
                 "DIRECTIONS: Place tag mosaic in front of camera such that all tag corners are visible\n" + 
-                "NOTE: make sure the mosaic is flat and takes up most of the camera image.  " + 
-                "Also make sure it is not angled too much with respect to the camera\n" + 
+                "NOTE: make sure the mosaic is flat, takes up as much of the image as possible, \n" +
+                "and is as close to the edges of the image as possible (where the majority of distortion is present).\n" + 
                 "HINT: Cover up one tag to prevent the software from detecting all tags until " + 
                 "the mosaic is in good position"));
         vbDirections.switchBuffer();
-        
+
+        reset = false;
         boolean tagsFound = false;
         while (!tagsFound)
         {
@@ -194,33 +205,57 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
                     }
                 }
                 imageReady = false;
-                image = ImageConvert.convertToImage(format, width, height, imageBuffer);
+                image = ImageConvert.convertToImage(format, imageWidth, imageHeight, imageBuffer);
             }
 
             vbImage.addBuffered(new VisImage(image));
-            ArrayList<TagDetection> tags = td.process(image, new double[] { width / 2.0, height / 2.0 });
+            ArrayList<TagDetection> tags = td.process(image, new double[] { imageWidth / 2.0, imageHeight / 2.0 });
             Color color = Color.RED;
-            for (TagDetection tag : tags)
+            for(TagDetection tag : tags)
             {
-                tagsToBeSeen.remove((Integer) tag.id);
-                double[] p0 = tag.interpolate(-1,  1); // do not change the order of these
-                double[] p1 = tag.interpolate( 1,  1);
-                double[] p2 = tag.interpolate(-1, -1);
-                double[] p3 = tag.interpolate( 1, -1);
-
-                tagCorners[(tag.id - MOSAIC_OFFSET) * CORNERS + 0] = p0;
-                tagCorners[(tag.id - MOSAIC_OFFSET) * CORNERS + 1] = p1;
-                tagCorners[(tag.id - MOSAIC_OFFSET) * CORNERS + 2] = p2;
-                tagCorners[(tag.id - MOSAIC_OFFSET) * CORNERS + 3] = p3;
-
-                vbImage.addBuffered(new VisChain(LinAlg.translate(p0[0], height - p0[1], 0.0), 
-                        new VisCircle(3, new VisDataFillStyle(color))));
-                vbImage.addBuffered(new VisChain(LinAlg.translate(p1[0], height - p1[1], 0.0), 
-                        new VisCircle(3, new VisDataFillStyle(color))));
-                vbImage.addBuffered(new VisChain(LinAlg.translate(p2[0], height - p2[1], 0.0), 
-                        new VisCircle(3, new VisDataFillStyle(color))));
-                vbImage.addBuffered(new VisChain(LinAlg.translate(p3[0], height - p3[1], 0.0), 
-                        new VisCircle(3, new VisDataFillStyle(color))));
+                if(tag.id >= MOSAIC_OFFSET && tag.id < MOSAIC_OFFSET+MOSAIC_SIZE)
+                {
+                    for(int a = 0; a < shortTagLoc.length; a++)
+                    {
+                        for(int x = 0; x < shortTagLoc[a].length; x++)
+                        {
+                            if(tag.id == shortTagLoc[a][x])
+                            {
+                                tagsShort[x][a] = tag;
+                            }
+                        }
+                    }
+                    for(int a = 0; a < longTagLoc.length; a++)
+                    {
+                        for(int y = 0; y < longTagLoc[a].length; y++)
+                        {
+                            if(tag.id == longTagLoc[a][y])
+                            {
+                                tagsLong[y][a] = tag;
+                            }
+                        }
+                    }
+                    
+                    tagsToBeSeen.remove((Integer) tag.id);
+                    double[] p0 = tag.interpolate(-1,  1); // do not change the order of these
+                    double[] p1 = tag.interpolate( 1,  1);
+                    double[] p2 = tag.interpolate(-1, -1);
+                    double[] p3 = tag.interpolate( 1, -1);
+    
+                    tagCorners[(tag.id - MOSAIC_OFFSET) * CORNERS + 0] = p0;
+                    tagCorners[(tag.id - MOSAIC_OFFSET) * CORNERS + 1] = p1;
+                    tagCorners[(tag.id - MOSAIC_OFFSET) * CORNERS + 2] = p2;
+                    tagCorners[(tag.id - MOSAIC_OFFSET) * CORNERS + 3] = p3;
+    
+                    vbImage.addBuffered(new VisChain(LinAlg.translate(p0[0], imageHeight - p0[1], 0.0), 
+                            new VisCircle(3, new VisDataFillStyle(color))));
+                    vbImage.addBuffered(new VisChain(LinAlg.translate(p1[0], imageHeight - p1[1], 0.0), 
+                            new VisCircle(3, new VisDataFillStyle(color))));
+                    vbImage.addBuffered(new VisChain(LinAlg.translate(p2[0], imageHeight - p2[1], 0.0), 
+                            new VisCircle(3, new VisDataFillStyle(color))));
+                    vbImage.addBuffered(new VisChain(LinAlg.translate(p3[0], imageHeight - p3[1], 0.0), 
+                            new VisCircle(3, new VisDataFillStyle(color))));
+                }
             }
 
             vbImage.switchBuffer();
@@ -229,23 +264,26 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
                 tagsFound = true;
             }
         }
-        reset = false;
         
         return tagCorners;
     }
 
-    private Config calibrationSolver(double[][] tagCorners, int width, int height, String format, 
+    private Config calibrationSolver(double[][] tagCorners, int imageWidth, int imageHeight, String format, 
             Config config, String configPath, String url) throws ConfigException, IOException
     {
+        double tagSize = config.requireDouble("mosaic_tag_size");
+        double smallSpacing = config.requireDouble("mosaic_small_spacing");
+        double largeSpacing = config.requireDouble("mosaic_large_spacing");
+        
         fc = new double[]{ 500, 500}; // better init?
-        cc = new double[]{ width/2.0, height/2.0};
+        cc = new double[]{ imageWidth/2.0, imageHeight/2.0};
         kc = new double[]{ 0, 0, 0, 0, 0 };
         alpha = 0;
 
         double i[] = getI(fc,cc,kc,alpha);
         double oldI[] = null;
         
-        Straightness s = new Straightness(tagCorners, width, height);
+        Straightness s = new Straightness(tagCorners, imageWidth, imageHeight, tagSize, tagsShort, tagsLong, smallSpacing, largeSpacing);
         
         double[] r = LinAlg.scale(s.evaluate(i), -1);
         double[] oldR = null;
@@ -256,14 +294,14 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
             eps[x] = 0.00001;
         }
 
-        vbGray.addBuffered(new VisChain(new VisRectangle(new double[] { 0, 0 }, new double[] { width, height }, 
+        vbGray.addBuffered(new VisChain(new VisRectangle(new double[] { 0, 0 }, new double[] { imageWidth, imageHeight }, 
                 new VisDataFillStyle(new Color(0x55FFFFFF, true)))));
         vbGray.switchBuffer();
 
         String[] dots = {".   ", "..  ", "... ", "...."};
         int count = 0;
         int ittLimit = 500;
-        double threshold = 0.3;
+        double threshold = 0.5;
         while (!shouldStop(r, oldR, threshold) && ++count < ittLimit && !reset)
         {
             vbDirections.addBuffered(new VisText(VisText.ANCHOR.TOP, "Please wait while calibration takes place" + dots[count%dots.length] + "\n " +
@@ -279,9 +317,10 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
             Matrix JtJ = J.transpose().times(J);
             
             SingularValueDecomposition svd = new SingularValueDecomposition(JtJ);
-            Matrix JTtimesJplusI = JtJ.plus(scaledIdentityMatrix(i.length, scale(svd.getSingularValues())));
+            double scale = getMax(svd.getSingularValues())/10000;
+            scale = scale > 500 ? 500 : scale < 0.1 ? 0.1 : scale; // limit the range of scale
+            Matrix JTtimesJplusI = JtJ.plus(scaledIdentityMatrix(i.length, scale));
             Matrix JTr = J.transpose().times(Matrix.columnMatrix(r));
-            
             Matrix dx = null;
             try
             {
@@ -289,7 +328,6 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
             } catch(Exception e)
             {
                 e.printStackTrace();
-                errorReset();
                 break;
             }
 
@@ -297,89 +335,79 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
             oldI = i.clone();
             for (int x = 0; x < dx.getRowDimension(); x++)
             {
-                   //tangential distortion  // weak comp   // skew should stay ~0
-                if(x == KC_2 || x == KC_3 || x == KC_4 || x == ALPHA)
+                if(x == KC_0 || x == KC_1)
+                {
+                    i[x] += 0.01 * dx.get(x, 0); // scale helps stabilize results
+                }
+                else //XXX I don't solve for fc, cc, alpha, kc2,3,4
                 {
                     i[x] += 0.0001 * dx.get(x, 0); // scale helps stabilize some components
-                }
-                else
-                {
-                    i[x] += 0.1 * dx.get(x, 0); // scale helps stabilize results
                 }
             }
 
             // compute residual
             vbStatus.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, 
-                    "count: " + count + ", min: " + Util.round(LinAlg.magnitude(r),3)));
+                    "count: " + count + ", min: " + Util.round(getError(r),3)));
             vbStatus.switchBuffer();
             oldR = r.clone();
             r = LinAlg.scale(s.evaluate(i), -1);
         }
         
-        if(shouldStop(r, oldR, threshold))
+        if(getError(r) < threshold)
         {
             fc = getFc(oldI);
             cc = getCc(oldI);
             kc = getKc(oldI);
             alpha = getAlpha(oldI);
             
-            config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "fc", fc);
-            config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "cc", cc);
+            //XXX I don't solve for fc or cc
+//            config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "fc", fc);
+//            config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "cc", cc);
             config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "kc", kc);
             config = Util.setValue(configPath, new String[]{Util.getSubUrl(config, url)}, "alpha", alpha);
         }
         else
         {
-            errorReset();
+            errorReset(getError(r));
         }
         
         return config;
     }
     
-    private double scale(double[] values)
+    private double getError(double[] r)
     {
-        double max = Double.MIN_VALUE;
-        
-        for(double v : values)
-        {
-            if(v > max)
-            {
-                max = v;
-            }
-        }
-        
-        return max/100000; // The max is much too large.  Without making it smaller, the step sizes become incredibly small
-    }
-    
-    private Matrix scaledIdentityMatrix(int size, double scale)
-    {
-        return new Matrix(LinAlg.scale(Matrix.identity(size, size).copyArray(), scale));
-    }
-
-    private void errorReset()
-    {
-        vbStatus.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, 
-        "<<red, big>>Error: unable to calculate intrinsics from given image, please try again"));
-        vbStatus.switchBuffer();
-        reset = true;
+        return LinAlg.magnitude(r)/r.length;
     }
     
     private boolean shouldStop(double[] r, double[] oldR, double threshold)
     {
-        return (oldR != null && LinAlg.magnitude(r) < r.length*threshold && LinAlg.magnitude(r) > LinAlg.magnitude(oldR));
+        return (oldR != null && getError(r) < threshold && getError(r) > getError(oldR));
     }
     
     class Straightness extends Function
     {
         double tagCorners[][];
-        int width;
-        int height;
+        int imageWidth;
+        int imageHeight;
         
-        public Straightness(double[][] tagCorners, int width, int height)
+        double tagSize;
+        double smallSpacing;
+        double largeSpacing;
+        TagDetection tagsShort[][];
+        TagDetection tagsLong[][];
+        
+        public Straightness(double[][] tagCorners, int imageWidth, int imageHeight, double tagSize, 
+                            TagDetection[][] tagsShort, TagDetection[][] tagsLong, double smallSpacing, double largeSpacing)
         {
             this.tagCorners = tagCorners;
-            this.width = width;
-            this.height = height;
+            this.imageWidth = imageWidth;
+            this.imageHeight = imageHeight;
+            
+            this.tagSize = tagSize;
+            this.smallSpacing = smallSpacing;
+            this.largeSpacing = largeSpacing;
+            this.tagsShort = tagsShort;
+            this.tagsLong = tagsLong;
         }
         
         public double[] evaluate(double[] intrinsics)
@@ -392,103 +420,77 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
         {
             if (straightness == null)
             {
-                // each row/column can provide 2 lines
-                straightness = new double[2*(MOSAIC_WIDTH + MOSAIC_HEIGHT)];
+                // each row/column can provide 2 lines and fc needs 2 spots
+//                straightness = new double[2*(MOSAIC_SHORT_SIZE + MOSAIC_LONG_SIZE)+2];  //XXX fc
+                straightness = new double[2*(MOSAIC_SHORT_SIZE + MOSAIC_LONG_SIZE)];
             }
             
             // init intrinsics
-            Distortion pd = new Distortion(getFc(i), getCc(i), getKc(i), getAlpha(i), width, height);
+            double tempFc[] = getFc(i); //used a lot
+            Distortion pd = new Distortion(tempFc, getCc(i), getKc(i), getAlpha(i), imageWidth, imageHeight);
             
             // calculate new tag corner locations
             double[][] newTagCorners = new double[tagCorners.length][2];
-            for (int x = 0; x < tagCorners.length; x++)
+            for (int a = 0; a < tagCorners.length; a++)
             {
-                newTagCorners[x] = pd.undistort(tagCorners[x]);
+                newTagCorners[a] = pd.undistort(tagCorners[a]);
             }
+          
+          //XXX fc
+//            straightness[0]=0;
+//            for(int y = 0; y < tagsLong.length; y++)
+//            {
+//                double[][] M1 = CameraUtil.homographyToPose(tempFc[0], tempFc[1], tagSize, tagsLong[y][0].homography);
+//                double[][] M2 = CameraUtil.homographyToPose(tempFc[0], tempFc[1], tagSize, tagsLong[y][1].homography);
+//                straightness[0] += Math.abs(LinAlg.distance(LinAlg.matrixToXyzrpy(M1), LinAlg.matrixToXyzrpy(M2), 3)-smallSpacing);
+//                System.out.println(tagsLong[y][0].id + "." + tagsLong[y][1].id + "=" +Util.round(Math.abs(LinAlg.distance(LinAlg.matrixToXyzrpy(M1), LinAlg.matrixToXyzrpy(M2), 3)), 3));
+//            }
+//            straightness[0] = Math.pow(500.0*straightness[0]/tagsLong.length,4);
+//            
+//            straightness[1]=0;
+//            for(int x = 0; x < tagsShort.length; x++)
+//            {
+//                double[][] M1 = CameraUtil.homographyToPose(tempFc[0], tempFc[1], tagSize,tagsShort[x][0].homography);
+//                double[][] M2 = CameraUtil.homographyToPose(tempFc[0], tempFc[1], tagSize,tagsShort[x][1].homography);
+//                straightness[1] += Math.abs(LinAlg.distance(LinAlg.matrixToXyzrpy(M1), LinAlg.matrixToXyzrpy(M2), 3)-largeSpacing);
+//                System.out.println(tagsShort[x][0].id + "." + tagsShort[x][1].id + "=" +Util.round(Math.abs(LinAlg.distance(LinAlg.matrixToXyzrpy(M1), LinAlg.matrixToXyzrpy(M2), 3)), 3));
+//            }
+//            straightness[1] = Math.pow(500.0*straightness[1]/tagsShort.length,4);
+//            System.out.println(straightness[0]+ "\t" + straightness[1]);
             
+          //XXX fc
+//            int cur = 2;
             int cur = 0;
-            for (int y = 0; y < MOSAIC_HEIGHT; y++) // long lines
+            for (int x = 0; x < MOSAIC_LONG_SIZE; x++) // long lines
             {
                 ArrayList<double[]> topLine = new ArrayList<double[]>();
                 ArrayList<double[]> botLine = new ArrayList<double[]>();
-                for (int x = 0; x < MOSAIC_WIDTH; x++)
+                for (int y = 0; y < MOSAIC_SHORT_SIZE; y++)
                 {
-                    topLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 0]);
-                    topLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 1]);
-                    botLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 2]);
-                    botLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 3]);
+                    topLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 0]);
+                    topLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 1]);
+                    botLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 2]);
+                    botLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 3]);
                 }
-                straightness[cur++] = fitLine(topLine);
-                straightness[cur++] = fitLine(botLine);
+                straightness[cur++] = PointUtil.fitLine(topLine)[3];
+                straightness[cur++] = PointUtil.fitLine(botLine)[3];
             }
-            for (int x = 0; x < MOSAIC_WIDTH; x++) // short lines
+            for (int y = 0; y < MOSAIC_SHORT_SIZE; y++) // short lines
             {
                 ArrayList<double[]> topLine = new ArrayList<double[]>();
                 ArrayList<double[]> botLine = new ArrayList<double[]>();
-                for (int y = 0; y < MOSAIC_HEIGHT; y++)
+                for (int x = 0; x < MOSAIC_LONG_SIZE; x++)
                 {
-                    topLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 0]);
-                    topLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 2]);
-                    botLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 1]);
-                    botLine.add(newTagCorners[y * CORNERS * MOSAIC_WIDTH + CORNERS * x + 3]);
+                    topLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 0]);
+                    topLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 2]);
+                    botLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 1]);
+                    botLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 3]);
                 }
-                straightness[cur++] = fitLine(topLine);
-                straightness[cur++] = fitLine(botLine);
+                straightness[cur++] = PointUtil.fitLine(topLine)[3];
+                straightness[cur++] = PointUtil.fitLine(botLine)[3];
             }
-
+            
             return straightness;
-        }
-     
-        public double fitLine(ArrayList<double[]> points)
-        {
-            double ave[] = {0,0};
-            for(double[] p : points)
-            {
-                ave = LinAlg.add(p, ave);
-            }
-            ave = LinAlg.scale(ave, 1.0/points.size());
-            
-            double XXminusYY = 0;
-            double xy = 0;
-            for(int i = 0; i < points.size(); i++)
-            {
-                double p[] = LinAlg.subtract(points.get(i), ave);
-                XXminusYY += (p[0]*p[0])-(p[1]*p[1]); 
-                xy += p[0]*p[1]; // (x^2 - y^2)/xy
-                points.set(i, p);
-            }
-            
-            double error = 0;
-            if(xy != 0)
-            {
-                double a = XXminusYY/xy;
-                
-                double roots[] = { Math.atan((-a + Math.sqrt(4+sq(a)))/2), 
-                                   Math.atan((-a - Math.sqrt(4+sq(a)))/2) };
-        
-                double errors[] = {0,0};
-                for(int i = 0; i < roots.length; i++)
-                {
-                    for(double[] p: points)
-                    {
-                        //y'  =  -x sin(q) + y cos(q)
-                        errors[i] += sq(-p[0]*Math.sin(roots[i]) + p[1]*Math.cos(roots[i]));  
-                    }
-                }
-                
-                error = Math.min(errors[0], errors[1]);
-            }
-            else // special case: all points have either the same x or the same y values (clearly this means the error of the line is 0)
-            {
-                error = 0;
-            }
-            
-            return error/points.size();
-        }
-        
-        private double sq(double a)
-        {
-            return a*a;
         }
     }
     
@@ -505,8 +507,8 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
 
         Distortion d = new Distortion(fc, cc, kc, alpha, width, height, 0.1);
         TagDetector td = new TagDetector(new Tag36h11());
-        BufferedImage image;
         byte[] undistortedBuffer;
+        BufferedImage image;
         while(!reset)
         {
             synchronized (lock)
@@ -550,13 +552,41 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
         }
     }
 
+    private double getMax(double[] values)
+    {
+        double max = Double.MIN_VALUE;
+        
+        for(double v : values)
+        {
+            if(v > max)
+            {
+                max = v;
+            }
+        }
+        
+        return max;
+    }
+    
+    private Matrix scaledIdentityMatrix(int size, double scale)
+    {
+        return new Matrix(LinAlg.scale(Matrix.identity(size, size).copyArray(), scale));
+    }
+
+    private void errorReset(double error)
+    {
+        vbStatus.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, 
+        "<<red, big>>Error: unable to calculate intrinsics from given image, please try again (" + Util.round(error,3) + ")"));
+        vbStatus.switchBuffer();
+        reset = true;
+    }
+    
     private double[] getI(double[] fc, double[] cc, double[] kc, double alpha)
     {
         double[] i = new double[10];
-        i[FC_X] = fc[0];
-        i[FC_Y] = fc[1];
-        i[CC_X] = cc[0];
-        i[CC_Y] = cc[1];
+        i[FC_X] = fc[0]/1000.0;
+        i[FC_Y] = fc[1]/1000.0;
+        i[CC_X] = cc[0]/1000.0;
+        i[CC_Y] = cc[1]/1000.0;
         i[KC_0] = kc[0];
         i[KC_1] = kc[1];
         i[KC_2] = kc[2];
@@ -569,12 +599,14 @@ public class IntrinsicsCalibrator extends JPanel implements ImageReader.Listener
     
     private double[] getFc(double[] i)
     {
-        return new double[]{i[FC_X], i[FC_Y]};
+        return new double[]{1000*i[FC_X], 1000*i[FC_Y]};
+//        return new double[]{i[FC_X], i[FC_Y]};
     }
     
     private double[] getCc(double[] i)
     {
-        return new double[]{i[CC_X], i[CC_Y]};
+        return new double[]{1000*i[CC_X], 1000*i[CC_Y]};
+//        return new double[]{i[CC_X], i[CC_Y]};
     }
     
     private double[] getKc(double[] i)

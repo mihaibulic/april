@@ -1,5 +1,6 @@
 package mihai.camera;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -39,7 +40,7 @@ public class ImageReader extends Thread
     
     public ImageReader(String url) throws CameraException, IOException, ConfigException
     {
-    	this(new ConfigFile(System.getenv("CONFIG")+"/camera.config"), url);
+    	this(new ConfigFile(System.getenv("APRIL_CONFIG")+ File.separator +"camera.config"), url);
     }
     
     public ImageReader(boolean loRes, boolean color16, int maxfps, String url) throws CameraException, IOException, ConfigException

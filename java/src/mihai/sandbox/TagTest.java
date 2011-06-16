@@ -73,7 +73,7 @@ public class TagTest implements ImageReader.Listener, ParameterListener
         jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         String url = "dc1394://b09d01008b51b8";
-        Config config = new ConfigFile(System.getenv("CONFIG")
+        Config config = new ConfigFile(System.getenv("APRIL_CONFIG")
                 + "/camera.config");
         tagSize = config.requireDouble("tagSize");
         ImageReader ir = new ImageReader(config, url);

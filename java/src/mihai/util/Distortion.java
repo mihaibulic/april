@@ -1,9 +1,11 @@
 package mihai.util;
 
+import april.image.Homography33;
 import april.jmat.Function;
 import april.jmat.LinAlg;
 import april.jmat.Matrix;
 import april.jmat.NumericalJacobian;
+import april.tag.TagDetection;
 
 public class Distortion
 {
@@ -90,7 +92,7 @@ public class Distortion
         double r[] = LinAlg.subtract(dp, d.evaluate(udp));
         int count = 0;
         
-        while((r[0]*r[0] > threshold || r[1]*r[1] > threshold) && ++count < 50)
+        while((r[0]*r[0] > threshold || r[1]*r[1] > threshold) && ++count < 100)
         {
             // compute jacobian
             double _J[][] = NumericalJacobian.computeJacobian(d, udp, eps);
@@ -106,7 +108,7 @@ public class Distortion
             // compute residual
             r = LinAlg.subtract(dp, d.evaluate(udp));
         }
-        
+        if(count>=100)System.out.print("*");
         return udp;
     }
     
@@ -193,5 +195,76 @@ public class Distortion
 
         return result;
 
+    }
+    
+    public TagDetection tagUndistort(TagDetection tag)
+    {
+        TagDetection newTag = new TagDetection();
+
+        newTag.code = tag.code;        
+        newTag.good = tag.good;
+        newTag.hammingDistance = tag.hammingDistance;
+        newTag.id = tag.id;
+        newTag.obsCode = tag.obsCode;
+        newTag.observedPerimeter = tag.observedPerimeter;
+        newTag.p = new double[4][];
+        newTag.rotation = tag.rotation;
+
+        double pt[][] = tag.p;
+        for (int i = 0; i < 4; i++) 
+        {
+            pt[i] = undistort(pt[i]);
+        }
+        Quad newQuad = new Quad(pt);
+        Quad quad = newQuad;
+        
+        for (int i = 0; i < 4; i++) 
+        {
+            newTag.p[(4+i-newTag.rotation)%4] = quad.p[i];
+        }
+
+        // compute the homography (and rotate it appropriately)
+        newTag.homography = quad.homography.getH();
+        newTag.hxy = quad.homography.getCXY();
+
+        if (true) {
+            double c = Math.cos(newTag.rotation*Math.PI/2.0);
+            double s = Math.sin(newTag.rotation*Math.PI/2.0);
+            double R[][] = new double[][] {{ c, -s, 0},
+                                           { s,  c, 0},
+                                           { 0,  0, 1} };
+            newTag.homography = LinAlg.matrixAB(newTag.homography, R);
+        }
+
+        newTag.cxy = quad.interpolate01(.5, .5);
+        
+        return newTag;
+    }
+    
+    class Quad
+    {
+        private double p[][] = new double[4][];
+        private Homography33 homography;
+
+        public Quad(double p[][])
+        {
+            this.p = p;
+
+            homography = new Homography33(cc[0], cc[1]);
+            homography.addCorrespondence(-1, -1, p[0][0], p[0][1]);
+            homography.addCorrespondence( 1, -1, p[1][0], p[1][1]);
+            homography.addCorrespondence( 1,  1, p[2][0], p[2][1]);
+            homography.addCorrespondence(-1,  1, p[3][0], p[3][1]);
+        }
+
+        public double[] interpolate01(double x, double y)
+        {
+            return interpolate(2*x - 1, 2*y - 1);
+        }
+
+        public double[] interpolate(double x, double y)
+        {
+            return homography.project(x, y);
+        }
     }
 }

@@ -8,7 +8,7 @@ import mihai.camera.ImageReader;
 import mihai.camera.TagDetector2;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
-import mihai.util.PointLocator;
+import mihai.util.PointUtil;
 import mihai.util.Util;
 import april.config.Config;
 import april.jcam.ImageConvert;
@@ -120,7 +120,7 @@ public class Camera implements ImageReader.Listener
                 points[b] = LinAlg.matrixToXyzrpy(M);
             }
             
-            double[] tagXyzrpy = PointLocator.calculateItt(points); 
+            double[] tagXyzrpy = PointUtil.calculateItt(points); 
             tagsL.add(new Tag(tagXyzrpy, last_id));
             tagsH.put(last_id, tagXyzrpy);
         }
@@ -217,7 +217,7 @@ public class Camera implements ImageReader.Listener
     public void setPosition()
     {
         double[][] points = new double[potentialPositions.size()][6];
-        xyzrpy = PointLocator.calculateItt(potentialPositions.toArray(points));
+        xyzrpy = PointUtil.calculateItt(potentialPositions.toArray(points));
         matrix = LinAlg.xyzrpyToMatrix(xyzrpy);
     }
     

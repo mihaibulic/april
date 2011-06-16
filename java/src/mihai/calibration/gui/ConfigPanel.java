@@ -47,8 +47,7 @@ public class ConfigPanel extends Broadcaster implements ActionListener
     {
         if(fileChooser.getSelectedFile().isFile())
         {
-            System.out.print("*");
-            alertListener(fileChooser.getSelectedFile().toString());
+            alertListener(true, fileChooser.getSelectedFile().toString());
         }
     }
 

@@ -1,6 +1,7 @@
 package mihai.camera;
 
 import java.awt.Toolkit;
+import java.io.File;
 import java.io.IOException;
 import javax.swing.JFrame;
 import mihai.util.CameraException;
@@ -38,7 +39,7 @@ public class GuiCameraPlayer extends JFrame
         opts.addBoolean('h', "help", false, "See this help screen");
         opts.addBoolean('a', "all", true, "LCM mode: display images from all cameras published via lcm");
         opts.addBoolean('s', "standAlone", false, "Standalone mode: will capture images from all cameras");
-        opts.addString('n', "config", System.getenv("CONFIG")+"/camera.config", "location of config file (standalone mode only)");
+        opts.addString('n', "config", System.getenv("APRIL_CONFIG")+ File.separator + "camera.config", "location of config file (standalone mode only)");
         opts.addString('r', "resolution", "", "lo=380x240, hi=760x480 (overrides config resolution) (standalone mode only)");
         opts.addString('c', "colors", "", "gray8 or gray16 (overrides config color setting) (standalone mode only)");
         opts.addString('f', "fps", "", "framerate to use if player (overrides config framerate) (standalone mode only)");

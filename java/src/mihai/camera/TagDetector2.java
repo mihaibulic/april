@@ -858,12 +858,12 @@ public class TagDetector2
     }
 
     /** Represents four segments that form a loop, and might be a tag. **/
-    class Quad
+    public class Quad
     {
         // points for the quad (in pixel coordinates), in counter
         // clockwise order. These points are the intersections of
         // segments.
-        double p[][] = new double[4][];
+        public double p[][] = new double[4][];
 
         // The total length (in pixels) of the actual perimeter
         // observed for the quad. This is in contrast to the geometric
@@ -871,14 +871,14 @@ public class TagDetector2
         // observed but rather inferred by intersecting
         // segments. Quads with more observed perimeter are preferred
         // over others.
-        double observedPerimeter;
+        public double observedPerimeter;
 
         // Given that the whole quad spans from (0,0) to (1,1) in
         // "quad space", compute the pixel coordinates for a given
         // point within that quad. Note that for most of the Quad's
         // existence, we will not know the correct orientation of the
         // tag.
-        Homography33 homography;
+        public Homography33 homography;
 
         /** (x,y) are the optical center of the camera, which is
          * needed to correctly compute the homography.
@@ -896,7 +896,7 @@ public class TagDetector2
 
         // Same as interpolate, except that the coordinates are
         // interpreted between 0 and 1, instead of -1 and 1.
-        double[] interpolate01(double x, double y)
+        public double[] interpolate01(double x, double y)
         {
             return interpolate(2*x - 1, 2*y - 1);
         }
@@ -904,7 +904,7 @@ public class TagDetector2
         // interpolate given that the lower left corner of the lower
         // left cell is at (-1,-1) and the upper right corner of
         // the upper right cell is at (1,1)
-        double[] interpolate(double x, double y)
+        public double[] interpolate(double x, double y)
         {
             return homography.project(x, y);
         }
