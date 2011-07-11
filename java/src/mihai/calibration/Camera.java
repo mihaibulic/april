@@ -18,14 +18,14 @@ import april.tag.Tag36h11;
 import april.tag.TagDetection;
 
 /**
- * Tracks a camera's tag detections and coordinates relative to a "main" camera
+ * Tracks a camera's tag detections and coordinates relative to a master camera
  * 
  * @author Mihai Bulic
  *
  */
 public class Camera implements ImageReader.Listener
 {
-    private int mainIndex;
+    private int masterIndex;
     private ImageReader ir;
     private ArrayList<TagDetection> detections;
     private ArrayList< Tag > tagsL;
@@ -183,7 +183,7 @@ public class Camera implements ImageReader.Listener
     
     public int getMain()
     {
-        return mainIndex;
+        return masterIndex;
     }
 
     public double[] getFocal()
@@ -215,9 +215,9 @@ public class Camera implements ImageReader.Listener
         ir.kill();
     }
     
-    public void setMain(int main)
+    public void setMaster(int master)
     {
-        mainIndex = main;
+        masterIndex = master;
     }
     
     public void setPosition()
@@ -231,21 +231,21 @@ public class Camera implements ImageReader.Listener
     {
         this.xyzrpy = xyzrpy;
         matrix = LinAlg.xyzrpyToMatrix(xyzrpy);
-        mainIndex = -1; // camera positions are now not relative to one another anymore
+        masterIndex = -1; // camera positions are now not relative to one another anymore
     }
     
-    public void setPosition(double[] xyzrpy, int main)
+    public void setPosition(double[] xyzrpy, int master)
     {
         this.xyzrpy = xyzrpy;
         matrix = LinAlg.xyzrpyToMatrix(xyzrpy);
-        this.mainIndex = main;
+        this.masterIndex = master;
     }
     
-    public void setPosition(double[][] matrix, int main)
+    public void setPosition(double[][] matrix, int master)
     {
         this.matrix = matrix;
         this.xyzrpy = LinAlg.matrixToXyzrpy(matrix);
-        this.mainIndex = main;
+        this.masterIndex = master;
     }
     
     public void handleImage(byte[] image, long timeStamp, int camera)

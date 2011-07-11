@@ -123,7 +123,7 @@ public class TagCorrespondanceTest
     
     private void getCorrespondence(int main, Camera mainCam, Camera auxCam)
     {
-        auxCam.setMain(main);
+        auxCam.setMaster(main);
         auxCam.clearPotentialPositions();
 
         for(int x = 0; x < 5; x++)

@@ -167,7 +167,7 @@ public class ImageReader extends Thread
         // 760x480 8 = 0, 760x480 16 = 1, 380x240 8 = 2, 380x240 16 = 3
         // converts booleans to 1/0 and combines them into an int
         isrc.setFormat(Integer.parseInt("" + (loRes ? 1 : 0) + (color16 ? 1 : 0), 2));
-        isrc.setFeatureValue(11, fps); // frame-rate, idx=11
+        isrc.setFeatureValue(15, fps); // frame-rate, idx=11
 
         ifmt = isrc.getCurrentFormat();
     }
@@ -228,7 +228,7 @@ public class ImageReader extends Thread
     
     public void setFramerate(int fps)
     {
-		isrc.setFeatureValue(11, fps); // frame-rate, idx=11
+		isrc.setFeatureValue(15, fps); // frame-rate, idx=11
     }
     
     public void setFormat(boolean loRes, boolean color16)

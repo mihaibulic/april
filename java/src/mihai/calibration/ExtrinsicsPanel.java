@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import mihai.calibration.gui.Broadcaster;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.Util;
@@ -107,7 +106,7 @@ public class ExtrinsicsPanel extends Broadcaster
         ArrayList<Tag> mainTags = mainCam.getTagsList();
         ArrayList<Tag> auxTags = auxCam.getTagsList();
         
-        auxCam.setMain(main);
+        auxCam.setMaster(main);
         auxCam.clearPotentialPositions();
 
         while (mainIndex < mainTags.size() && auxIndex < auxTags.size())
@@ -342,9 +341,7 @@ public class ExtrinsicsPanel extends Broadcaster
     {
         public void run()
         {
-            VisWorld.Buffer vbDirections = vw.getBuffer("directions");
-
-            double text[] = {-2.875, 1.35};
+            double text[] = {-2.875, 1.35}; // good text location found experimentally
             ArrayList<String> directions = new ArrayList<String>();
             directions.add("Please wait while calibrating:");
             directions.add("    Aggregating tags (~10 seconds/camera)...");
@@ -352,7 +349,6 @@ public class ExtrinsicsPanel extends Broadcaster
             for(int x = 0; x < directions.size(); x++)
             {
                 vbDirections.addBuffered(new VisText(new double[]{text[0],text[1]-0.1*x}, VisText.ANCHOR.LEFT,directions.get(x)));
-                
             }
             vbDirections.switchBuffer();
             

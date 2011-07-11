@@ -5,7 +5,7 @@ import java.awt.Color;
 import java.io.IOException;
 import java.util.ArrayList;
 import lcm.lcm.LCM;
-import mihai.calibration.gui.Broadcaster;
+import mihai.calibration.Broadcaster;
 import mihai.lcmtypes.object_t;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
