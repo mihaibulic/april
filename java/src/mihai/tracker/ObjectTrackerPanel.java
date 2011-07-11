@@ -325,7 +325,6 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         }        
     }
 
-    @Override
     public void stop()
     {
         run = false;
@@ -341,7 +340,6 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         }
     }
 
-    @Override
     public void go(String configPath, String... urls)
     {
         try
@@ -398,7 +396,6 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         (new Tracker()).start();
     }
     
-    @Override
     public void displayMsg(String msg, boolean error)
     {}
 }
