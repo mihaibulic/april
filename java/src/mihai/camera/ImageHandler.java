@@ -36,6 +36,7 @@ public class ImageHandler
             lcm = LCM.getSingleton();
             isrc = ImageSource.make(url);
             isrc.setFormat(Integer.parseInt("" + (loRes ? 1 : 0) + (color16 ? 1 : 0), 2));
+            isrc.setFeatureValue(14, 1); // frame-rate-manual, idx=14
             isrc.setFeatureValue(15, fps); // frame-rate, idx=15
             ifmt = isrc.getCurrentFormat();
         } catch (IOException e)
