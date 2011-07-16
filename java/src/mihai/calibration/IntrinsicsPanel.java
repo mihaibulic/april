@@ -8,107 +8,113 @@ import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JSeparator;
+import javax.swing.JSplitPane;
 import javax.swing.border.EmptyBorder;
-import mihai.camera.ImageReader;
-import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.Distortion;
-import mihai.util.PointUtil;
 import mihai.util.Util;
 import april.config.Config;
 import april.config.ConfigFile;
+import april.graph.CholeskySolver;
+import april.graph.GEdge;
+import april.graph.GNode;
+import april.graph.Graph;
+import april.graph.GraphSolver;
+import april.graph.Linearization;
+import april.image.Homography33b;
 import april.jcam.ImageConvert;
-import april.jmat.Function;
+import april.jcam.ImageSource;
+import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
-import april.jmat.Matrix;
-import april.jmat.NumericalJacobian;
-import april.jmat.SingularValueDecomposition;
+import april.jmat.ordering.MinimumDegreeOrdering;
+import april.tag.CameraUtil;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import april.tag.TagDetector;
+import april.tag.TagFamily;
+import april.util.StructureReader;
+import april.util.StructureWriter;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
-import april.vis.VisCircle;
-import april.vis.VisDataFillStyle;
+import april.vis.VisData;
+import april.vis.VisDataLineStyle;
+import april.vis.VisDataPointStyle;
 import april.vis.VisImage;
-import april.vis.VisRectangle;
 import april.vis.VisText;
 import april.vis.VisWorld;
 
-public class IntrinsicsPanel extends Broadcaster implements ImageReader.Listener, ActionListener
+public class IntrinsicsPanel extends Broadcaster implements ActionListener
 {
     private static final long serialVersionUID = 1L;
-    
-    private boolean reset = true;
-    private boolean kill = false;
-    
-    private ImageReader ir;
-    private byte[] imageBuffer;
-    private boolean imageReady = false;
-    private Object lock = new Object();
-    
+
     private VisWorld vw;
     private VisCanvas vc;
-    private VisWorld.Buffer vbImage;
-    private VisWorld.Buffer vbDirections;
-    private VisWorld.Buffer vbStatus;
-    private VisWorld.Buffer vbGray;
 
-    private JButton resetButton;
+    private VisWorld vwImages;
+    private VisCanvas vcImages;
+
+    private String goButtonText = "Go";
+    private String stopButtonText = "Stop";
     private String resetButtonText = "Reset";
+    private String captureButtonText = "Capture";
+    private JButton goButton = new JButton(goButtonText);
+    private JButton resetButton = new JButton(resetButtonText);
+    private JButton captureButton = new JButton(captureButtonText);
     
-    private TagDetection tagsShort[][];
-    private TagDetection tagsLong[][];
-    private int shortTagLoc[][];
-    private int longTagLoc[][];
+    private TagDetector td = new TagDetector(new Tag36h11());
+
+    private CaptureThread captureThread;
+    private IterateThread iterateThread;
     
-    private final static int CORNERS = 4;
-    private final static int MOSAIC_SHORT_SIZE = 6;
-    private final static int MOSAIC_LONG_SIZE = 8;
-    private final static int MOSAIC_OFFSET = 10;
-    private final static int MOSAIC_SIZE = MOSAIC_LONG_SIZE*MOSAIC_SHORT_SIZE;
+    private String configPath;
+    private String url;
+    private Config config;
+    
+    // indexed by tag id
+    private HashMap<Integer, TagPosition> tagPositions;
 
-    private double fc[];
-    private double cc[];
-    private double kc[];
-    private double alpha;
-    private static final int FC_X = 0;
-    private static final int FC_Y = 1;
-    private static final int CC_X = 2;
-    private static final int CC_Y = 3;
-    private static final int KC_0 = 4;
-    private static final int KC_1 = 5;
-    private static final int KC_2 = 6;
-    private static final int KC_3 = 7;
-    private static final int KC_4 = 8;
-    private static final int ALPHA = 9;
+    private Graph g;
 
-    public IntrinsicsPanel(int id, String url) throws IOException, ConfigException, CameraException
+    static class TagPosition
+    {
+        int id;
+        double cx, cy;
+        double size;
+    }
+
+    static class Capture
+    {
+        BufferedImage im;
+        ArrayList<TagDetection> detections;
+    }
+    
+    public IntrinsicsPanel(int id)
     {
         super(id, new BorderLayout());
 
-        vw = new VisWorld();
-        vc = new VisCanvas(vw);
-        vc.setBackground(Color.BLACK);
-        vbImage = vw.getBuffer("image");
-        vbImage.setDrawOrder(1);
-        vbStatus = vw.getBuffer("status");
-        vbStatus.setDrawOrder(2);
-        vbDirections = vw.getBuffer("directions");
-        vbDirections.setDrawOrder(3);
-        vbGray = vw.getBuffer("gray");
-        vbGray.setDrawOrder(4);
-        add(vc, BorderLayout.CENTER);
+        initVis();
         
-        resetButton = new JButton(resetButtonText);
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new BorderLayout());
+        topPanel.add(vc);
+        JSplitPane jsp = new JSplitPane(JSplitPane.VERTICAL_SPLIT, topPanel, vcImages);
+        jsp.setDividerLocation(0.8);
+        jsp.setResizeWeight(0.8);
+        add(jsp, BorderLayout.CENTER);
+
+        goButton.addActionListener(this);
+        captureButton.addActionListener(this);
         resetButton.addActionListener(this);
         Box buttonBox = new Box(BoxLayout.X_AXIS);
         buttonBox.setBorder(new EmptyBorder(new Insets(5, 10, 5, 10)));
+        buttonBox.add(goButton);
+        buttonBox.add(captureButton);
         buttonBox.add(resetButton);
         buttonBox.add(Box.createHorizontalStrut(30));
         JSeparator separator = new JSeparator();
@@ -116,561 +122,614 @@ public class IntrinsicsPanel extends Broadcaster implements ImageReader.Listener
         buttonPanel.add(separator, BorderLayout.NORTH);
         buttonPanel.add(buttonBox, java.awt.BorderLayout.EAST);
         add(buttonPanel, BorderLayout.SOUTH);
+        
+        // ///////////////////////
+        // Create ground truth
+        {
+            tagPositions = new HashMap<Integer, TagPosition>();
+            TagFamily tf = new Tag36h11();
+            int tagsPerRow = 24;  // XXX get from config
+            
+            for (int y = 0; y < tagsPerRow; y++)
+            {
+                for (int x = 0; x < tagsPerRow; x++)
+                {
+                    TagPosition tp = new TagPosition();
+                    tp.id = y * tagsPerRow + x;
+
+                    if (tp.id >= tf.codes.length)
+                    {
+                        continue;
+                    }
+
+                    // XXX get from config
+                    tp.cx = x * 0.0254; 
+                    tp.cy = -y * 0.0254;
+                    tp.size = 0.0254 * 8.0 / 10.0;
+
+                    tagPositions.put(tp.id, tp);
+                }
+            }
+        }
     }
 
-    class Calibrate extends Thread
+    private void initVis()
     {
-        private Config config;
-        private String configPath;
-        private String url;
+        vw = new VisWorld();
+        vc = new VisCanvas(vw);
 
-        private int imageWidth;
-        private int imageHeight;
-        private String format;
+        vwImages = new VisWorld();
+        vcImages = new VisCanvas(vwImages);
         
-        public Calibrate(Config config, String configPath, String url, int imageWidth, int imageHeight, String format)
+        vc.setBackground(Color.BLACK);
+        vcImages.setBackground(Color.BLACK);
+        vcImages.getViewManager().viewGoal.fit2D(new double[] { 3.4 , 0 }, new double[] { 3.9, 0.6 });
+    }
+    
+    class CaptureThread extends Thread
+    {
+        String url;
+        ImageSource isrc;
+        ImageSourceFormat ifmt;
+        boolean stop = false;
+        
+        // protected by synchronizing on CaptureThread
+        GCalibrateEdge lastEdge;
+        GExtrinsicsNode lastNode;
+
+        CaptureThread(String url)
         {
-            this.config = config;
-            this.configPath = configPath;
             this.url = url;
             
-            this.imageWidth = imageWidth;
-            this.imageHeight = imageHeight;
-            this.format = format;
+            try
+            {
+                isrc = ImageSource.make(url);
+                ifmt = isrc.getCurrentFormat();
+            } catch (IOException e)
+            {
+                e.printStackTrace();
+            }
+            
+            double text = ifmt.height+140;
+            VisWorld.Buffer vbDirections = vw.getBuffer("directions");
+            String directions[] = {"DIRECTIONS: Place the tag mosaic in the following four positions and click capture:",
+                                   "    1. Close up: camera should be looking straight at the mosaic and as close as possible",
+                                   "    2. Far away: camera should be looking straight at the mosaic and far away, but not so far that the camera can't detect most tags",
+                                   "    3. Angle 1: place camera so that it views the mosaic at a sharp angle",
+                                   "    4. Angle 2: keep the camera at a sharp angle, but turn it 90 degrees so the video feed is sideways",
+                                   "HINT #1: Not all tags must be visible in every image.",
+                                   "HINT #2: The four images above are the minimum; the more unique images you capture, the better the parameters will be."};
+            for(int x = 0; x < directions.length; x++)
+            {
+                vbDirections.addBuffered(new VisText(new double[]{0,text-20*x}, VisText.ANCHOR.LEFT,directions[x]));
+            }
+            vbDirections.switchBuffer();
+        }
+
+        public int getWidth()
+        {
+            return ifmt.width;
+        }
+        
+        public int getHeight()
+        {
+            return ifmt.height;
         }
         
         public void run()
         {
-            while(!kill)
+            boolean first = true;
+            BufferedImage image;
+            BufferedImage undistortedImage;
+            
+            isrc.start();
+            
+            while (!stop)
             {
-                double[][] tagCorners = getTags(imageWidth, imageHeight, format);
-
-                try
-                {
-                    config = calibrationSolver(tagCorners, imageWidth, imageHeight, format, config, configPath, url);
-                } catch (ConfigException e)
-                {
-                    e.printStackTrace();
-                } catch (IOException e)
-                {
-                    e.printStackTrace();
-                }
+                byte[] imageBuffer = isrc.getFrame();
+                image = ImageConvert.convertToImage(ifmt.format, ifmt.width, ifmt.height, imageBuffer);
+                Distortion dist = new Distortion(((GIntrinsicsNode) g.nodes.get(0)).state, ifmt.width, ifmt.height);
+                undistortedImage = ImageConvert.convertToImage(ifmt.format, ifmt.width, ifmt.height, dist.naiveBufferUndistort(imageBuffer));    
                 
-                print(tagCorners, imageWidth, imageHeight, format);
-            }
-        }
-    }
-    
-    private double[][] getTags(int imageWidth, int imageHeight, String format)
-    {
-        double[][] tagCorners = new double[MOSAIC_SIZE * CORNERS][2];
-        TagDetector td = new TagDetector(new Tag36h11());
-        tagsShort = new TagDetection[MOSAIC_SHORT_SIZE-2][2]; // not using tags on the end
-        tagsLong = new TagDetection[MOSAIC_LONG_SIZE-2][2];  // not using tags on the end
-        shortTagLoc = new int[][]{{11,12,13,14},{53,54,55,56}};
-        longTagLoc = new int[][]{{16,22,28,34,40,46},{21,27,33,39,45,51}};
-        
-        BufferedImage image = null;
-        
-        ArrayList<Integer> tagIDs = new ArrayList<Integer>(MOSAIC_SIZE);
-        for (int x = 0; x < MOSAIC_SIZE; x++)
-        {
-            tagIDs.add(x + MOSAIC_OFFSET);
-        }
-        
-        vc.getViewManager().viewGoal.fit2D(new double[] { 100, 125 }, new double[] { imageWidth - 100, imageHeight - 75 });
-        
-        double text = imageHeight+80;
-        String directions[] = {"DIRECTIONS: Place tag mosaic in front of camera such that all tag corners are visible", 
-                                "NOTE: make sure the mosaic is flat, takes up as much of the image as possible,",
-                                "       and is as close to the edges of the image as possible (where the majority of distortion is present).", 
-                                "HINT: Cover up one tag to prevent the software from detecting all tags until the mosaic is in good position"};
-        for(int x = 0; x < directions.length; x++)
-        {
-            vbDirections.addBuffered(new VisText(new double[]{0,text-18*x}, VisText.ANCHOR.LEFT,directions[x]));
-            
-        }
-        vbDirections.switchBuffer();
-
-        reset = false;
-        boolean tagsFound = false;
-        while (!tagsFound)
-        {
-            ArrayList<Integer> tagsToBeSeen = new ArrayList<Integer>();
-            tagsToBeSeen.addAll(tagIDs);
-
-            synchronized (lock)
-            {
-                while (!imageReady)
+                synchronized(this)
                 {
-                    try
+                    lastEdge = null;
+    
+                    ArrayList<TagDetection> detections = td.process(image, new double[] { ifmt.width / 2.0, ifmt.height / 2.0 });
+
                     {
-                        lock.wait();
-                    } catch (InterruptedException e)
+                        VisWorld.Buffer vb = vw.getBuffer("camera");
+                        vb.addBuffered(new VisImage(undistortedImage));
+    
+                        for (TagDetection tag : detections)
+                        {
+                            double p0[] = dist.undistort(tag.interpolate(-1, -1));
+                            double p1[] = dist.undistort(tag.interpolate(1, -1));
+                            double p2[] = dist.undistort(tag.interpolate(1, 1));
+                            double p3[] = dist.undistort(tag.interpolate(-1, 1));
+    
+                            vb.addBuffered(new VisChain(LinAlg.translate(0, image.getHeight(), 0), LinAlg.scale(1, -1, 1), new VisData(new VisDataLineStyle(Color.blue, 4), p0, p1, p2, p3, p0), new VisData(new VisDataLineStyle(Color.green, 4), p0, p1), // x
+                                                                                                                                                                                                                                                                                                                                                                                 // axis
+                            new VisData(new VisDataLineStyle(Color.red, 4), p0, p3))); // y
+                                                                                       // axis
+                        }
+    
+                        vb.switchBuffer();
+                    }
+    
+                    if (first)
                     {
-                        e.printStackTrace();
+                        first = false;
+                        vc.getViewManager().viewGoal.fit2D(new double[] { 100, 130 }, new double[] { image.getWidth() - 100, image.getHeight()+30 });
+                    }
+    
+                    // every frame adds 6 unknowns, so we need at
+                    // least 8 tags for it to be worth the
+                    // trouble.
+                    int minTags = 8;
+                    ArrayList<double[]> correspondences = new ArrayList<double[]>();
+    
+                    if (detections.size() >= minTags)
+                    {
+                        // compute a homography using the entire set of tags
+                        Homography33b h = new Homography33b();
+                        for (TagDetection d : detections)
+                        {
+                            TagPosition tp = tagPositions.get(d.id);
+                            if (tp == null)
+                            {
+                                System.out.println("Found tag that doesn't exist in model: " + d.id);
+                                continue;
+                            }
+    
+                            h.addCorrespondence(tp.cx, tp.cy, d.cxy[0], d.cxy[1]);
+                            correspondences.add(new double[] { tp.cx, tp.cy, d.cxy[0], d.cxy[1] });
+                        }
+    
+                        double fx = ((GIntrinsicsNode) g.nodes.get(0)).state[0];
+                        double fy = ((GIntrinsicsNode) g.nodes.get(0)).state[1];
+                        double cx = ((GIntrinsicsNode) g.nodes.get(0)).state[2];
+                        double cy = ((GIntrinsicsNode) g.nodes.get(0)).state[3];
+    
+                        double P[][] = CameraUtil.homographyToPose(-fx, fy, cx, cy, h.getH());
+    
+                        lastEdge = new GCalibrateEdge(correspondences, image);
+                        lastNode = new GExtrinsicsNode();
+                        lastNode.state = LinAlg.matrixToXyzrpy(P);
+                        lastNode.init = LinAlg.copy(lastNode.state);
                     }
                 }
-                imageReady = false;
-                image = ImageConvert.convertToImage(format, imageWidth, imageHeight, imageBuffer);
             }
-
-            vbImage.addBuffered(new VisImage(image));
-            ArrayList<TagDetection> tags = td.process(image, new double[] { imageWidth / 2.0, imageHeight / 2.0 });
-            Color color = Color.RED;
-            for(TagDetection tag : tags)
-            {
-                if(tag.id >= MOSAIC_OFFSET && tag.id < MOSAIC_OFFSET+MOSAIC_SIZE)
-                {
-                    for(int a = 0; a < shortTagLoc.length; a++)
-                    {
-                        for(int x = 0; x < shortTagLoc[a].length; x++)
-                        {
-                            if(tag.id == shortTagLoc[a][x])
-                            {
-                                tagsShort[x][a] = tag;
-                            }
-                        }
-                    }
-                    for(int a = 0; a < longTagLoc.length; a++)
-                    {
-                        for(int y = 0; y < longTagLoc[a].length; y++)
-                        {
-                            if(tag.id == longTagLoc[a][y])
-                            {
-                                tagsLong[y][a] = tag;
-                            }
-                        }
-                    }
-                    
-                    tagsToBeSeen.remove((Integer) tag.id);
-                    double[] p0 = tag.interpolate(-1,  1); // do not change the order of these
-                    double[] p1 = tag.interpolate( 1,  1);
-                    double[] p2 = tag.interpolate(-1, -1);
-                    double[] p3 = tag.interpolate( 1, -1);
-    
-                    tagCorners[(tag.id - MOSAIC_OFFSET) * CORNERS + 0] = p0;
-                    tagCorners[(tag.id - MOSAIC_OFFSET) * CORNERS + 1] = p1;
-                    tagCorners[(tag.id - MOSAIC_OFFSET) * CORNERS + 2] = p2;
-                    tagCorners[(tag.id - MOSAIC_OFFSET) * CORNERS + 3] = p3;
-    
-                    vbImage.addBuffered(new VisChain(LinAlg.translate(p0[0], imageHeight - p0[1], 0.0), 
-                            new VisCircle(3, new VisDataFillStyle(color))));
-                    vbImage.addBuffered(new VisChain(LinAlg.translate(p1[0], imageHeight - p1[1], 0.0), 
-                            new VisCircle(3, new VisDataFillStyle(color))));
-                    vbImage.addBuffered(new VisChain(LinAlg.translate(p2[0], imageHeight - p2[1], 0.0), 
-                            new VisCircle(3, new VisDataFillStyle(color))));
-                    vbImage.addBuffered(new VisChain(LinAlg.translate(p3[0], imageHeight - p3[1], 0.0), 
-                            new VisCircle(3, new VisDataFillStyle(color))));
-                }
-            }
-
-            vbImage.switchBuffer();
-            if (tagsToBeSeen.size() == 0)
-            {
-                tagsFound = true;
-            }
+            isrc.stop();
         }
-        
-        return tagCorners;
     }
 
-    private Config calibrationSolver(double[][] tagCorners, int imageWidth, int imageHeight, String format, 
-            Config config, String configPath, String url) throws ConfigException, IOException
+    public void actionPerformed(ActionEvent e)
     {
-        double tagSize = config.requireDouble("mosaic_tag_size");
-        double smallSpacing = config.requireDouble("mosaic_small_spacing");
-        double largeSpacing = config.requireDouble("mosaic_large_spacing");
-        
-        fc = new double[]{ 500, 500}; // better init?
-        cc = new double[]{ imageWidth/2.0, imageHeight/2.0};
-        kc = new double[]{ 0, 0, 0, 0, 0 };
-        alpha = 0;
-
-        double i[] = getI(fc,cc,kc,alpha);
-        double oldI[] = null;
-        
-        Straightness s = new Straightness(tagCorners, imageWidth, imageHeight, tagSize, tagsShort, tagsLong, smallSpacing, largeSpacing);
-        
-        double[] r = LinAlg.scale(s.evaluate(i), -1);
-        double[] oldR = null;
-
-        double eps[] = new double[i.length];
-        for (int x = 0; x < eps.length; x++)
+        if (e.getActionCommand().equals(captureButtonText))
         {
-            eps[x] = 0.00001;
+            synchronized (captureThread)
+            {
+                if (captureThread.lastEdge != null)
+                {
+                    int nidx = g.nodes.size();
+                    g.nodes.add(captureThread.lastNode);
+                    captureThread.lastEdge.nodes[0] = 0;
+                    captureThread.lastEdge.nodes[1] = nidx;
+                    g.edges.add(captureThread.lastEdge);
+
+                    update();
+    
+                    captureThread.lastEdge = null;
+                    captureThread.lastNode = null;
+    
+                    System.out.println("Added frame");
+                }
+                else
+                {
+                    System.out.printf("Could not create a constraint.\n");
+                }
+            }
         }
-
-        vbGray.addBuffered(new VisChain(new VisRectangle(new double[] { 0, 0 }, new double[] { imageWidth, imageHeight }, 
-                new VisDataFillStyle(new Color(0x55FFFFFF, true)))));
-        vbGray.switchBuffer();
-
-        String[] dots = {".   ", "..  ", "... ", "...."};
-        int count = 0;
-        int ittLimit = 500;
-        double threshold = 0.5;
-        while (!shouldStop(r, oldR, threshold) && ++count < ittLimit && !reset)
+        else if (e.getActionCommand().equals(goButtonText))
         {
-            vbDirections.addBuffered(new VisText(VisText.ANCHOR.TOP, "Please wait while calibration takes place" + dots[count%dots.length] + "\n " +
-                    "focal length (x,y):  " + Util.round(getFc(i)[0], 0) + ", " + Util.round(getFc(i)[1], 0) + "\n" + 
-                    "image center (x,y):  " + Util.round(getCc(i)[0], 0) + ", " + Util.round(getCc(i)[1], 0) + "\n" + 
-                    "distortion parameters:  "+ Util.round(getKc(i)[0], 3) +", "+Util.round(getKc(i)[1],3)+", "+Util.round(getKc(i)[2],3)+", "+Util.round(getKc(i)[3],3)+", "+ Util.round(getKc(i)[4],3) + "\n" +
-                    "alpha:  " + Util.round(getAlpha(i),3))); 
-            vbDirections.switchBuffer();
-            
-            // compute jacobian
-            double _J[][] = NumericalJacobian.computeJacobian(s, i, eps);
-            Matrix J = new Matrix(_J);
-            Matrix JtJ = J.transpose().times(J);
-            
-            SingularValueDecomposition svd = new SingularValueDecomposition(JtJ);
-            double scale = getMax(svd.getSingularValues())/10000;
-            scale = scale > 500 ? 500 : scale < 0.1 ? 0.1 : scale; // limit the range of scale
-            Matrix JTtimesJplusI = JtJ.plus(scaledIdentityMatrix(i.length, scale));
-            Matrix JTr = J.transpose().times(Matrix.columnMatrix(r));
-            Matrix dx = null;
+            if (iterateThread == null)
+            {
+                iterateThread = new IterateThread();
+                iterateThread.start();
+                goButton.setText(stopButtonText);
+            }
+        }
+        else if(e.getActionCommand().equals(stopButtonText))
+        {
+            iterateThread.stop = true;
             try
             {
-                dx = JTtimesJplusI.solve(JTr);
-            } catch(Exception e)
+                iterateThread.join();
+            } catch (InterruptedException e1)
             {
-                e.printStackTrace();
-                break;
+                e1.printStackTrace();
             }
+            iterateThread = null;
+            goButton.setText(goButtonText);
+        }
+        else if(e.getActionCommand().equals(resetButtonText))
+        {
+            stop();
+            alertListener();
+        }
+    }
 
-            // adjust guess
-            oldI = i.clone();
-            for (int x = 0; x < dx.getRowDimension(); x++)
-            {
-                if(x == KC_0 || x == KC_1)
-                {
-                    i[x] += 0.01 * dx.get(x, 0); // scale helps stabilize results
-                }
-                else //XXX I don't solve for fc, cc, alpha, kc2,3,4
-                {
-                    i[x] += 0.0001 * dx.get(x, 0); // scale helps stabilize some components
-                }
-            }
+    class IterateThread extends Thread
+    {
+        public boolean stop = false;
 
-            // compute residual
-            vbStatus.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, 
-                    "count: " + count + ", min: " + Util.round(getError(r),3)));
-            vbStatus.switchBuffer();
-            oldR = r.clone();
-            r = LinAlg.scale(s.evaluate(i), -1);
-        }
-        
-        if(getError(r) < threshold)
-        {
-            fc = getFc(oldI);
-            cc = getCc(oldI);
-            kc = getKc(oldI);
-            alpha = getAlpha(oldI);
-            
-            //XXX I don't solve for fc or cc
-//            config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "fc", fc);
-//            config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "cc", cc);
-            config = Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "kc", kc);
-            config = Util.setValue(configPath, new String[]{Util.getSubUrl(config, url)}, "alpha", alpha);
-        }
-        else
-        {
-            errorReset(getError(r));
-        }
-        
-        return config;
-    }
-    
-    private double getError(double[] r)
-    {
-        return LinAlg.magnitude(r)/r.length;
-    }
-    
-    private boolean shouldStop(double[] r, double[] oldR, double threshold)
-    {
-        return (oldR != null && getError(r) < threshold && getError(r) > getError(oldR));
-    }
-    
-    class Straightness extends Function
-    {
-        double tagCorners[][];
-        int imageWidth;
-        int imageHeight;
-        
-        double tagSize;
-        double smallSpacing;
-        double largeSpacing;
-        TagDetection tagsShort[][];
-        TagDetection tagsLong[][];
-        
-        public Straightness(double[][] tagCorners, int imageWidth, int imageHeight, double tagSize, 
-                            TagDetection[][] tagsShort, TagDetection[][] tagsLong, double smallSpacing, double largeSpacing)
-        {
-            this.tagCorners = tagCorners;
-            this.imageWidth = imageWidth;
-            this.imageHeight = imageHeight;
-            
-            this.tagSize = tagSize;
-            this.smallSpacing = smallSpacing;
-            this.largeSpacing = largeSpacing;
-            this.tagsShort = tagsShort;
-            this.tagsLong = tagsLong;
-        }
-        
-        public double[] evaluate(double[] intrinsics)
-        {
-            return evaluate(intrinsics, null);
-        }
-        
-        @Override
-        public double[] evaluate(double[] i, double[] straightness)
-        {
-            if (straightness == null)
-            {
-                // each row/column can provide 2 lines and fc needs 2 spots
-//                straightness = new double[2*(MOSAIC_SHORT_SIZE + MOSAIC_LONG_SIZE)+2];  //XXX fc
-                straightness = new double[2*(MOSAIC_SHORT_SIZE + MOSAIC_LONG_SIZE)];
-            }
-            
-            // init intrinsics
-            double tempFc[] = getFc(i); //used a lot
-            Distortion pd = new Distortion(tempFc, getCc(i), getKc(i), getAlpha(i), imageWidth, imageHeight);
-            
-            // calculate new tag corner locations
-            double[][] newTagCorners = new double[tagCorners.length][2];
-            for (int a = 0; a < tagCorners.length; a++)
-            {
-                newTagCorners[a] = pd.undistort(tagCorners[a]);
-            }
-          
-          //XXX fc
-//            straightness[0]=0;
-//            for(int y = 0; y < tagsLong.length; y++)
-//            {
-//                double[][] M1 = CameraUtil.homographyToPose(tempFc[0], tempFc[1], tagSize, tagsLong[y][0].homography);
-//                double[][] M2 = CameraUtil.homographyToPose(tempFc[0], tempFc[1], tagSize, tagsLong[y][1].homography);
-//                straightness[0] += Math.abs(LinAlg.distance(LinAlg.matrixToXyzrpy(M1), LinAlg.matrixToXyzrpy(M2), 3)-smallSpacing);
-//                System.out.println(tagsLong[y][0].id + "." + tagsLong[y][1].id + "=" +Util.round(Math.abs(LinAlg.distance(LinAlg.matrixToXyzrpy(M1), LinAlg.matrixToXyzrpy(M2), 3)), 3));
-//            }
-//            straightness[0] = Math.pow(500.0*straightness[0]/tagsLong.length,4);
-//            
-//            straightness[1]=0;
-//            for(int x = 0; x < tagsShort.length; x++)
-//            {
-//                double[][] M1 = CameraUtil.homographyToPose(tempFc[0], tempFc[1], tagSize,tagsShort[x][0].homography);
-//                double[][] M2 = CameraUtil.homographyToPose(tempFc[0], tempFc[1], tagSize,tagsShort[x][1].homography);
-//                straightness[1] += Math.abs(LinAlg.distance(LinAlg.matrixToXyzrpy(M1), LinAlg.matrixToXyzrpy(M2), 3)-largeSpacing);
-//                System.out.println(tagsShort[x][0].id + "." + tagsShort[x][1].id + "=" +Util.round(Math.abs(LinAlg.distance(LinAlg.matrixToXyzrpy(M1), LinAlg.matrixToXyzrpy(M2), 3)), 3));
-//            }
-//            straightness[1] = Math.pow(500.0*straightness[1]/tagsShort.length,4);
-//            System.out.println(straightness[0]+ "\t" + straightness[1]);
-            
-          //XXX fc
-//            int cur = 2;
-            int cur = 0;
-            for (int x = 0; x < MOSAIC_LONG_SIZE; x++) // long lines
-            {
-                ArrayList<double[]> topLine = new ArrayList<double[]>();
-                ArrayList<double[]> botLine = new ArrayList<double[]>();
-                for (int y = 0; y < MOSAIC_SHORT_SIZE; y++)
-                {
-                    topLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 0]);
-                    topLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 1]);
-                    botLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 2]);
-                    botLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 3]);
-                }
-                straightness[cur++] = PointUtil.fitLine(topLine)[3];
-                straightness[cur++] = PointUtil.fitLine(botLine)[3];
-            }
-            for (int y = 0; y < MOSAIC_SHORT_SIZE; y++) // short lines
-            {
-                ArrayList<double[]> topLine = new ArrayList<double[]>();
-                ArrayList<double[]> botLine = new ArrayList<double[]>();
-                for (int x = 0; x < MOSAIC_LONG_SIZE; x++)
-                {
-                    topLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 0]);
-                    topLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 2]);
-                    botLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 1]);
-                    botLine.add(newTagCorners[x * CORNERS * MOSAIC_SHORT_SIZE + CORNERS * y + 3]);
-                }
-                straightness[cur++] = PointUtil.fitLine(topLine)[3];
-                straightness[cur++] = PointUtil.fitLine(botLine)[3];
-            }
-            
-            return straightness;
-        }
-    }
-    
-    private void print(double[][] tagCorners, int width, int height, String format)
-    {
-        vbDirections.addBuffered(new VisText(VisText.ANCHOR.TOP, 
-                "Calibration is complete.  The intrinsics have been written to the config file:\n" + 
-                "focal length (x,y):  " + Util.round(fc[0],0) + ", " + Util.round(fc[1],0) + "\n" + 
-                "image center (x,y):  " + Util.round(cc[0],0) + ", " + Util.round(cc[1],0) + "\n" + 
-                "distortion parameters:  "+Util.round(kc[0],3)+", "+Util.round(kc[1],3)+", "+Util.round(kc[2],3)+", "+Util.round(kc[3],3)+", "+Util.round(kc[4],3) + "\n" +
-                "alpha:  " + Util.round(alpha,3)));
-        vbDirections.switchBuffer();
-        vbGray.switchBuffer();
+        IterateThread()
+        {}
 
-        Distortion d = new Distortion(fc, cc, kc, alpha, width, height, 0.1);
-        TagDetector td = new TagDetector(new Tag36h11());
-        byte[] undistortedBuffer;
-        BufferedImage image;
-        while(!reset)
+        public void run()
         {
-            synchronized (lock)
+            GraphSolver gs = new CholeskySolver(g, new MinimumDegreeOrdering());
+            VisWorld.Buffer vbDirections = vw.getBuffer("directions");
+            int text = captureThread.getHeight()+120;
+
+            int ncorr = 0;
+            int count = 0, size = 10;
+            double[] oldChi2 = new double[size];
+            while(!stop && (!shouldStop(oldChi2, g.getErrorStats().chi2, 0.1, ncorr) || count < 10))
             {
-                while (!imageReady)
+                oldChi2[(count++)%size] = g.getErrorStats().chi2;
+                
+                gs.iterate();
+
+                double state[] = g.nodes.get(0).state;
+                vbDirections.addBuffered(new VisText(new double[]{0,text-20*0}, VisText.ANCHOR.LEFT,"Calibrating..."));
+                vbDirections.addBuffered(new VisText(new double[]{0,text-20*1}, VisText.ANCHOR.LEFT, "    focal length:    " + Util.round(state[0],4) + ", " + Util.round(state[1],4)));
+                vbDirections.addBuffered(new VisText(new double[]{0,text-20*2}, VisText.ANCHOR.LEFT, "    image center:    " + Util.round(state[2],4) + ", " + Util.round(state[3],4)));
+                vbDirections.addBuffered(new VisText(new double[]{0,text-20*3}, VisText.ANCHOR.LEFT, "    distortion:    " + Util.round(state[4],4) + ", " + Util.round(state[5],4) + ", " + Util.round(state[6],4) + ", " + Util.round(state[7],4)));
+                vbDirections.addBuffered(new VisText(new double[]{0,text-20*4}, VisText.ANCHOR.LEFT, "    skew:    " + Util.round(state[8],4)));
+                
+                vbDirections.switchBuffer();
+                
+                update();
+
+                ncorr = 0;
+                for (GEdge ge : g.edges)
                 {
-                    try
+                    if (ge instanceof GCalibrateEdge)
                     {
-                        lock.wait();
-                    } catch (InterruptedException e)
-                    {
-                        e.printStackTrace();
+                        ncorr += ((GCalibrateEdge) ge).correspondences.size();
                     }
                 }
-                imageReady = false;
-                undistortedBuffer = d.naiveBufferUndistort(imageBuffer);
-                image = ImageConvert.convertToImage(format, width, height, imageBuffer);
+
+                VisWorld.Buffer vbError = vw.getBuffer("error");
+                vbError.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, "<<blue, big>>Error: " + Util.round(g.getErrorStats().chi2/ncorr,3)));
+                vbError.switchBuffer();
             }
             
-            vbImage.addBuffered(new VisImage(ImageConvert.convertToImage(format, width, height, undistortedBuffer)));
-            ArrayList<TagDetection> tags = td.process(image, cc );
-            Color color = Color.BLUE;
-            for (TagDetection tag : tags)
+            double state[] = g.nodes.get(0).state;
+            try
             {
-                double[] p0 = d.undistort(tag.interpolate(-1, -1));
-                double[] p1 = d.undistort(tag.interpolate( 1, -1));
-                double[] p2 = d.undistort(tag.interpolate( 1,  1));
-                double[] p3 = d.undistort(tag.interpolate(-1,  1));
-                
-                vbImage.addBuffered(new VisChain(LinAlg.translate(p0[0], height - p0[1], 0.0), 
-                        new VisCircle(3, new VisDataFillStyle(color))));
-                vbImage.addBuffered(new VisChain(LinAlg.translate(p1[0], height - p1[1], 0.0), 
-                        new VisCircle(3, new VisDataFillStyle(color))));
-                vbImage.addBuffered(new VisChain(LinAlg.translate(p2[0], height - p2[1], 0.0), 
-                        new VisCircle(3, new VisDataFillStyle(color))));
-                vbImage.addBuffered(new VisChain(LinAlg.translate(p3[0], height - p3[1], 0.0), 
-                        new VisCircle(3, new VisDataFillStyle(color))));
+                Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "fc", new double[]{state[0], state[1]});
+                Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "cc", new double[]{state[2], state[3]});
+                Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "kc", new double[]{state[4], state[5], state[6], state[7], state[8]});
+                Util.setValue(configPath, new String[]{Util.getSubUrl(config, url)}, "alpha", state[9]);
+            } catch (ConfigException e)
+            {
+                e.printStackTrace();
+            } catch (IOException e)
+            {
+                e.printStackTrace();
+            }
+            
+            vbDirections.addBuffered(new VisText(new double[]{0,text-20*0}, VisText.ANCHOR.LEFT,
+                    "Calibration complete!  The camera feed is now undistorted.  If everything looks ok, hit next"));
+            vbDirections.addBuffered(new VisText(new double[]{0,text-20*1}, VisText.ANCHOR.LEFT, "    focal length:    " + Util.round(state[0],4) + ", " + Util.round(state[1],4)));
+            vbDirections.addBuffered(new VisText(new double[]{0,text-20*2}, VisText.ANCHOR.LEFT, "    image center:    " + Util.round(state[2],4) + ", " + Util.round(state[3],4)));
+            vbDirections.addBuffered(new VisText(new double[]{0,text-20*3}, VisText.ANCHOR.LEFT, "    distortion:    " + Util.round(state[4],4) + ", " + Util.round(state[5],4) + ", " + Util.round(state[6],4) + ", " + Util.round(state[7],4)));
+            vbDirections.addBuffered(new VisText(new double[]{0,text-20*4}, VisText.ANCHOR.LEFT, "    skew:    " + Util.round(state[8],4)));
+            
+            vbDirections.switchBuffer();
+
+            goButton.setText(goButtonText);
+        }
+        
+        /**
+         * if all of old chi2 errors are within the threshold of the current error, recommend stopping 
+         */
+        private boolean shouldStop(double[] oldChi2, double error, double threshold, int corr)
+        {
+            boolean stop = false;
+            
+            if(corr != 0)
+            {
+                for(double c : oldChi2)
+                {
+                    if((error-c)/corr > threshold)
+                    {
+                        stop = true;
+                        break;
+                    }
+                }
+            }
+            
+            return stop;
+        }
+    }
+
+    void update()
+    {
+        int xoff = 0;
+
+        VisWorld.Buffer vb = vwImages.getBuffer("frame " + xoff);
+
+        for (GEdge ge : g.edges)
+        {
+            if (ge instanceof GCalibrateEdge)
+            {
+                ((GCalibrateEdge) ge).draw(g, vb, xoff, 0, 1);
+                xoff++;
+            }
+        }
+
+        vb.switchBuffer();
+    }
+
+    // ///////////////////////////////////////////////////////////////////
+    static class GIntrinsicsNode extends GNode
+    {
+        public GIntrinsicsNode(double fx, double fy, double cx, double cy)
+        {
+            state = new double[] { fx, fy, cx, cy, 0, 0, 0, 0, 0, 0 };
+        }
+
+        private GIntrinsicsNode()
+        {}
+
+        // state:
+        // 0: fx
+        // 1: fy
+        // 2: cx
+        // 3: cy
+        // 4: distortion r coefficient
+        // 5: distortion r^2 coefficient
+        // 6: tangential coefficient
+        // 7: tangential coefficient
+        // 8: distortion r^4 coefficient
+        // 9: alpha (skew)
+        public int getDOF()
+        {
+            return state.length;
+        }
+
+        public static double[] project(double state[], double p[], int width, int height)
+        {
+            assert (p.length == 4); // 3D homogeneous coordinates in, please.
+
+            double M[][] = new double[][] { { -state[0], 0, state[2], 0 }, { 0, state[1], state[3], 0 }, { 0, 0, 1, 0 } };
+            double q[] = LinAlg.matrixAB(M, p);
+            q[0] /= q[2];
+            q[1] /= q[2];
+            q[2] = 1;
+
+            double centered[] = {(q[0]-state[2])/state[0],(q[1]-state[3])/state[1]};
+            double r2 = centered[0]*centered[0] + centered[1]*centered[1];
+            double scale = 1 + state[4]*r2 + state[5]*r2*r2;
+            double scaled[] = {centered[0]*scale, centered[1]*scale};
+            
+            double tangential[] =
+                {2 * state[6] * centered[0] * centered[1] +
+                 state[7] * (r2 + 2 * centered[0] * centered[0]),
+                 state[6] * (r2 + 2 * centered[1] * centered[1]) +
+                 2 * state[7] * centered[0] * centered[1]};
+
+            scaled[0] = scaled[0]+tangential[0];
+            scaled[1] = scaled[1]+tangential[1];
+
+            return new double[] {state[0] * (scaled[0] + state[9] * scaled[1]) + state[2], scaled[1] * state[1] + state[3]};
+        }
+
+        public GIntrinsicsNode copy()
+        {
+            GIntrinsicsNode gn = new GIntrinsicsNode();
+            gn.state = LinAlg.copy(state);
+            gn.init = LinAlg.copy(init);
+            if (truth != null)
+            {
+                gn.truth = LinAlg.copy(truth);
+            }
+            gn.attributes = attributes.copy();
+            return gn;
+        }
+    }
+
+    static class GExtrinsicsNode extends GNode
+    {
+        // state:
+        // 0-2: xyz
+        // 3-5: rpy
+
+        public int getDOF()
+        {
+            assert (state.length == 6);
+            return state.length; // should be 6
+        }
+
+        public static double[] project(double state[], double p[])
+        {
+            double M[][] = LinAlg.xyzrpyToMatrix(state);
+
+            return LinAlg.matrixAB(M, new double[] { p[0], p[1], 0, 1 });
+        }
+
+        public GExtrinsicsNode copy()
+        {
+            GExtrinsicsNode gn = new GExtrinsicsNode();
+            gn.state = LinAlg.copy(state); 
+            gn.init = LinAlg.copy(init);
+            
+            if (truth != null)
+            {
+                gn.truth = LinAlg.copy(truth);
+            }
+            
+            gn.attributes = attributes.copy();
+            return gn;
+        }
+    }
+
+    static class GCalibrateEdge extends GEdge
+    {
+        // each correspondence is: worldx, worldy, imagex, imagey
+        ArrayList<double[]> correspondences;
+        BufferedImage im;
+
+        public GCalibrateEdge(ArrayList<double[]> correspondences, BufferedImage im)
+        {
+            this.nodes = new int[] { -1, -1 }; // make sure someone sets us
+                                               // later.
+            this.correspondences = correspondences;
+            this.im = im;
+        }
+
+        public int getDOF()
+        {
+            return correspondences.size();
+        }
+
+        public void draw(Graph g, VisWorld.Buffer vb, double xoff, double yoff, double xsize)
+        {
+            ArrayList<double[]> projected = new ArrayList<double[]>();
+            VisChain errs = new VisChain();
+
+            for (double corr[] : correspondences)
+            {
+                double pp[] = project(g, new double[] { corr[0], corr[1] });
+                projected.add(new double[] { pp[0], pp[1] });
+                ArrayList<double[]> line = new ArrayList<double[]>();
+                line.add(new double[] { corr[2], corr[3] });
+                line.add(new double[] { pp[0], pp[1] });
+                errs.add(new VisData(line, new VisDataLineStyle(Color.orange, 1)));
             }
 
-            vbImage.switchBuffer();
+            vb.addBuffered(new VisChain(LinAlg.translate(xoff, yoff, 0), LinAlg.scale(xsize / im.getWidth(), xsize / im.getWidth(), 1), new VisImage(im), LinAlg.translate(0, im.getHeight(), 0), LinAlg.scale(1, -1, 1), errs, new VisData(projected, new VisDataPointStyle(Color.cyan, 3))));
         }
-    }
 
-    private double getMax(double[] values)
-    {
-        double max = Double.MIN_VALUE;
-        
-        for(double v : values)
+        double[] project(Graph g, double worldxy[])
         {
-            if(v > max)
+            GIntrinsicsNode gin = (GIntrinsicsNode) g.nodes.get(nodes[0]);
+            GExtrinsicsNode gex = (GExtrinsicsNode) g.nodes.get(nodes[1]);
+
+            return GIntrinsicsNode.project(gin.state, GExtrinsicsNode.project(gex.state, worldxy), im.getWidth(), im.getHeight());
+        }
+
+        public double getChi2(Graph g)
+        {
+            double err2 = 0;
+            for (double corr[] : correspondences)
             {
-                max = v;
+                err2 += LinAlg.sq(getResidual(g, corr));
             }
+
+            return err2;
         }
-        
-        return max;
-    }
-    
-    private Matrix scaledIdentityMatrix(int size, double scale)
-    {
-        return new Matrix(LinAlg.scale(Matrix.identity(size, size).copyArray(), scale));
+
+        public double getResidual(Graph g, double corr[])
+        {
+            double p[] = project(g, new double[] { corr[0], corr[1] });
+            return LinAlg.distance(p, new double[] { corr[2], corr[3] });
+        }
+
+        public Linearization linearize(Graph g, Linearization lin)
+        {
+            if (lin == null)
+            {
+                lin = new Linearization();
+
+                for (int nidx = 0; nidx < nodes.length; nidx++)
+                {
+                    lin.J.add(new double[correspondences.size()][g.nodes.get(nodes[nidx]).state.length]);
+                }
+
+                lin.R = new double[correspondences.size()];
+                lin.W = LinAlg.identity(correspondences.size());
+
+                // chi2 is sum of error of each correspondence, so W
+                // should just be 1.
+            }
+
+            for (int cidx = 0; cidx < correspondences.size(); cidx++)
+            {
+                lin.R[cidx] = getResidual(g, correspondences.get(cidx));
+
+                for (int nidx = 0; nidx < nodes.length; nidx++)
+                {
+                    GNode gn = g.nodes.get(nodes[nidx]);
+
+                    double s[] = LinAlg.copy(gn.state);
+                    for (int i = 0; i < gn.state.length; i++)
+                    {
+                        double eps = Math.max(0.001, Math.abs(gn.state[i]) / 1000);
+
+                        gn.state[i] = s[i] + eps;
+                        double chiplus = LinAlg.sq(getResidual(g, correspondences.get(cidx)));
+
+                        gn.state[i] = s[i] - eps;
+                        double chiminus = LinAlg.sq(getResidual(g, correspondences.get(cidx)));
+
+                        lin.J.get(nidx)[cidx][i] = (chiplus - chiminus) / (2 * eps);
+
+                        gn.state[i] = s[i];
+                    }
+                }
+            }
+
+            return lin;
+        }
+
+        public GCalibrateEdge copy()
+        {
+            assert (false);
+            return null;
+        }
+
+        public void write(StructureWriter outs) throws IOException
+        {
+            assert (false);
+        }
+
+        public void read(StructureReader ins) throws IOException
+        {
+            assert (false);
+        }
     }
 
-    private void errorReset(double error)
-    {
-        vbStatus.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, 
-        "<<red, big>>Error: unable to calculate intrinsics from given image, please try again (" + Util.round(error,3) + ")"));
-        vbStatus.switchBuffer();
-        reset = true;
-    }
-    
-    private double[] getI(double[] fc, double[] cc, double[] kc, double alpha)
-    {
-        double[] i = new double[10];
-        i[FC_X] = fc[0]/1000.0;
-        i[FC_Y] = fc[1]/1000.0;
-        i[CC_X] = cc[0]/1000.0;
-        i[CC_Y] = cc[1]/1000.0;
-        i[KC_0] = kc[0];
-        i[KC_1] = kc[1];
-        i[KC_2] = kc[2];
-        i[KC_3] = kc[3];
-        i[KC_4] = kc[4];
-        i[ALPHA] = alpha;
-        
-        return i;
-    }
-    
-    private double[] getFc(double[] i)
-    {
-        return new double[]{1000*i[FC_X], 1000*i[FC_Y]};
-//        return new double[]{i[FC_X], i[FC_Y]};
-    }
-    
-    private double[] getCc(double[] i)
-    {
-        return new double[]{1000*i[CC_X], 1000*i[CC_Y]};
-//        return new double[]{i[CC_X], i[CC_Y]};
-    }
-    
-    private double[] getKc(double[] i)
-    {
-        return new double[]{i[KC_0], i[KC_1], i[KC_2], i[KC_3], i[KC_4]};
-    }
-    
-    private double getAlpha(double[] i)
-    {
-        return i[ALPHA];
-    }
-    
-    public void handleImage(byte[] image, long timeStamp, int camera)
-    {
-        synchronized (lock)
-        {
-            imageBuffer = image;
-            imageReady = true;
-            lock.notify();
-        }
-    }
-
-    public void actionPerformed(ActionEvent ae)
-    {
-        if(ae.getActionCommand().equals(resetButtonText))
-        {
-            reset = true;
-        }
-    }
-    
     @Override
-    public void go(String configPath, String...urls)
+    public void displayMsg(String msg, boolean error)
+    {}
+
+    @Override
+    public void go(String configPath, String... urls)
     {
         try
         {
-            Config config = new ConfigFile(configPath);
+            this.configPath = configPath;
+            url = urls[0];
+            config = new ConfigFile(configPath);
             Util.verifyConfig(config);
-            ir = new ImageReader(config, urls[0]);
 
-            if (ir.isGood())
-            {
-                int imageWidth = ir.getWidth();
-                int imageHeight = ir.getHeight();
-                String format = ir.getFormat();
-                
-                ir.addListener(this);
-                ir.start();
-                
-                new Calibrate(config, configPath, urls[0], imageWidth, imageHeight, format).start();
-            }
+            vwImages.clear();
+            
+            captureThread = new CaptureThread(urls[0]);
+            captureThread.start();
+
+            g = new Graph();
+            double f = 400; // XXX random guess for f
+            g.nodes.add(new GIntrinsicsNode(f, f, captureThread.getHeight()/2.0, captureThread.getWidth()/2.0));
         } catch (IOException e)
         {
             e.printStackTrace();
         }catch (ConfigException e)
-        {
-            e.printStackTrace();
-        } catch (CameraException e)
         {
             e.printStackTrace();
         }
@@ -679,17 +738,22 @@ public class IntrinsicsPanel extends Broadcaster implements ImageReader.Listener
     @Override
     public void stop()
     {
-        kill = true;
         try
         {
-            ir.kill();
+            if(iterateThread != null)
+            {
+                iterateThread.stop = true;
+                iterateThread.join();
+            }
+            
+            if(captureThread != null)
+            {
+                captureThread.stop = true;
+                captureThread.join();
+            }
         } catch (InterruptedException e)
         {
             e.printStackTrace();
         }
     }
-    
-    @Override
-    public void displayMsg(String msg, boolean error)
-    {}
 }

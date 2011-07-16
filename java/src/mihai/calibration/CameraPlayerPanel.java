@@ -32,6 +32,7 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
     private static final long serialVersionUID = 1L;
     static LCM lcm = LCM.getSingleton();
 
+    private boolean wizard;
     private int columns;
     private int maxWidth;
     private int maxHeight;
@@ -47,23 +48,29 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
     private VisWorld.Buffer vbError;
     private ArrayList<Integer> cameraPosition = new ArrayList<Integer>();
     
-    public CameraPlayerPanel(int id, int columns) throws CameraException, IOException, ConfigException
+    public CameraPlayerPanel(int id, int columns, boolean wizard) throws CameraException, IOException, ConfigException
     {
         super(id, new BorderLayout());
         
+        this.wizard = wizard;
         this.columns = columns;
         vw = new VisWorld();
         vc = new VisCanvas(vw);
         vc.setBackground(Color.BLACK);
-        vbError = vw.getBuffer("error");
+        
+        if(wizard)
+        {
+            vbError = vw.getBuffer("error");
+        }
         
         add(vc);
     }
     
-    public CameraPlayerPanel(int columns)
+    public CameraPlayerPanel(int columns, boolean wizard)
     {
         super(0, new BorderLayout());
         
+        this.wizard = wizard;
         this.columns = columns;
         vw = new VisWorld();
         vc = new VisCanvas(vw);
@@ -166,23 +173,26 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
         if(irs.size() == 0) new CameraException(CameraException.NO_CAMERA).printStackTrace();
         vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { columns*maxWidth, maxHeight*Math.ceil((double)irs.size()/(columns*maxWidth))});
         
-        VisWorld.Buffer vbDirections = vw.getBuffer("directions");
-        double text = maxHeight+500;
-        String directions[] = {"DIRECTIONS: place tags in the view of the cameras, follow these guidelines, and hit next to begin extrinsic calibration:" +
-                               "   Layman's guidelines:",
-                               "            1. Each tag MUST be viewable by at least two cameras (the more the better).",
-                               "            2. Each camera MUST see at least one tag (the more the better).",
-                               "            3. One must be able to 'connect' all the cameras together by seeing common tags inbetween them.",
-                               "            4. The tags should be placed as far apart from one another as possible.",
-                               "            5. The more tags that are used the better.",
-                               "   Computer scienctist guideline:",
-                               "            A connected graph must be formable using cameras as nodes and common tag detections as edges.",
-                               "            (the more connections the better, with a complete graph being ideal)"};
-        for(int x = 0; x < directions.length; x++)
+        if(wizard)
         {
-            vbDirections.addBuffered(new VisText(new double[]{0,text-40*x}, VisText.ANCHOR.LEFT,directions[x]));
+            VisWorld.Buffer vbDirections = vw.getBuffer("directions");
+            double text = maxHeight+500;
+            String directions[] = {"DIRECTIONS: place tags in the view of the cameras, follow these guidelines, and hit next to begin extrinsic calibration:" +
+                                   "   Layman's guidelines:",
+                                   "            1. Each tag MUST be viewable by at least two cameras (the more the better).",
+                                   "            2. Each camera MUST see at least one tag (the more the better).",
+                                   "            3. One must be able to 'connect' all the cameras together by seeing common tags inbetween them.",
+                                   "            4. The tags should be placed as far apart from one another as possible.",
+                                   "            5. The more tags that are used the better.",
+                                   "   Computer scienctist guideline:",
+                                   "            A connected graph must be formable using cameras as nodes and common tag detections as edges.",
+                                   "            (the more connections the better, with a complete graph being ideal)"};
+            for(int x = 0; x < directions.length; x++)
+            {
+                vbDirections.addBuffered(new VisText(new double[]{0,text-40*x}, VisText.ANCHOR.LEFT,directions[x]));
+            }
+            vbDirections.switchBuffer();
         }
-        vbDirections.switchBuffer();
     }
 
     @Override

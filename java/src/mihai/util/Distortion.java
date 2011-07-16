@@ -25,6 +25,22 @@ public class Distortion
     private double threshold;
     private Distort d;
 
+    public Distortion(double[] state, int width, int height)
+    {
+        this(new double[]{state[0], state[1]}, 
+                new double[]{state[2], state[3]}, 
+                new double[]{state[4],state[5],state[6],state[7],state[8]},
+                state[9],width,height);
+    }
+    
+    public Distortion(double fcx, double fcy, 
+                      double ccx, double ccy, 
+                      double kc0, double kc1, double kc2, double kc3, double kc4,
+                      double alpha, int width, int height)
+    {
+        this(new double[]{fcx, fcy}, new double[]{ccx, ccy}, new double[]{kc0,kc1,kc2,kc3,kc4},alpha,width,height);
+    }
+    
     public Distortion(double fc[], double cc[], double kc[], double alpha, int width, int height)
     {
         this(fc,cc,kc,alpha,width,height,0.1);
@@ -83,6 +99,11 @@ public class Distortion
 
             return distorted;
         }
+    }
+    
+    public double[] undistort(double x, double y)
+    {
+        return undistort(new double[] {x,y});
     }
     
     public double[] undistort(double[] dp)
@@ -154,10 +175,10 @@ public class Distortion
         return newBuffer;
     }
     
-    public double[] distort(int x, int y)
+    public double[] distort(double x, double y)
     {
         double distorted[] = new double[2];
-        int location = x+y*width;
+        int location = (int)(x+y*width);
         if(p[location][0] > -1)
         {
             distorted = p[location];

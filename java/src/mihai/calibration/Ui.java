@@ -118,6 +118,7 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         nextButton.setEnabled(true);
         backButton.setEnabled(true);
+        boolean error = false;
         
         ((Broadcaster)mainPanel.getComponent(currentCard)).stop();
         
@@ -135,8 +136,16 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
             }
             else if(card >= INTRINSICS)
             {
-                ((Broadcaster)mainPanel.getComponent(card)).go(configPath, urls.get(card-INTRINSICS));
-                setSize(screenSize.width, screenSize.height);
+                if(urls.size() <= card-INTRINSICS) 
+                {
+                    JOptionPane.showMessageDialog(this, "Error: Invalid card.\nThe most likely cause of this is either not having cameras plugged in or unplugging a camera after opening the wizard");
+                    error = true;
+                }
+                else
+                {
+                    ((Broadcaster)mainPanel.getComponent(card)).go(configPath, urls.get(card-INTRINSICS));
+                    setSize(screenSize.width, screenSize.height);
+                }
             }
             else if(card == CAMERAS)
             {
@@ -166,9 +175,12 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
             e.printStackTrace();
         }
 
-        currentCard = card;
-        ((CardLayout)mainPanel.getLayout()).show(mainPanel, Integer.toString(card));
-        System.out.println("flipping to " + currentCard);
+        if(!error)
+        {
+            currentCard = card;
+            ((CardLayout)mainPanel.getLayout()).show(mainPanel, Integer.toString(card));
+            System.out.println("flipping to " + currentCard);
+        }
     }
     
     public void gotoNextCard() throws InvalidCardException
@@ -297,6 +309,7 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
                     try
                     {
                         ArrayList<String> allUrls = ImageSource.getCameraURLs();
+                        urls.clear();
                         
                         for(String url : allUrls)
                         {
@@ -306,14 +319,15 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
                             }
                         }
 
-                        mainPanel.add(new CameraPlayerPanel(CAMERAS, 2), Integer.toString(CAMERAS));
+                        mainPanel.add(new CameraPlayerPanel(CAMERAS, 2, true), Integer.toString(CAMERAS));
                         mainPanel.add(new ExtrinsicsPanel(EXTRINSICS, urls.toArray(new String[urls.size()])), Integer.toString(EXTRINSICS));
                         mainPanel.add(new ObjectTrackerPanel(TRACK, true), Integer.toString(TRACK));
 
                         int x = 0;
                         for(String url: urls)
                         {
-                            mainPanel.add(new IntrinsicsPanel(INTRINSICS+x, url), Integer.toString(INTRINSICS+x));
+                            mainPanel.add(new IntrinsicsPanel(INTRINSICS+x), Integer.toString(INTRINSICS+x));
+                            System.out.println(url + "\t" + (INTRINSICS+x));
                             x++;
                         }
                         
@@ -335,6 +349,10 @@ public class Ui extends JFrame implements ActionListener, Broadcaster.Listener
                         e.printStackTrace();
                     }
                 }
+            }
+            else if(id >= INTRINSICS)
+            {
+                setCurrentCard(id);
             }
         }
     }
