@@ -36,13 +36,11 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
     private Config config = null;
     private String configPath = null;
     private ArrayList<String> urls = new ArrayList<String>();
-    private boolean settingsDone = false;
     
-    private ArrayList<Broadcaster> cards = new ArrayList<Broadcaster>();
     private int currentCard = 0;
     private final static String CONFIG = "Co";
     private final static String EXTRINSICS = "Ex";
-    
+    private ArrayList<Broadcaster> cards = new ArrayList<Broadcaster>();
     private JPanel mainPanel = new JPanel(new CardLayout());
     
     private String next = "Next";
@@ -200,28 +198,15 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
         }
         else if(id.equals(CONFIG))
         {
-            try
-            {
-                configPath = info[0];
-                config = new ConfigFile(configPath);
-                Util.verifyConfig(config);
-                nextButton.setEnabled(ready);
-            } catch (IOException e)
-            {
-                JOptionPane.showMessageDialog(this, "IO Exception: Unable to open file");
-                e.printStackTrace();
-                
-            } catch (ConfigException e)
-            {
-                JOptionPane.showMessageDialog(this, e.getMessage());
-                e.printStackTrace();
-            }
             
-            settingsDone = ready;
-            if(settingsDone)
+            if(ready)
             {
                 try
                 {
+                    configPath = info[0];
+                    config = new ConfigFile(configPath);
+                    Util.verifyConfig(config);
+                    
                     ArrayList<String> allUrls = ImageSource.getCameraURLs();
                     urls.clear();
                     
@@ -234,9 +219,17 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
                         }
                     }
 
-                    add(new CameraPlayerPanel(2, true));
-                    add(new ExtrinsicsPanel(EXTRINSICS, urls.toArray(new String[urls.size()])));
-                    add(new ObjectTrackerPanel(true));
+                    if(urls.isEmpty())
+                    {
+                        JOptionPane.showMessageDialog(this, "No cameras found.  Please plug them in an reclick the config file.");
+                    }
+                    else
+                    {
+                        nextButton.setEnabled(true);
+                        add(new CameraPlayerPanel(2, true));
+                        add(new ExtrinsicsPanel(EXTRINSICS, urls.toArray(new String[urls.size()])));
+                        add(new ObjectTrackerPanel(true));
+                    }
                     
                 } catch (ConfigException e)
                 {
@@ -251,6 +244,10 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
                 {
                     e.printStackTrace();
                 }
+            }
+            else
+            {
+                nextButton.setEnabled(false);
             }
         }
     }

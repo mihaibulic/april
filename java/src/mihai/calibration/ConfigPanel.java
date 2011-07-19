@@ -21,7 +21,7 @@ public class ConfigPanel extends Broadcaster implements ActionListener
         FileNameExtensionFilter filter = new FileNameExtensionFilter("config file", "config", "conf", "configure");
         fileChooser = new JFileChooser();
         fileChooser.setFileFilter(filter);
-        fileChooser.setControlButtonsAreShown(true);
+        fileChooser.setControlButtonsAreShown(false);
         fileChooser.setMultiSelectionEnabled(false);
         fileChooser.setDragEnabled(false);
 
@@ -33,6 +33,7 @@ public class ConfigPanel extends Broadcaster implements ActionListener
     
     public void go(String configPath, String[] urls)
     {
+        alertListener(false);
     // this method doesn't do anything since this panel doesn't do anything
     }
 
