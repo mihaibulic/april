@@ -14,9 +14,9 @@ public class IntroPanel extends Broadcaster
 {
     private static final long serialVersionUID = 1L;
     
-    public IntroPanel(int id) throws IOException
+    public IntroPanel() throws IOException
     {
-        super(id, new BorderLayout());
+        super(new BorderLayout());
 
         JPanel directionsPanel = new JPanel(new GridLayout(11, 1, 0, 0));
         JLabel empty1 = new JLabel(" ");
@@ -64,7 +64,7 @@ public class IntroPanel extends Broadcaster
     }
 
     @Override
-    public void go(String configPath, String...urls)
+    public void go(String configPath, String[] urls)
     {
         //This method doesn't do anything since this panel doesn't do anything
     }
@@ -75,6 +75,12 @@ public class IntroPanel extends Broadcaster
     }
     @Override
     public void displayMsg(String msg, boolean error)
-    {}
+    {
+        // no error messages to display
+    }
     
+    public void showDirections(boolean show)
+    {
+        // no optional directions to show
+    }
 }

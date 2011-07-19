@@ -94,18 +94,20 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         ArrayList<TagDetection> detections;
     }
     
-    public IntrinsicsPanel(int id)
+    public IntrinsicsPanel(String id, String url)
     {
-        super(id, new BorderLayout());
-
+        super(new BorderLayout());
+        
+        this.url = url;
+        
         initVis();
         
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BorderLayout());
         topPanel.add(vc);
         JSplitPane jsp = new JSplitPane(JSplitPane.VERTICAL_SPLIT, topPanel, vcImages);
-        jsp.setDividerLocation(0.8);
-        jsp.setResizeWeight(0.8);
+        jsp.setDividerLocation(0.75);
+        jsp.setResizeWeight(0.75);
         add(jsp, BorderLayout.CENTER);
 
         goButton.addActionListener(this);
@@ -162,7 +164,9 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         vcImages = new VisCanvas(vwImages);
         
         vc.setBackground(Color.BLACK);
+        vc.getViewManager().interfaceMode = 1.0;
         vcImages.setBackground(Color.BLACK);
+        vcImages.getViewManager().interfaceMode = 1.0;
         vcImages.getViewManager().viewGoal.fit2D(new double[] { 3.4 , 0 }, new double[] { 3.9, 0.6 });
     }
     
@@ -189,21 +193,6 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
             {
                 e.printStackTrace();
             }
-            
-            double text = ifmt.height+140;
-            VisWorld.Buffer vbDirections = vw.getBuffer("directions");
-            String directions[] = {"DIRECTIONS: Place the tag mosaic in the following four positions and click capture:",
-                                   "    1. Close up: camera should be looking straight at the mosaic and as close as possible",
-                                   "    2. Far away: camera should be looking straight at the mosaic and far away, but not so far that the camera can't detect most tags",
-                                   "    3. Angle 1: place camera so that it views the mosaic at a sharp angle",
-                                   "    4. Angle 2: keep the camera at a sharp angle, but turn it 90 degrees so the video feed is sideways",
-                                   "HINT #1: Not all tags must be visible in every image.",
-                                   "HINT #2: The four images above are the minimum; the more unique images you capture, the better the parameters will be."};
-            for(int x = 0; x < directions.length; x++)
-            {
-                vbDirections.addBuffered(new VisText(new double[]{0,text-20*x}, VisText.ANCHOR.LEFT,directions[x]));
-            }
-            vbDirections.switchBuffer();
         }
 
         public int getWidth()
@@ -260,7 +249,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                     if (first)
                     {
                         first = false;
-                        vc.getViewManager().viewGoal.fit2D(new double[] { 100, 130 }, new double[] { image.getWidth() - 100, image.getHeight()+30 });
+                        vc.getViewManager().viewGoal.fit2D(new double[] { 125, 125 }, new double[] { image.getWidth()-125, image.getHeight()-125 });
                     }
     
                     // every frame adds 6 unknowns, so we need at
@@ -709,18 +698,17 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
     {}
 
     @Override
-    public void go(String configPath, String... urls)
+    public void go(String configPath, String[] urls)
     {
         try
         {
             this.configPath = configPath;
-            url = urls[0];
             config = new ConfigFile(configPath);
             Util.verifyConfig(config);
 
             vwImages.clear();
             
-            captureThread = new CaptureThread(urls[0]);
+            captureThread = new CaptureThread(url);
             captureThread.start();
 
             g = new Graph();
@@ -755,5 +743,33 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         {
             e.printStackTrace();
         }
+    }
+    
+    @Override
+    public void showDirections(boolean show)
+    {
+        VisWorld.Buffer vbDirections = vw.getBuffer("directions");
+        vbDirections.setDrawOrder(10);
+        
+        if(show)
+        {
+            String directions = "<<left>><<mono-small>> \n \n \n " +
+            		               "DIRECTIONS\n \n" +
+            		               "<<left>> Place the tag mosaic in the following four positions and click capture:\n \n" +
+                                   "<<left>>     1. Close up: camera should be looking straight at the mosaic\n"+
+                                   "<<left>>                  and as close as possible\n \n" +
+                                   "<<left>>     2. Far away: camera should be looking straight at the mosaic and far\n"+
+                                   "<<left>>                  away, but close enough so the camera can see most tags\n \n" +
+                                   "<<left>>     3. Angle 1: place camera so that it views the mosaic at a sharp angle\n \n" +
+                                   "<<left>>     4. Angle 2: keep the camera at a sharp angle, but turn it 90 degrees\n"+
+                                   "<<left>>                  so the video feed is sideways\n \n \n" +
+                                   "<<left>>HINT #1: Not all tags must be visible in every image.\n \n" +
+                                   "<<left>>HINT #2: The four images above are the minimum; the more unique images\n"+
+                                   "<<left>>                 you capture, the better the parameters will be.\n \n \n \n ";
+
+            vbDirections.addBuffered(new VisChain(new VisText(VisText.ANCHOR.CENTER, directions)));
+        }
+        
+        vbDirections.switchBuffer();
     }
 }

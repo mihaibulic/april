@@ -32,10 +32,8 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
     private static final long serialVersionUID = 1L;
     static LCM lcm = LCM.getSingleton();
 
-    private boolean wizard;
     private int columns;
-    private int maxWidth;
-    private int maxHeight;
+    private int maxWidth, maxHeight;
     private HashMap<Integer, Integer> widthHash = new HashMap<Integer, Integer>();
     private HashMap<Integer, Integer> heightHash = new HashMap<Integer, Integer>();
     private HashMap<Integer, String> formatHash = new HashMap<Integer, String>();
@@ -45,39 +43,22 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
     
     private VisWorld vw;
     private VisCanvas vc;
-    private VisWorld.Buffer vbError;
     private ArrayList<Integer> cameraPosition = new ArrayList<Integer>();
     
-    public CameraPlayerPanel(int id, int columns, boolean wizard) throws CameraException, IOException, ConfigException
+    public CameraPlayerPanel(int columns, boolean wizard) throws CameraException, IOException, ConfigException
     {
-        super(id, new BorderLayout());
+        super(new BorderLayout());
         
-        this.wizard = wizard;
         this.columns = columns;
         vw = new VisWorld();
         vc = new VisCanvas(vw);
+        vc.getViewManager().interfaceMode = 1.0;
         vc.setBackground(Color.BLACK);
         
-        if(wizard)
-        {
-            vbError = vw.getBuffer("error");
-        }
-        
+        lcm.subscribeAll(this);
         add(vc);
     }
     
-    public CameraPlayerPanel(int columns, boolean wizard)
-    {
-        super(0, new BorderLayout());
-        
-        this.wizard = wizard;
-        this.columns = columns;
-        vw = new VisWorld();
-        vc = new VisCanvas(vw);
-        add(vc);
-        lcm.subscribeAll(this);
-    }
-
     public void messageReceived(LCM lcm, String channel, LCMDataInputStream ins)
     {
         try
@@ -127,7 +108,7 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
 	}
 
     @Override
-    public void go(String configPath, String... urls)
+    public void go(String configPath, String[] urls)
     {
         Config config = null;
         try
@@ -172,27 +153,6 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
         
         if(irs.size() == 0) new CameraException(CameraException.NO_CAMERA).printStackTrace();
         vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { columns*maxWidth, maxHeight*Math.ceil((double)irs.size()/(columns*maxWidth))});
-        
-        if(wizard)
-        {
-            VisWorld.Buffer vbDirections = vw.getBuffer("directions");
-            double text = maxHeight+500;
-            String directions[] = {"DIRECTIONS: place tags in the view of the cameras, follow these guidelines, and hit next to begin extrinsic calibration:" +
-                                   "   Layman's guidelines:",
-                                   "            1. Each tag MUST be viewable by at least two cameras (the more the better).",
-                                   "            2. Each camera MUST see at least one tag (the more the better).",
-                                   "            3. One must be able to 'connect' all the cameras together by seeing common tags inbetween them.",
-                                   "            4. The tags should be placed as far apart from one another as possible.",
-                                   "            5. The more tags that are used the better.",
-                                   "   Computer scienctist guideline:",
-                                   "            A connected graph must be formable using cameras as nodes and common tag detections as edges.",
-                                   "            (the more connections the better, with a complete graph being ideal)"};
-            for(int x = 0; x < directions.length; x++)
-            {
-                vbDirections.addBuffered(new VisText(new double[]{0,text-40*x}, VisText.ANCHOR.LEFT,directions[x]));
-            }
-            vbDirections.switchBuffer();
-        }
     }
 
     @Override
@@ -213,7 +173,39 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
     @Override
     public void displayMsg(String msg, boolean error)
     {
+        VisWorld.Buffer vbError = vw.getBuffer("error");
         vbError.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, (error ? "<<red, big>>" : "") + msg));
         vbError.switchBuffer();
+    }
+    
+    @Override
+    public void showDirections(boolean show)
+    {
+        VisWorld.Buffer vbDirections = vw.getBuffer("directions");
+        vbDirections.setDrawOrder(10);
+        
+        if(show)
+        {
+            String directions = "<<left>><<mono-small>> \n \n \n " +
+                                "DIRECTIONS: \n \n "+ 
+                                "<<left>> Place tags in the view of the cameras, follow these guidelines, and hit\n"+"" +
+                                "<<left>>               next to begin extrinsic calibration: \n \n" +
+                                "<<left>>   Layman's guidelines:\n" +
+                                "<<left>>       1. Each tag MUST be viewable by at least two cameras \n"+
+                                "<<left>>               (the more the better).\n \n" +
+                                "<<left>>       2. Each camera MUST see at least one tag (the more the better).\n \n" +
+                                "<<left>>       3. One must be able to 'connect' all the cameras together by seeing\n"+
+                                "<<left>>               common tags inbetween them.\n \n" +
+                                "<<left>>       4. The tags should be placed as far apart from one another as possible.\n \n" +
+                                "<<left>>       5. The more tags that are used the better.\n \n \n" +
+                                "<<left>>   Computer scienctist guideline:\n" +
+                                "<<left>>       A connected graph must be formable using cameras as nodes and \n"+
+                                "<<left>>               common tag detections as edges.\n \n" +
+                                "<<left>>   HINT: the more connections the better, with a complete graph being ideal";
+            
+            vbDirections.addBuffered(new VisChain(new VisText(VisText.ANCHOR.CENTER, directions)));
+        }
+        
+        vbDirections.switchBuffer();
     }
 }

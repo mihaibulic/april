@@ -8,21 +8,33 @@ public abstract class Broadcaster extends JPanel
     private static final long serialVersionUID = 1L;
     
     private Listener listener;
-    private int id;
+    private String id;
     
     public interface Listener
     {
-        public void handle(int id, boolean ready, String ...info);
+        public void handle(String id, boolean ready, String ...info);
     }
     
-    public abstract void displayMsg(String msg, boolean error);
-    public abstract void go(String configPath, String ...urls);
+    public abstract void go(String configPath, String[] urls);
     public abstract void stop();
+    public abstract void displayMsg(String msg, boolean error);
+    public abstract void showDirections(boolean show);
     
-    public Broadcaster(int id, LayoutManager layout)
+    public Broadcaster(LayoutManager layout)
+    {
+        super(layout);
+        id = "";
+    }
+    
+    public Broadcaster(String id, LayoutManager layout)
     {
         super(layout);
         this.id = id;
+    }
+    
+    public String getId()
+    {
+        return id;
     }
     
     public void setListener(Listener listener)

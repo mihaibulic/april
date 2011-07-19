@@ -16,21 +16,21 @@ public class CalibTest extends JFrame implements Broadcaster.Listener
         setSize(Toolkit.getDefaultToolkit().getScreenSize());
 
         this.url = url;
-        cal = new IntrinsicsPanel(0);
+        cal = new IntrinsicsPanel("In", url);
         cal.setListener(this);
-        cal.go("/home/april/mihai/config/camera.config", url);
+        cal.go("/home/april/mihai/config/camera.config", new String[]{url});
         add(cal, BorderLayout.CENTER);
         setVisible(true);
     }
-    
+
     public static void main(String[] args)
     {
         new CalibTest(args[0]);
     }
 
-    public void handle(int id, boolean ready, String... info)
+    public void handle(String id, boolean ready, String... info)
     {
-        cal.go("/home/april/mihai/config/camera.config", url);
+        cal.go("/home/april/mihai/config/camera.config", new String[] {url});
     }
 
 }

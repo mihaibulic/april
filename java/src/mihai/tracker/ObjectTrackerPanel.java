@@ -32,7 +32,6 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
     private VisCanvas vc;
     private VisWorld.Buffer vbCameras;
     private VisWorld.Buffer vbObjects;
-    private VisWorld.Buffer vbDirections;
 //    private VisWorld.Buffer vbRays;
     
     private boolean display;
@@ -46,9 +45,9 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
 
     private Color[] colors = {Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.GRAY, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.LIGHT_GRAY};
     
-    public ObjectTrackerPanel(int id, boolean display) throws ConfigException, CameraException, IOException 
+    public ObjectTrackerPanel(boolean display) throws ConfigException, CameraException, IOException 
     {
-        super(id, new BorderLayout());
+        super(new BorderLayout());
         
         this.display = display;
         
@@ -63,11 +62,6 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
             vbCameras = vw.getBuffer("cameras");
             vbCameras.setDrawOrder(3);
             vc.getViewManager().viewGoal.fit2D(new double[] { -1, -1 }, new double[] { 1, 1});
-            
-            vbDirections = vw.getBuffer("directions");
-            vbDirections.setDrawOrder(4);
-            vbDirections.addBuffered(new VisText(VisText.ANCHOR.TOP_LEFT,"Objects are now being tracked and published via LCM"));
-            vbDirections.switchBuffer();
         }
         
     }
@@ -340,7 +334,7 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         }
     }
 
-    public void go(String configPath, String... urls)
+    public void go(String configPath, String[] urls)
     {
         try
         {
@@ -396,6 +390,28 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         (new Tracker()).start();
     }
     
+    @Override
     public void displayMsg(String msg, boolean error)
     {}
+    
+    @Override
+    public void showDirections(boolean show)
+    {
+        VisWorld.Buffer vbDirections = vw.getBuffer("directions");
+        vbDirections.setDrawOrder(10);
+        
+        if(show)
+        {
+            String directions = "<<left>><<mono-small>> \n \n \n"+
+                                "DIRECTIONS: \n \n"+
+                                "<<left>> 1. place the object(s) to be tracked in the view of several cameras\n"+
+                                "<<left>>     (minimum of two)\n \n"+
+                                "<<left>> 2. the software should detect, display, and publish the detections\n"+
+                                "<<left>>     via LCM \n \n \n" +
+                                "<<left>> HINT: use lcm-spy (type into terminal), to track the object messages";
+            vbDirections.addBuffered(new VisText(VisText.ANCHOR.CENTER, directions));
+        }
+        
+        vbDirections.switchBuffer();
+    }
 }

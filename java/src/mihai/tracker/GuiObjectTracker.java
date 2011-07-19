@@ -1,9 +1,13 @@
 package mihai.tracker;
 
+import java.awt.BorderLayout;
 import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
@@ -13,9 +17,12 @@ import april.config.ConfigFile;
 import april.jcam.ImageSource;
 import april.util.GetOpt;
 
-public class GuiObjectTracker extends JFrame
+public class GuiObjectTracker extends JFrame implements ActionListener
 {
     private static final long serialVersionUID = 1L;
+    
+    private ObjectTrackerPanel otp;
+    private JCheckBox directions;
     
     public GuiObjectTracker(String configPath, boolean display) throws ConfigException, CameraException, IOException
     {
@@ -25,7 +32,8 @@ public class GuiObjectTracker extends JFrame
         
         if (ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
         
-        ObjectTrackerPanel otp = new ObjectTrackerPanel(0, display);
+        otp = new ObjectTrackerPanel(display);
+        otp.showDirections(true);
         
         ArrayList<String> allUrls = ImageSource.getCameraURLs();
         ArrayList<String> urls = new ArrayList<String>();
@@ -41,7 +49,12 @@ public class GuiObjectTracker extends JFrame
         }
         otp.go(configPath, urls.toArray(new String[urls.size()]));
         
-        add(otp);
+        directions = new JCheckBox("show directions", true);
+        add(otp, BorderLayout.CENTER);
+
+        directions.addActionListener(this);
+        add(directions, BorderLayout.SOUTH);
+        
         setVisible(true);
     }
 
@@ -66,5 +79,10 @@ public class GuiObjectTracker extends JFrame
         }
         
         new GuiObjectTracker(opts.getString("config"), opts.getBoolean("display")); 
+    }
+
+    public void actionPerformed(ActionEvent arg0)
+    {
+        otp.showDirections(directions.isSelected()); 
     }
 }

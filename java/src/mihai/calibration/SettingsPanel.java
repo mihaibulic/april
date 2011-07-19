@@ -7,7 +7,7 @@ public class SettingsPanel extends Broadcaster
 {
     private static final long serialVersionUID = 1L;
 
-    public SettingsPanel(int id)
+    public SettingsPanel(String id)
     {
         super(id, new BorderLayout());
         
@@ -15,7 +15,7 @@ public class SettingsPanel extends Broadcaster
     }
 
     @Override
-    public void go(String configPath, String... urls)
+    public void go(String configPath, String[] urls)
     {
         alertListener();
     }
@@ -26,5 +26,9 @@ public class SettingsPanel extends Broadcaster
 
     @Override
     public void displayMsg(String msg, boolean error)
+    {}
+    
+    @Override
+    public void showDirections(boolean show)
     {}
 }

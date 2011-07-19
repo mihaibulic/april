@@ -18,8 +18,8 @@ public class GuiCameraPlayer extends JFrame
         super("Camera Player");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(Toolkit.getDefaultToolkit().getScreenSize());
-        CameraPlayerPanel camplayer = new CameraPlayerPanel(0, columns, false);
-        camplayer.go(configPath);
+        CameraPlayerPanel camplayer = new CameraPlayerPanel(columns, false);
+        camplayer.go(configPath, new String[] {});
         add(camplayer);
         setVisible(true);
     }

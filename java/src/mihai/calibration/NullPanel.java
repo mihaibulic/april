@@ -6,12 +6,12 @@ public class NullPanel extends Broadcaster
 {
     private static final long serialVersionUID = 1L;
 
-    public NullPanel(int id)
+    public NullPanel()
     {
-        super(id, new BorderLayout());
+        super(new BorderLayout());
     }
     @Override
-    public void go(String configPath, String... urls)
+    public void go(String configPath, String[] urls)
     {}
 
     @Override
@@ -20,5 +20,9 @@ public class NullPanel extends Broadcaster
     
     @Override
     public void displayMsg(String msg, boolean error)
+    {}
+    
+    @Override
+    public void showDirections(boolean show)
     {}
 }

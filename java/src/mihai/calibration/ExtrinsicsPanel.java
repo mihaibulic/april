@@ -42,13 +42,14 @@ public class ExtrinsicsPanel extends Broadcaster
     private Calibrate calibrate;
     private boolean kill = false;
     
-    public ExtrinsicsPanel(int id, String[] urls) throws ConfigException, CameraException, IOException, InterruptedException
+    public ExtrinsicsPanel(String id, String[] urls) throws ConfigException, CameraException, IOException, InterruptedException
     {
         super(id, new BorderLayout());
         
         vw = new VisWorld();
         vc = new VisCanvas(vw);
         vc.setBackground(Color.BLACK);
+        vc.getViewManager().interfaceMode = 1.0;
         vbTags = vw.getBuffer("tags");
         vbTags.setDrawOrder(1);
         vbCameras = vw.getBuffer("cameras");
@@ -443,7 +444,7 @@ public class ExtrinsicsPanel extends Broadcaster
     }
     
     @Override
-    public void go(String configPath, String...urls)
+    public void go(String configPath, String[] urls)
     {
         try
         {
@@ -500,6 +501,12 @@ public class ExtrinsicsPanel extends Broadcaster
                 e.printStackTrace();
             }
         }
+    }
+    
+    @Override
+    public void showDirections(boolean show)
+    {
+        // no directions to show
     }
     
     @Override

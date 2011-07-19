@@ -12,7 +12,7 @@ public class ConfigPanel extends Broadcaster implements ActionListener
     private static final long serialVersionUID = 1L;
     private JFileChooser fileChooser;
     
-    public ConfigPanel(int id)
+    public ConfigPanel(String id)
     {
         super(id, new BorderLayout());
 
@@ -21,7 +21,7 @@ public class ConfigPanel extends Broadcaster implements ActionListener
         FileNameExtensionFilter filter = new FileNameExtensionFilter("config file", "config", "conf", "configure");
         fileChooser = new JFileChooser();
         fileChooser.setFileFilter(filter);
-        fileChooser.setControlButtonsAreShown(false);
+        fileChooser.setControlButtonsAreShown(true);
         fileChooser.setMultiSelectionEnabled(false);
         fileChooser.setDragEnabled(false);
 
@@ -31,9 +31,9 @@ public class ConfigPanel extends Broadcaster implements ActionListener
     }
 
     
-    public void go(String configPath, String...urls)
+    public void go(String configPath, String[] urls)
     {
-    // this method doesn't do anything since this panel doesn't do anthing
+    // this method doesn't do anything since this panel doesn't do anything
     }
 
     @Override
@@ -53,5 +53,13 @@ public class ConfigPanel extends Broadcaster implements ActionListener
 
     @Override
     public void displayMsg(String msg, boolean error)
-    {}
+    {
+        //no messages to display
+    }
+    
+    @Override
+    public void showDirections(boolean show)
+    {
+        // no directions to show
+    }
 }
