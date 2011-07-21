@@ -42,7 +42,7 @@ public class ExtrinsicsPanel extends Broadcaster
     private Calibrate calibrate;
     private boolean kill = false;
     
-    public ExtrinsicsPanel(String id, String[] urls) throws ConfigException, CameraException, IOException, InterruptedException
+    public ExtrinsicsPanel(String id) throws ConfigException, CameraException, IOException, InterruptedException
     {
         super(id, new BorderLayout());
         
