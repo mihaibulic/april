@@ -52,7 +52,7 @@ public class IterativeExtrinsicsSolverTest extends JFrame
             
             for(Tag tag : cameras[i].getTagsList())
             {
-                vb.addBuffered(new VisChain(cameras[i].getTransformationMatrix(), tag.getTransformationMatrix(), new VisRectangle(0.15, 0.15, new VisDataFillStyle(colors[i]))));
+                vb.addBuffered(new VisChain(cameras[i].getTransformationMatrix(), tag.matrix, new VisRectangle(0.15, 0.15, new VisDataFillStyle(colors[i]))));
             }
         }
         
@@ -222,12 +222,12 @@ public class IterativeExtrinsicsSolverTest extends JFrame
                 }
                 for(int t = 0; t < tagsL[c].size(); t++)
                 {
-                    double[] curTag = LinAlg.matrixToXyzrpy(LinAlg.matrixAB(LinAlg.xyzrpyToMatrix(curCamera), tagsL[c].get(t).getTransformationMatrix()));
+                    double[] curTag = LinAlg.matrixToXyzrpy(LinAlg.matrixAB(LinAlg.xyzrpyToMatrix(curCamera), tagsL[c].get(t).matrix));
                     for(int o = 0; o < cameras.length; o++)
                     {
                         if(o!=c)
                         {
-                            double[] otherTag = tagsH[o].get(tagsL[c].get(t).getId());
+                            double[] otherTag = tagsH[o].get(tagsL[c].get(t).id);
                             if(otherTag != null)
                             {
                                 count++;

@@ -4,9 +4,9 @@ import april.jmat.LinAlg;
 
 public class Tag
 {
-    private double[] xyzrpy;
-    private double[][] matrix;
-    private int id;
+    public double[] xyzrpy;
+    public double[][] matrix;
+    public int id;
     
     public Tag(double[] xyzrpy, double[][] matrix, int id)
     {
@@ -29,18 +29,9 @@ public class Tag
         this.id = id;
     }
     
-    public int getId()
+    @Override
+    public boolean equals(Object a)
     {
-        return id;
-    }
-    
-    public double[] getXyzrpy()
-    {
-        return xyzrpy;
-    }
-    
-    public double[][] getTransformationMatrix()
-    {
-        return matrix;
+        return (id == ((Tag)a).id);
     }
 }

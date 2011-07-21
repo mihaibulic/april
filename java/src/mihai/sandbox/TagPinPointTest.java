@@ -43,18 +43,18 @@ public class TagPinPointTest extends JFrame
         ArrayList<Tag> locations = new ArrayList<Tag>();
         for(int start = 0; start < detections.size(); start=end)
         {
-            int last_id = detections.get(start).getId();
+            int last_id = detections.get(start).id;
             int id = last_id;
             
             while( last_id==id && ++end < detections.size())
             {
-                id = detections.get(end).getId();
+                id = detections.get(end).id;
             }
             
             double[][] points = new double[end-start][6];
             for(int b = 0; b < points.length; b++)
             {
-                points[b] = detections.get(start+b).getXyzrpy();
+                points[b] = detections.get(start+b).xyzrpy;
             }
             
             locations.add(new Tag(PointUtil.calculateItt(points), last_id)); 
@@ -78,13 +78,13 @@ public class TagPinPointTest extends JFrame
         
         for(int x = 0; x < f.size(); x++)
         {
-            vb.addBuffered(new VisChain(LinAlg.xyzrpyToMatrix(f.get(x).getXyzrpy()), new VisCamera(colors[f.get(x).getId()], size*2)));
+            vb.addBuffered(new VisChain(LinAlg.xyzrpyToMatrix(f.get(x).xyzrpy), new VisCamera(colors[f.get(x).id], size*2)));
         }
         
         for(int x = 0; x < fin.size(); x++)
         {
-            vb.addBuffered(new VisChain(LinAlg.xyzrpyToMatrix(fin.get(x).getXyzrpy()),
-                      new VisCamera(colors[fin.get(x).getId()], size)));
+            vb.addBuffered(new VisChain(LinAlg.xyzrpyToMatrix(fin.get(x).xyzrpy),
+                      new VisCamera(colors[fin.get(x).id], size)));
         }
         
         vb.switchBuffer();

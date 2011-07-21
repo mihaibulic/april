@@ -214,7 +214,7 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
                     {
                         if(Util.isValidUrl(config, url))
                         {
-                            add(new IntrinsicsPanel(cards.size()+"", url));
+                            add(new IntrinsicsPanel(cards.size()+"", urls.size())); 
                             urls.add(url);
                         }
                     }
@@ -227,7 +227,7 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
                     {
                         nextButton.setEnabled(true);
                         add(new CameraPlayerPanel(2, true));
-                        add(new ExtrinsicsPanel(EXTRINSICS, urls.toArray(new String[urls.size()])));
+                        add(new ExtrinsicsPanel(EXTRINSICS));
                         add(new ObjectTrackerPanel(true));
                     }
                     

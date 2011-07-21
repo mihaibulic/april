@@ -108,7 +108,7 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
 	}
 
     @Override
-    public void go(String configPath, String[] urls)
+    public void go(String configPath, String... urls)
     {
         Config config = null;
         try

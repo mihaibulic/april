@@ -16,7 +16,7 @@ public class CalibTest extends JFrame implements Broadcaster.Listener
         setSize(Toolkit.getDefaultToolkit().getScreenSize());
 
         this.url = url;
-        cal = new IntrinsicsPanel("In", url);
+        cal = new IntrinsicsPanel("In", 0);
         cal.setListener(this);
         cal.go("/home/april/mihai/config/camera.config", new String[]{url});
         add(cal, BorderLayout.CENTER);

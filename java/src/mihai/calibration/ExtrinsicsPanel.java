@@ -112,16 +112,16 @@ public class ExtrinsicsPanel extends Broadcaster
 
         while (mainIndex < mainTags.size() && auxIndex < auxTags.size())
         {
-            if (auxTags.get(auxIndex).getId() == mainTags.get(mainIndex).getId())
+            if (auxTags.get(auxIndex).id == mainTags.get(mainIndex).id)
             {
-                mainM = mainTags.get(mainIndex).getTransformationMatrix();
-                auxM = auxTags.get(auxIndex).getTransformationMatrix();
+                mainM = mainTags.get(mainIndex).matrix;
+                auxM = auxTags.get(auxIndex).matrix;
                 
                 auxCam.addCorrespondence(LinAlg.matrixAB(mainM, LinAlg.inverse(auxM)));
                 mainIndex++;
                 auxIndex++;
             }
-            else if (auxTags.get(auxIndex).getId() > mainTags.get(mainIndex).getId())
+            else if (auxTags.get(auxIndex).id > mainTags.get(mainIndex).id)
             {
                 mainIndex++;
             }
@@ -286,12 +286,12 @@ public class ExtrinsicsPanel extends Broadcaster
                 }
                 for(int t = 0; t < tagsL[c].size(); t++)
                 {
-                    double[] curTag = LinAlg.matrixToXyzrpy(LinAlg.matrixAB(LinAlg.xyzrpyToMatrix(curCamera), tagsL[c].get(t).getTransformationMatrix()));
+                    double[] curTag = LinAlg.matrixToXyzrpy(LinAlg.matrixAB(LinAlg.xyzrpyToMatrix(curCamera), tagsL[c].get(t).matrix));
                     for(int o = 0; o < cameras.size(); o++)
                     {
                         if(o!=c)
                         {
-                            double[] otherTag = tagsH[o].get(tagsL[c].get(t).getId());
+                            double[] otherTag = tagsH[o].get(tagsL[c].get(t).id);
                             if(otherTag != null)
                             {
                                 count++;
@@ -428,7 +428,7 @@ public class ExtrinsicsPanel extends Broadcaster
                 
                 for (Tag tag : cam.getTagsList())   
                 {
-                    double tagM[][] = tag.getTransformationMatrix();
+                    double tagM[][] = tag.matrix;
                     vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 
                             new VisDataLineStyle(colors[x], 2))));
                 }
@@ -444,7 +444,7 @@ public class ExtrinsicsPanel extends Broadcaster
     }
     
     @Override
-    public void go(String configPath, String[] urls)
+    public void go(String configPath, String...urls)
     {
         try
         {

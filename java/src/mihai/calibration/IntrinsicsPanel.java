@@ -74,6 +74,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
     
     private String configPath;
     private String url;
+    private int urlId;
     private Config config;
     
     // indexed by tag id
@@ -94,11 +95,15 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         ArrayList<TagDetection> detections;
     }
     
-    public IntrinsicsPanel(String id, String url)
+    /**
+     * @param urlId - It's a little weird to send the index when the url could be sent just as easily.  
+     *                This is for consistency (urls always sent through go method)
+     */
+    public IntrinsicsPanel(String id, int urlId) 
     {
         super(new BorderLayout());
         
-        this.url = url;
+        this.urlId = urlId;
         
         initVis();
         
@@ -208,8 +213,8 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         public void run()
         {
             boolean first = true;
-            BufferedImage image;
-            BufferedImage undistortedImage;
+            BufferedImage image = null;
+            BufferedImage undistortedImage = null;
             
             isrc.start();
             
@@ -698,11 +703,12 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
     {}
 
     @Override
-    public void go(String configPath, String[] urls)
+    public void go(String configPath, String... urls)
     {
         try
         {
             this.configPath = configPath;
+            this.url = urls[urlId];
             config = new ConfigFile(configPath);
             Util.verifyConfig(config);
 

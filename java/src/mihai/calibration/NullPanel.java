@@ -11,7 +11,7 @@ public class NullPanel extends Broadcaster
         super(new BorderLayout());
     }
     @Override
-    public void go(String configPath, String[] urls)
+    public void go(String configPath, String...urls)
     {}
 
     @Override

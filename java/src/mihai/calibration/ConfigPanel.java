@@ -31,7 +31,7 @@ public class ConfigPanel extends Broadcaster implements ActionListener
     }
 
     
-    public void go(String configPath, String[] urls)
+    public void go(String configPath, String...urls)
     {
         alertListener(false);
     // this method doesn't do anything since this panel doesn't do anything

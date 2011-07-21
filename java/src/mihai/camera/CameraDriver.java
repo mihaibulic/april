@@ -1,315 +1,245 @@
 package mihai.camera;
 
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-
-import javax.imageio.ImageIO;
-
-import lcm.lcm.LCM;
-import mihai.lcmtypes.image_path_t;
+import java.io.IOException;
+import magic.camera.util.SyncErrorDetector;
+import mihai.util.CameraException;
+import mihai.util.ConfigException;
+import mihai.util.Util;
+import april.config.Config;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
-import april.tag.Tag36h11;
-import april.tag.TagDetection;
-import april.tag.TagDetector;
 
-/**
-* Gets camera images and saves them as necessary
-*
-* @deprecated use ImageReader and ImageSaver 
-*/
-public class CameraDriver
+public class CameraDriver extends Thread
 {
-    private LCM lcm = LCM.getSingleton();
+    private static final int SAMPLES = 10;
+    private static final double CHI = 0.01;
+    private static final double MINIMUM_SLOPE = 0.01;
+    private static final double TIME_THRESH = 0.0;
+    private static final int VERBOSITY = -1;
+    private static final boolean GUI = false;
 
+    private boolean newImage = false;
+    private Object imageLock = new Object();
+    
+    private boolean run = true;
+    private boolean done = false;
+    private Object driverLock = new Object();
+    
+    private int id;
+    private String url;
     private ImageSource isrc;
     private ImageSourceFormat ifmt;
-    private HashMap<String, Integer> urls = new HashMap<String, Integer>();
-    private String url;
+    private SyncErrorDetector sync;
+    
+    private byte[] imageBuffer;
 
-//    private SyncErrorDetector syncDetector;
-    private String outputDir;
-    private int imCounter;
-    private int imModulus;
-    private int saveCounter;
-    
-    private TagDetector td;
+    public CameraDriver(String url, Config config) throws ConfigException
+    {
+        Util.verifyConfig(config);
 
-    public CameraDriver(String url) throws Exception
-    {
-        this(url, "", false, false, 15, false);
-    }
-    
-    public CameraDriver(String url, boolean loRes,boolean color16, int maxfps) throws Exception
-    {
-        this(url, "", loRes, color16, maxfps, false);
-    }
-    
-    public CameraDriver(String url, String outputDir, boolean loRes, boolean color16, int maxfps, boolean record) throws Exception
-    {
-        if (maxfps > (loRes ? 120 : 60))
+        run = Util.isValidUrl(config, url);
+        if(run)
         {
-            throw new Exception("FPS is too large.  It must be less then or equal to 120 if resolution is low, or 60 is resolution is high");
-        }
+            this.url = url;
+            
+            boolean hiRes = config.requireBoolean("hiRes");
+            boolean color8 = config.requireBoolean("color8");
+            int fps = config.requireInt("fps");
+            id = config.getChild(Util.getSubUrl(config, url)).requireInt("id");
+            
+            try
+            {
+                isrc = ImageSource.make(url);
+            } catch (IOException e)
+            {
+                e.printStackTrace();
+            }
 
+            // 760x480 8 = 0, 760x480 16 = 1, 380x240 8 = 2, 380x240 16 = 3
+            // converts booleans to 1/0 and combines them into an int
+            isrc.setFormat(Integer.parseInt("" + (hiRes ? 0 : 1) + (color8 ? 0 : 1), 2));
+            isrc.setFeatureValue(15, fps); // frame-rate, idx=11
+
+            ifmt = isrc.getCurrentFormat();
+
+            
+            config = config.getRoot().getChild("sync");
+            Util.verifyConfig(config);
+            sync = new SyncErrorDetector(config);
+        }
+    }
+    
+    public CameraDriver(String url) throws CameraException, IOException, ConfigException
+    {
+        this(url, true, true, 60);
+    }
+
+    public CameraDriver(String url, boolean hiRes, boolean color8, int fps)
+    {
         this.url = url;
-        imModulus = (loRes ? 120 : 60) / maxfps;
-        urls.put("dc1394://b09d01008b51b8", 0);
-        urls.put("dc1394://b09d01008b51ab", 1);
-        urls.put("dc1394://b09d01008b51b9", 2);
-        urls.put("dc1394://b09d01009a46a8", 3);
-        urls.put("dc1394://b09d01009a46b6", 4);
-        urls.put("dc1394://b09d01009a46bd", 5);
-        urls.put("dc1394://b09d01008c3f62", 10);
-        urls.put("dc1394://b09d01008c3f6a", 11); // has J on it
-        urls.put("dc1394://b09d01008e366c", 12); // unmarked
-        
-        if(urls.get(url) == null)
-        {
-            return;
-        }
-            
-        if(record)
-        {
-            this.outputDir = outputDir + "cam" + urls.get(url);
-            // ensure that the directory exists
-            File dir = new File(this.outputDir);
-            dir.mkdirs();
-        }
-            
-        isrc = ImageSource.make(url);
 
-        // 760x480 8 = 0
-        // 760x480 16 = 1
-        // 380x240 8 = 2
-        // 380x240 16 = 3
+        try
+        {
+            isrc = ImageSource.make(url);
+        } catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+
+        // 760x480 8 = 0, 760x480 16 = 1, 380x240 8 = 2, 380x240 16 = 3
         // converts booleans to 1/0 and combines them into an int
-        isrc.setFormat(Integer.parseInt("" + (loRes ? 1 : 0)
-                + (color16 ? 1 : 0), 2));
-
-        isrc.setFeatureValue(0, 1); // white-balance-manual=1, idx=0
-        isrc.setFeatureValue(1, 495); // white-balance-red=495, idx=1
-        isrc.setFeatureValue(2, 612); // white-balance-blue=612, idx=2
-        isrc.setFeatureValue(3, 0); // exposure-manual=0, idx=3
-        isrc.setFeatureValue(5, 0); // brightness-manual=0, idx=5
-        isrc.setFeatureValue(7, 0); // gamma-manual=1, idx=7
-        isrc.setFeatureValue(9, 1); // timestamps-enable=1, idx=9
-        isrc.setFeatureValue(10, 1); // frame-rate-manual=1, idx=10
-        isrc.setFeatureValue(11, (loRes ? 120 : 60)); // frame-rate, idx=11
+        isrc.setFormat(Integer.parseInt("" + (hiRes ? 0 : 1) + (color8 ? 0 : 1), 2));
+        isrc.setFeatureValue(15, fps); // frame-rate, idx=11
 
         ifmt = isrc.getCurrentFormat();
-
-        BlockingQueue<BufferedImage> queue = new ArrayBlockingQueue<BufferedImage>(
-                100);
-
-        new Reader(queue, record).start();
-        
-        if (record)
-        {
-            new Save(queue).start();
-        }
+        sync = new SyncErrorDetector(SAMPLES, CHI, MINIMUM_SLOPE, TIME_THRESH, VERBOSITY, GUI);
     }
-
-    public class Reader extends Thread
+    
+    public void run()
     {
-        private final BlockingQueue<BufferedImage> queue;
-        private ArrayList<TagDetection> detections;
-        private boolean detectionsFlag = false;
-        private boolean consume;
+        isrc.start();
         
-        Reader(BlockingQueue<BufferedImage> queue, boolean consume)
+        while (run)
         {
-            this.queue = queue;
-            this.consume = consume;
-        }
-
-        public void run()
-        {
-            // makeSyncDetector();
-
-            isrc.start();
-
-            while (true)
+            byte imageBuffer[] = isrc.getFrame();
+            
+            if(imageBuffer != null)
             {
-                byte imageBuffer[] = null;
-                BufferedImage image = null;
+                sync.addTimePointGreyFrame(imageBuffer);
 
-                imageBuffer = isrc.getFrame();
-                if (imageBuffer == null)
+                int status = sync.verify();
+                if(status == SyncErrorDetector.SYNC_GOOD)
                 {
-                    System.out.println("err getting frame");
-                    toggleImageSourceFormat(isrc);
-                    continue;
-                }
-
-//                syncDetector.addTimePointGreyFrame(imageBuffer);
-
-//                int syncResult = syncDetector.verify();
-//
-//                if (syncResult == SyncErrorDetector.RECOMMEND_ACTION)
-//                {
-//                    toggleImageSourceFormat(isrc);
-//                    makeSyncDetector();
-//                    continue;
-//                }
-//
-//                if (syncResult == SyncErrorDetector.SYNC_BAD)
-//                {
-//                    toggleImageSourceFormat(isrc);
-//                    continue;
-//                }
-
-                imCounter++;
-
-                if (imCounter % imModulus == 0)
-                {
-                    image = ImageConvert.convertToImage(ifmt.format,ifmt.width, ifmt.height, imageBuffer);
-
-                    if (image == null)
+                    synchronized(imageLock)
                     {
-                        System.out.println("err converting to image");
-                        toggleImageSourceFormat(isrc);
-                        continue;
+                        newImage = true;
+                        this.imageBuffer = imageBuffer;
+                        imageLock.notify();
                     }
-
+                } 
+                else if (status == SyncErrorDetector.RECOMMEND_ACTION)
+                {
                     try
                     {
-                        if(detectionsFlag)
-                        {
-                            setTagDetections(image);
-                        }
-                        
-                        if(consume)
-                        {
-                            queue.put(image);
-                        }
-                    } 
-                    catch (IllegalStateException ise)
-                    {
-                        System.err.println("Queue is full, emptying...");
-                        queue.clear();
-                        continue;
-                    }
-                    catch (InterruptedException ie)
-                    {
-                        ie.printStackTrace();
-                    }
-                    catch (Exception e)
+                        toggleImageSource(isrc);
+                    } catch (ConfigException e)
                     {
                         e.printStackTrace();
                     }
                 }
             }
         }
-
-        private void toggleImageSourceFormat(ImageSource isrc)
-        {
-            isrc.stop();
-            int currentFormat = isrc.getCurrentFormatIndex();
-            isrc.setFormat(currentFormat);
-
-            isrc.start();
-        }
-
-        /**
-         * Convenience method if sync detector must be remade when toggling isrc
-         * format.
-         * 
-         * samples = 10; // 20 sample history chi2Tolerance = 0.001; // Tolerate
-         * Chi^2 error under... minimumSlope = 0.01; // Minimum slope for
-         * timestamp timeThresh = 0.0; // Suggest restart after holding bad sync
-         * for _ seconds verbosity = 1; // Debugging output level (0=almost
-         * none) gui = false;
-         **/
-//        private void makeSyncDetector()
-//        {
-//            syncDetector = new SyncErrorDetector(10, 0.001, 0.01, 0.0, 1, false);
-//        }
-
-        private void setTagDetections(BufferedImage image) throws Exception
-        {
-            if (image == null)
-            {
-                throw new Exception("image is not ready");
-            }
-            
-            if(td == null)
-            {
-                td = new TagDetector(new Tag36h11());
-            }
-            
-            synchronized(detections)
-            {
-                detections = td.process(image, new double[] {image.getWidth()/2.0, image.getHeight()/2.0});
-                detectionsFlag = false;
-                detections.notify();
-            }
-        }
         
-        public ArrayList<TagDetection> getTagDetections() throws InterruptedException
+        isrc.stop();
+        synchronized(driverLock)
         {
-            detectionsFlag = true;
-            
-            synchronized(detections)
-            {
-                while(detectionsFlag)
-                {
-                    detections.wait();
-                }
-            }
-            
-            return detections;
+            done = true;
+            driverLock.notify();
         }
-        
     }
 
-    public class Save extends Thread
+    public int getCameraId()
     {
-        private final BlockingQueue<BufferedImage> queue;
-        
-        Save(BlockingQueue<BufferedImage> queue)
-        {
-            this.queue = queue;
-        }
+        return id;
+    }
+    
+    private void toggleImageSource(ImageSource isrc) throws ConfigException
+    {
+        isrc.stop();
+        int currentFormat = isrc.getCurrentFormatIndex();
+        isrc.setFormat(currentFormat);
 
-        public void run()
+        isrc.start();
+        sync = new SyncErrorDetector(SAMPLES, CHI, MINIMUM_SLOPE, TIME_THRESH, VERBOSITY, GUI);
+    }
+
+    public String getUrl()
+    {
+        return url;
+    }
+    
+    public int getWidth()
+    {
+        return ifmt.width;
+    }
+    
+    public int getHeight()
+    {
+        return ifmt.height;
+    }
+    
+    public String getFormat()
+    {
+        return ifmt.format;
+    }
+    
+    public byte[] getFrameBuffer()
+    {
+        synchronized(imageLock)
         {
-            while (true)
+            while(!newImage)
             {
-                image_path_t imagePath = new image_path_t();
-
                 try
                 {
-                    BufferedImage image = queue.take();
-                    imagePath.img_path = saveImage(image);
-                } catch (Exception e)
+                    imageLock.wait();
+                } catch (InterruptedException e)
                 {
                     e.printStackTrace();
                 }
-
-                lcm.publish("cam" + urls.get(url), imagePath);
             }
+            newImage = false;
+            return imageBuffer;
         }
-
-        private String saveImage(BufferedImage image) throws Exception
+    }
+    
+    public BufferedImage getFrameImage()
+    {
+        synchronized(imageLock)
         {
-            String filepath = outputDir + File.separator + "IMG" + saveCounter;
-
-            if (image == null)
+            while(!newImage)
             {
-                throw new Exception("image is not ready");
+                try
+                {
+                    imageLock.wait();
+                } catch (InterruptedException e)
+                {
+                    e.printStackTrace();
+                }
             }
-
-            ImageIO.write(image, "png", new File(filepath));
-
-            saveCounter++;
-
-            return filepath;
+            newImage = false;
+            return ImageConvert.convertToImage(ifmt.format, ifmt.width, ifmt.height, imageBuffer);
         }
+    }
+    
+    public void kill() throws InterruptedException
+    {
+        run = false;
+        synchronized(driverLock)
+        {
+            while(!done)
+            {
+                driverLock.wait();
+            }
+        }
+    }
+    
+    public boolean isGood()
+    {
+        return run;
+    }
+    
+    public void setFramerate(int fps)
+    {
+        isrc.setFeatureValue(15, fps); // frame-rate, idx=11
+    }
+    
+    public void setFormat(boolean hiRes, boolean color8)
+    {
+        isrc.stop();
+        isrc.setFormat(Integer.parseInt("" + (hiRes ? 0 : 1) + (color8 ? 0 : 1), 2));
+        ifmt = isrc.getCurrentFormat();
+        isrc.start();
     }
 }

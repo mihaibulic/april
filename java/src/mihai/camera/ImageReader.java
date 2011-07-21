@@ -140,7 +140,7 @@ public class ImageReader extends Thread
 
     private static Config setConfig(boolean loRes, boolean color16, int maxfps) throws IOException
     {
-    	Config config = new ConfigFile("$CONFIG/camera.config");
+    	Config config = new ConfigFile(System.getenv("APRIL_CONFIG")+"/camera.config");
 
     	config.setBoolean("loRes", loRes);
     	config.setBoolean("color16", color16);

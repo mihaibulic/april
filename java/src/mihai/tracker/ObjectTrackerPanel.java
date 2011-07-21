@@ -334,7 +334,7 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         }
     }
 
-    public void go(String configPath, String[] urls)
+    public void go(String configPath, String...urls)
     {
         try
         {
