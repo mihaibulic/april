@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import magic.camera.util.SyncErrorDetector;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
-import mihai.util.Util;
+import mihai.util.ConfigUtil;
 import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageSource;
@@ -18,7 +18,7 @@ import april.util.TimeUtil;
  * Sets camera to a certain resolution, color format, and framerate and reads off images (byte[]) and handles this for all subscribed listeners
  * 
  * @author Mihai Bulic
- *
+ *@deprecated
  */
 public class ImageReader extends Thread
 {
@@ -53,9 +53,9 @@ public class ImageReader extends Thread
     
     public ImageReader(Config config, String url) throws CameraException, IOException, ConfigException
     {
-        Util.verifyConfig(config);
+        ConfigUtil.verifyConfig(config);
 
-    	run = Util.isValidUrl(config, url);
+    	run = CameraDriver.isValidUrl(config, url);
     	if(run)
     	{
     	    this.url = url;
@@ -64,13 +64,13 @@ public class ImageReader extends Thread
     	    boolean loRes = config.requireBoolean("loRes");
     	    boolean color16 = config.requireBoolean("color16");
     	    int maxfps = config.requireInt("fps");
-    	    id = config.getChild(Util.getSubUrl(config, url)).requireInt("id");
+    	    id = config.getChild(CameraDriver.getSubUrl(config, url)).requireInt("id");
     	    
     	    if (maxfps > (loRes ? CameraException.MAX_LO_RES : CameraException.MAX_HI_RES)) throw new CameraException(CameraException.FPS);
     	    setIsrc(loRes, color16, maxfps, url);
 
     	    config = config.getRoot().getChild("sync");
-	        Util.verifyConfig(config);
+	        ConfigUtil.verifyConfig(config);
     	    sync = new SyncErrorDetector(config);
     	}
     }
@@ -180,7 +180,7 @@ public class ImageReader extends Thread
 
         isrc.start();
         config = config.getRoot().getChild("sync");
-        Util.verifyConfig(config);
+        ConfigUtil.verifyConfig(config);
         sync = new SyncErrorDetector(config);
     }
 

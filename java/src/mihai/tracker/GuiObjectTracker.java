@@ -9,9 +9,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
+import mihai.camera.CameraDriver;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
-import mihai.util.Util;
+import mihai.util.ConfigUtil;
 import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageSource;
@@ -38,11 +39,11 @@ public class GuiObjectTracker extends JFrame implements ActionListener
         ArrayList<String> allUrls = ImageSource.getCameraURLs();
         ArrayList<String> urls = new ArrayList<String>();
         Config config = new ConfigFile(configPath);
-        Util.verifyConfig(config);
+        ConfigUtil.verifyConfig(config);
         
         for(String url : allUrls)
         {
-            if(Util.isValidUrl(config, url))
+            if(CameraDriver.isValidUrl(config, url))
             {
                 urls.add(url);
             }

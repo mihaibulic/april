@@ -6,7 +6,7 @@ import mihai.camera.ImageReader;
 import mihai.camera.TagDetector2;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
-import mihai.util.Util;
+import mihai.util.ConfigUtil;
 import april.config.Config;
 import april.jcam.ImageConvert;
 import april.jmat.LinAlg;
@@ -45,7 +45,7 @@ public class Track extends Thread implements ImageReader.Listener
     
     public Track(Config config, String url) throws ConfigException, CameraException, IOException
     {
-    	Util.verifyConfig(config);
+    	ConfigUtil.verifyConfig(config);
 
     	id = config.requireInt("id");
         fc = config.requireDoubles("fc");

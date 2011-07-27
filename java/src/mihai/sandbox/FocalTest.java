@@ -5,7 +5,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import javax.swing.JFrame;
-import mihai.util.Util;
+import mihai.util.ConfigUtil;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
@@ -148,7 +148,7 @@ public class FocalTest implements ParameterListener
                     
                     double dist = LinAlg.distance(LinAlg.matrixToXyzrpy(M1), LinAlg.matrixToXyzrpy(M2), 3);
                     
-                    System.out.println(Util.round(dist,3));
+                    System.out.println(dist);
                 }
                 
                 vbImage.addBuffered(new VisImage(image));

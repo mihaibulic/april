@@ -6,9 +6,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import mihai.camera.CameraDriver;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
-import mihai.util.Util;
+import mihai.util.ConfigUtil;
 import mihai.vis.VisCamera;
 import april.config.Config;
 import april.config.ConfigFile;
@@ -408,12 +409,12 @@ public class ExtrinsicsPanel extends Broadcaster
                 
                 double[] pos = cam.getXyzrpy();
                 output += "camera: " + cam.getCameraId() + "\n"; 
-                output += "    (x,y,z): " + Util.round(pos[0],3) + ", " + Util.round(pos[1],3) + ", " + Util.round(pos[2],3) + "\n";
-                output += "    (r,p,y): " + Util.round(pos[3],3) + ", " + Util.round(pos[4],3) + ", " + Util.round(pos[5],3) + "\n\n";
+                output += "    (x,y,z): " + ConfigUtil.round(pos[0],3) + ", " + ConfigUtil.round(pos[1],3) + ", " + ConfigUtil.round(pos[2],3) + "\n";
+                output += "    (r,p,y): " + ConfigUtil.round(pos[3],3) + ", " + ConfigUtil.round(pos[4],3) + ", " + ConfigUtil.round(pos[5],3) + "\n\n";
 
                 try
                 {
-                    Util.setValues(configPath, new String[]{Util.getSubUrl(config, cam.getUrl())}, "xyzrpy", pos);
+                    ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(config, cam.getUrl())}, "xyzrpy", pos);
                 } catch (ConfigException e)
                 {
                     e.printStackTrace();
@@ -450,7 +451,7 @@ public class ExtrinsicsPanel extends Broadcaster
         {
             this.configPath = configPath;
             config = new ConfigFile(configPath);
-            Util.verifyConfig(config);
+            ConfigUtil.verifyConfig(config);
         } catch (IOException e)
         {
             e.printStackTrace();
@@ -466,7 +467,7 @@ public class ExtrinsicsPanel extends Broadcaster
         {
             try
             {
-                Camera test = new Camera(config.getChild(Util.getSubUrl(config, url)), url);
+                Camera test = new Camera(config.getChild(CameraDriver.getSubUrl(config, url)), url);
                 if(test.isGood())
                 {
                     cameras.add(test);

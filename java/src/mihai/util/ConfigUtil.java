@@ -14,7 +14,7 @@ import java.util.StringTokenizer;
 import april.config.Config;
 import april.config.ConfigFile;
 
-public class Util
+public class ConfigUtil
 {
     
     /**
@@ -259,31 +259,10 @@ public class Util
     }
 
     /**
-     * Verifies if the given URL is valid
+     * Used to round numbers to be written to a config file
      */
-    public static boolean isValidUrl(Config config, String url)
-    {
-        config = config.getChild(getSubUrl(config, url));
-        return (config != null && config.getBoolean("valid", false));
-    }
-    
-    /**
-     * given the URL of a camera, it returns the suburl which corresponds to an entry in the config file
-     *   It does this simply by removing the default prefix of the url
-     */
-    public static String getSubUrl(Config config, String url)
-    {
-        String prefix = config.requireString("default_url");
-        
-        if(url.contains(prefix))
-        {
-            url = url.substring(url.indexOf(prefix) + prefix.length());
-        }
-
-        return url;
-    }
-    
-    public static double round(double number, int decimals)
+    // XXX - move to a separate config file when more general util methods are available
+    public static double round(double number, int decimals) 
     {
         String format = "#.";
         for(int x = 0; x < decimals; x++)

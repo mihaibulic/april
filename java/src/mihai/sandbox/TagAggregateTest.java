@@ -4,14 +4,12 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
-
 import javax.swing.JFrame;
-
+import mihai.camera.CameraDriver;
 import mihai.camera.ImageReader;
 import mihai.camera.TagDetector2;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
-import mihai.util.Util;
 import mihai.vis.VisCamera;
 import april.config.Config;
 import april.config.ConfigFile;
@@ -62,7 +60,7 @@ public class TagAggregateTest extends JFrame implements ImageReader.Listener
         ir.addListener(this);
         ir.start();
 
-        config = config.getChild(Util.getSubUrl(config, url));
+        config = config.getChild(CameraDriver.getSubUrl(config, url));
         fc = config.requireDoubles("fc");
         cc = config.requireDoubles("cc");
         kc = config.requireDoubles("kc");

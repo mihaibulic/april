@@ -21,10 +21,12 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSeparator;
 import javax.swing.border.EmptyBorder;
+import mihai.camera.CameraDriver;
+import mihai.camera.CameraPlayerPanel;
 import mihai.tracker.ObjectTrackerPanel;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
-import mihai.util.Util;
+import mihai.util.ConfigUtil;
 import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageSource;
@@ -205,14 +207,14 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
                 {
                     configPath = info[0];
                     config = new ConfigFile(configPath);
-                    Util.verifyConfig(config);
+                    ConfigUtil.verifyConfig(config);
                     
                     ArrayList<String> allUrls = ImageSource.getCameraURLs();
                     urls.clear();
                     
                     for(String url : allUrls)
                     {
-                        if(Util.isValidUrl(config, url))
+                        if(CameraDriver.isValidUrl(config, url))
                         {
                             add(new IntrinsicsPanel(cards.size()+"", urls.size())); 
                             urls.add(url);

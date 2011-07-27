@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
-import mihai.util.Distortion;
 import april.image.FloatImage;
 import april.image.Homography33;
 import april.image.SigProc;

@@ -2,7 +2,7 @@ package mihai.sandbox;
 
 import java.io.IOException;
 import mihai.util.ConfigException;
-import mihai.util.Util;
+import mihai.util.ConfigUtil;
 import april.config.Config;
 
 public class StringToke
@@ -13,7 +13,7 @@ public class StringToke
     
         try
         {
-            Config config = Util.setValue(loc, new String[]{}, "fps", "250000");
+            Config config = ConfigUtil.setValue(loc, new String[]{}, "fps", "250000");
             
             System.out.println(config.requireDouble("fps"));
         } catch (ConfigException e)

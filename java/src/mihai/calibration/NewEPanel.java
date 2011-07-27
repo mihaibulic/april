@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import mihai.calibration.IntrinsicsPanel.GCalibrateEdge;
+import mihai.calibration.IntrinsicsPanel.GExtrinsicsNode;
 import mihai.camera.CameraDriver;
 import mihai.camera.TagDetector2;
 import mihai.util.CameraException;
@@ -46,18 +48,21 @@ public class NewEPanel extends Broadcaster
     {
         super(id, new BorderLayout());
         
-        
     }
     
     class Tag
     {
         int id;
-        int spotter; //id of camera that saw this tag
+        String spotter; //id of camera that saw this tag
         double[][] uv = new double[4][2];
     }
     
     class Capture extends Thread
     {
+        // protected by synchronizing on CaptureThread
+        GCalibrateEdge lastEdge;
+        GExtrinsicsNode lastNode;
+        
         private CameraDriver driver;
         private TagDetector2 td;
         

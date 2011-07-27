@@ -6,10 +6,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import lcm.lcm.LCM;
 import mihai.calibration.Broadcaster;
+import mihai.camera.CameraDriver;
 import mihai.lcmtypes.object_t;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
-import mihai.util.Util;
+import mihai.util.ConfigUtil;
 import mihai.vis.VisCamera;
 import april.config.Config;
 import april.config.ConfigFile;
@@ -339,7 +340,7 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         try
         {
             Config config = new ConfigFile(configPath);
-            Util.verifyConfig(config);
+            ConfigUtil.verifyConfig(config);
         
             objectManager = new ObjectManager();
             tracks = new ArrayList<Track>();
@@ -347,7 +348,7 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
             {
                 try
                 {
-                    Track test = new Track(config.getChild(Util.getSubUrl(config, url)), url);
+                    Track test = new Track(config.getChild(CameraDriver.getSubUrl(config, url)), url);
                     if(test.isGood())
                     {
                         System.out.print("*");

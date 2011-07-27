@@ -9,7 +9,7 @@ import mihai.camera.TagDetector2;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.PointUtil;
-import mihai.util.Util;
+import mihai.util.ConfigUtil;
 import april.config.Config;
 import april.jcam.ImageConvert;
 import april.jmat.LinAlg;
@@ -59,7 +59,7 @@ public class Camera implements ImageReader.Listener
     
     public Camera(Config config, String url) throws CameraException, IOException, ConfigException
     {
-        Util.verifyConfig(config);
+        ConfigUtil.verifyConfig(config);
     	
     	xyzrpy = config.requireDoubles("xyzrpy");
     	matrix = LinAlg.xyzrpyToMatrix(xyzrpy);

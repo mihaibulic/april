@@ -5,7 +5,7 @@ import java.io.IOException;
 import magic.camera.util.SyncErrorDetector;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
-import mihai.util.Util;
+import mihai.util.ConfigUtil;
 import april.config.Config;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
@@ -13,41 +13,61 @@ import april.jcam.ImageSourceFormat;
 
 public class CameraDriver extends Thread
 {
-    private static final int SAMPLES = 10;
-    private static final double CHI = 0.01;
-    private static final double MINIMUM_SLOPE = 0.01;
-    private static final double TIME_THRESH = 0.0;
-    private static final int VERBOSITY = -1;
-    private static final boolean GUI = false;
+    private int samples = 10;
+    private double chi = 0.01;
+    private double minimumSlope = 0.01;
+    private double timeThresh = 0.0;
+    private int verbosity = -1;
+    private boolean gui = false;
+    private SyncErrorDetector sync;
 
-    private boolean newImage = false;
-    private Object imageLock = new Object();
-    
-    private boolean run = true;
-    private boolean done = false;
-    private Object driverLock = new Object();
-    
-    private int id;
+    private boolean hiRes = true;
+    private boolean color8 = true;
+    private int fps = 60;
+    private String id;
     private String url;
     private ImageSource isrc;
     private ImageSourceFormat ifmt;
-    private SyncErrorDetector sync;
     
+    private boolean newImage = false;
+    private Object imageLock = new Object();
     private byte[] imageBuffer;
+
+    private boolean run = true;
+    private boolean done = false;
+    private Object driverLock = new Object();
+
+    public CameraDriver(String url) throws CameraException, IOException, ConfigException
+    {
+        this.url = url;
+        
+        try
+        {
+            isrc = ImageSource.make(url);
+        } catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+        
+        ifmt = isrc.getCurrentFormat();
+        
+        sync = new SyncErrorDetector(samples, chi, minimumSlope, timeThresh, verbosity, gui);
+    }
 
     public CameraDriver(String url, Config config) throws ConfigException
     {
-        Util.verifyConfig(config);
-
-        run = Util.isValidUrl(config, url);
+        config = config.getRoot().getChild(getSubUrl(config, url));
+        ConfigUtil.verifyConfig(config);
+        
+        run = isValidUrl(config, url);
         if(run)
         {
             this.url = url;
             
-            boolean hiRes = config.requireBoolean("hiRes");
-            boolean color8 = config.requireBoolean("color8");
-            int fps = config.requireInt("fps");
-            id = config.getChild(Util.getSubUrl(config, url)).requireInt("id");
+            id = config.requireString("id");
+            hiRes = config.requireBoolean("hiRes");
+            color8 = config.requireBoolean("color8");
+            fps = config.requireInt("fps");
             
             try
             {
@@ -63,20 +83,15 @@ public class CameraDriver extends Thread
             isrc.setFeatureValue(15, fps); // frame-rate, idx=11
 
             ifmt = isrc.getCurrentFormat();
-
             
             config = config.getRoot().getChild("sync");
-            Util.verifyConfig(config);
+            ConfigUtil.verifyConfig(config);
             sync = new SyncErrorDetector(config);
         }
     }
-    
-    public CameraDriver(String url) throws CameraException, IOException, ConfigException
-    {
-        this(url, true, true, 60);
-    }
 
-    public CameraDriver(String url, boolean hiRes, boolean color8, int fps)
+    public CameraDriver(String url, boolean hiRes, boolean color8, int fps,
+            int samples, double chi, double minimumSlope, double timeThresh, int verbosity, boolean gui)
     {
         this.url = url;
 
@@ -92,9 +107,9 @@ public class CameraDriver extends Thread
         // converts booleans to 1/0 and combines them into an int
         isrc.setFormat(Integer.parseInt("" + (hiRes ? 0 : 1) + (color8 ? 0 : 1), 2));
         isrc.setFeatureValue(15, fps); // frame-rate, idx=11
-
         ifmt = isrc.getCurrentFormat();
-        sync = new SyncErrorDetector(SAMPLES, CHI, MINIMUM_SLOPE, TIME_THRESH, VERBOSITY, GUI);
+
+        sync = new SyncErrorDetector(samples, chi, minimumSlope, timeThresh, verbosity, gui);
     }
     
     public void run()
@@ -139,11 +154,6 @@ public class CameraDriver extends Thread
             driverLock.notify();
         }
     }
-
-    public int getCameraId()
-    {
-        return id;
-    }
     
     private void toggleImageSource(ImageSource isrc) throws ConfigException
     {
@@ -152,7 +162,12 @@ public class CameraDriver extends Thread
         isrc.setFormat(currentFormat);
 
         isrc.start();
-        sync = new SyncErrorDetector(SAMPLES, CHI, MINIMUM_SLOPE, TIME_THRESH, VERBOSITY, GUI);
+        sync = new SyncErrorDetector(samples, chi, minimumSlope, timeThresh, verbosity, gui);
+    }
+
+    public String getCameraId()
+    {
+        return id;
     }
 
     public String getUrl()
@@ -213,6 +228,18 @@ public class CameraDriver extends Thread
         }
     }
     
+    public static String getSubUrl(Config config, String url)
+    {
+        String prefix = config.requireString("default_url");
+        
+        if(url.contains(prefix))
+        {
+            url = url.substring(url.indexOf(prefix) + prefix.length());
+        }
+        
+        return url;
+    }
+    
     public void kill() throws InterruptedException
     {
         run = false;
@@ -230,16 +257,32 @@ public class CameraDriver extends Thread
         return run;
     }
     
-    public void setFramerate(int fps)
+    public static boolean isValidUrl(Config config, String url)
     {
-        isrc.setFeatureValue(15, fps); // frame-rate, idx=11
+        config = config.getChild(getSubUrl(config, url));
+        return (config != null && config.getBoolean("valid", false));
     }
-    
+
     public void setFormat(boolean hiRes, boolean color8)
     {
         isrc.stop();
         isrc.setFormat(Integer.parseInt("" + (hiRes ? 0 : 1) + (color8 ? 0 : 1), 2));
         ifmt = isrc.getCurrentFormat();
         isrc.start();
+    }
+
+    public void setFramerate(int fps)
+    {
+        isrc.setFeatureValue(15, fps); // frame-rate, idx=11
+    }
+    
+    public void setSync(SyncErrorDetector newSync)
+    {
+        sync = newSync;
+    }
+    
+    public void setSync(int samples, double chi, double minimumSlope, double timeThresh, int verbosity, boolean gui)
+    {
+        sync = new SyncErrorDetector(samples, chi, minimumSlope, timeThresh, verbosity, gui);
     }
 }

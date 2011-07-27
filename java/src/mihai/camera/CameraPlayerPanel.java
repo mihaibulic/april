@@ -1,4 +1,4 @@
-package mihai.calibration;
+package mihai.camera;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -11,11 +11,11 @@ import java.util.HashMap;
 import lcm.lcm.LCM;
 import lcm.lcm.LCMDataInputStream;
 import lcm.lcm.LCMSubscriber;
-import mihai.camera.ImageReader;
+import mihai.calibration.Broadcaster;
 import mihai.lcmtypes.image_path_t;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
-import mihai.util.Util;
+import mihai.util.ConfigUtil;
 import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageConvert;
@@ -114,7 +114,7 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
         try
         {
             config = new ConfigFile(configPath);
-            Util.verifyConfig(config);
+            ConfigUtil.verifyConfig(config);
             if(ImageSource.getCameraURLs().size() == 0) new CameraException(CameraException.NO_CAMERA).printStackTrace();
             irs = new ArrayList<ImageReader>();
             if(urls.length == 0)

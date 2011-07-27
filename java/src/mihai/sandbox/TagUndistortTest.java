@@ -6,8 +6,8 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import javax.swing.JFrame;
-import mihai.util.Distortion;
-import mihai.util.Util;
+import mihai.camera.Distortion;
+import mihai.util.ConfigUtil;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
@@ -198,10 +198,10 @@ public class TagUndistortTest implements ParameterListener
                     vbImage.addBuffered(new VisChain(Mo, new VisRectangle(0.158, 0.158, new VisDataFillStyle(Color.red ))));
                     vbImage.addBuffered(new VisChain(Mn, new VisRectangle(0.158, 0.158, new VisDataFillStyle(Color.blue))));
                     
-                    System.out.println("before: " + Util.round(o[0], 2) + ", " + Util.round(o[1], 2) + ", " + Util.round(o[2], 2) + "  " +
-                        Util.round(o[3], 2) + ", " + Util.round(o[4], 2) + ", " + Util.round(o[5], 2));
-                    System.out.println("after: " + Util.round(n[0], 2) + ", " + Util.round(n[1], 2) + ", " + Util.round(n[2], 2) + "  " +
-                        Util.round(n[3], 2) + ", " + Util.round(n[4], 2) + ", " + Util.round(n[5], 2));
+                    System.out.println("before: " + ConfigUtil.round(o[0], 2) + ", " + ConfigUtil.round(o[1], 2) + ", " + ConfigUtil.round(o[2], 2) + "  " +
+                        ConfigUtil.round(o[3], 2) + ", " + ConfigUtil.round(o[4], 2) + ", " + ConfigUtil.round(o[5], 2));
+                    System.out.println("after: " + ConfigUtil.round(n[0], 2) + ", " + ConfigUtil.round(n[1], 2) + ", " + ConfigUtil.round(n[2], 2) + "  " +
+                        ConfigUtil.round(n[3], 2) + ", " + ConfigUtil.round(n[4], 2) + ", " + ConfigUtil.round(n[5], 2));
                     System.out.println("***********************");
                 }
 

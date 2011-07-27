@@ -16,9 +16,10 @@ import javax.swing.JPanel;
 import javax.swing.JSeparator;
 import javax.swing.JSplitPane;
 import javax.swing.border.EmptyBorder;
+import mihai.camera.CameraDriver;
+import mihai.camera.Distortion;
 import mihai.util.ConfigException;
-import mihai.util.Distortion;
-import mihai.util.Util;
+import mihai.util.ConfigUtil;
 import april.config.Config;
 import april.config.ConfigFile;
 import april.graph.CholeskySolver;
@@ -378,10 +379,10 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
 
                 double state[] = g.nodes.get(0).state;
                 vbDirections.addBuffered(new VisText(new double[]{0,text-20*0}, VisText.ANCHOR.LEFT,"Calibrating..."));
-                vbDirections.addBuffered(new VisText(new double[]{0,text-20*1}, VisText.ANCHOR.LEFT, "    focal length:    " + Util.round(state[0],4) + ", " + Util.round(state[1],4)));
-                vbDirections.addBuffered(new VisText(new double[]{0,text-20*2}, VisText.ANCHOR.LEFT, "    image center:    " + Util.round(state[2],4) + ", " + Util.round(state[3],4)));
-                vbDirections.addBuffered(new VisText(new double[]{0,text-20*3}, VisText.ANCHOR.LEFT, "    distortion:    " + Util.round(state[4],4) + ", " + Util.round(state[5],4) + ", " + Util.round(state[6],4) + ", " + Util.round(state[7],4)));
-                vbDirections.addBuffered(new VisText(new double[]{0,text-20*4}, VisText.ANCHOR.LEFT, "    skew:    " + Util.round(state[8],4)));
+                vbDirections.addBuffered(new VisText(new double[]{0,text-20*1}, VisText.ANCHOR.LEFT, "    focal length:    " + ConfigUtil.round(state[0],4) + ", " + ConfigUtil.round(state[1],4)));
+                vbDirections.addBuffered(new VisText(new double[]{0,text-20*2}, VisText.ANCHOR.LEFT, "    image center:    " + ConfigUtil.round(state[2],4) + ", " + ConfigUtil.round(state[3],4)));
+                vbDirections.addBuffered(new VisText(new double[]{0,text-20*3}, VisText.ANCHOR.LEFT, "    distortion:    " + ConfigUtil.round(state[4],4) + ", " + ConfigUtil.round(state[5],4) + ", " + ConfigUtil.round(state[6],4) + ", " + ConfigUtil.round(state[7],4)));
+                vbDirections.addBuffered(new VisText(new double[]{0,text-20*4}, VisText.ANCHOR.LEFT, "    skew:    " + ConfigUtil.round(state[8],4)));
                 
                 vbDirections.switchBuffer();
                 
@@ -397,17 +398,17 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                 }
 
                 VisWorld.Buffer vbError = vw.getBuffer("error");
-                vbError.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, "<<blue, big>>Error: " + Util.round(g.getErrorStats().chi2/ncorr,3)));
+                vbError.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, "<<blue, big>>Error: " + ConfigUtil.round(g.getErrorStats().chi2/ncorr,3)));
                 vbError.switchBuffer();
             }
             
             double state[] = g.nodes.get(0).state;
             try
             {
-                Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "fc", new double[]{state[0], state[1]});
-                Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "cc", new double[]{state[2], state[3]});
-                Util.setValues(configPath, new String[]{Util.getSubUrl(config, url)}, "kc", new double[]{state[4], state[5], state[6], state[7], state[8]});
-                Util.setValue(configPath, new String[]{Util.getSubUrl(config, url)}, "alpha", state[9]);
+                ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(config, url)}, "fc", new double[]{state[0], state[1]});
+                ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(config, url)}, "cc", new double[]{state[2], state[3]});
+                ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(config, url)}, "kc", new double[]{state[4], state[5], state[6], state[7], state[8]});
+                ConfigUtil.setValue(configPath, new String[]{CameraDriver.getSubUrl(config, url)}, "alpha", state[9]);
             } catch (ConfigException e)
             {
                 e.printStackTrace();
@@ -418,10 +419,10 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
             
             vbDirections.addBuffered(new VisText(new double[]{0,text-20*0}, VisText.ANCHOR.LEFT,
                     "Calibration complete!  The camera feed is now undistorted.  If everything looks ok, hit next"));
-            vbDirections.addBuffered(new VisText(new double[]{0,text-20*1}, VisText.ANCHOR.LEFT, "    focal length:    " + Util.round(state[0],4) + ", " + Util.round(state[1],4)));
-            vbDirections.addBuffered(new VisText(new double[]{0,text-20*2}, VisText.ANCHOR.LEFT, "    image center:    " + Util.round(state[2],4) + ", " + Util.round(state[3],4)));
-            vbDirections.addBuffered(new VisText(new double[]{0,text-20*3}, VisText.ANCHOR.LEFT, "    distortion:    " + Util.round(state[4],4) + ", " + Util.round(state[5],4) + ", " + Util.round(state[6],4) + ", " + Util.round(state[7],4)));
-            vbDirections.addBuffered(new VisText(new double[]{0,text-20*4}, VisText.ANCHOR.LEFT, "    skew:    " + Util.round(state[8],4)));
+            vbDirections.addBuffered(new VisText(new double[]{0,text-20*1}, VisText.ANCHOR.LEFT, "    focal length:    " + ConfigUtil.round(state[0],4) + ", " + ConfigUtil.round(state[1],4)));
+            vbDirections.addBuffered(new VisText(new double[]{0,text-20*2}, VisText.ANCHOR.LEFT, "    image center:    " + ConfigUtil.round(state[2],4) + ", " + ConfigUtil.round(state[3],4)));
+            vbDirections.addBuffered(new VisText(new double[]{0,text-20*3}, VisText.ANCHOR.LEFT, "    distortion:    " + ConfigUtil.round(state[4],4) + ", " + ConfigUtil.round(state[5],4) + ", " + ConfigUtil.round(state[6],4) + ", " + ConfigUtil.round(state[7],4)));
+            vbDirections.addBuffered(new VisText(new double[]{0,text-20*4}, VisText.ANCHOR.LEFT, "    skew:    " + ConfigUtil.round(state[8],4)));
             
             vbDirections.switchBuffer();
 
@@ -710,7 +711,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
             this.configPath = configPath;
             this.url = urls[urlId];
             config = new ConfigFile(configPath);
-            Util.verifyConfig(config);
+            ConfigUtil.verifyConfig(config);
 
             vwImages.clear();
             
