@@ -103,8 +103,8 @@ public class PictureTaker implements ParameterListener
             isrc.setFeatureValue(5, 0); // brightness-manual=0, idx=5
             isrc.setFeatureValue(7, 0); // gamma-manual=1, idx=7
             isrc.setFeatureValue(9, 1); // timestamps-enable=1, idx=9
-            isrc.setFeatureValue(10, 1); // frame-rate-manual=1, idx=10
-            isrc.setFeatureValue(11, fps); // frame-rate, idx=11
+            isrc.setFeatureValue(14, 1); // frame-rate, idx=11
+            isrc.setFeatureValue(15, fps); // frame-rate, idx=11
 
             ifmt = isrc.getCurrentFormat();
 

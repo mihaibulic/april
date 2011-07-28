@@ -83,7 +83,7 @@ public class ImageHandler
                     img.width = ifmt.width;
                     img.height = ifmt.height;
                     img.utime = TimeUtil.utime();
-                    img.id = -1;
+                    img.id = "";
                     lcm.publish("rec" + camera, img);
                 } catch (FileNotFoundException e)
                 {

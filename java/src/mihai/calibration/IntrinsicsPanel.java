@@ -22,25 +22,7 @@ import mihai.util.ConfigException;
 import mihai.util.ConfigUtil;
 import april.config.Config;
 import april.config.ConfigFile;
-import april.graph.CholeskySolver;
-import april.graph.GEdge;
-import april.graph.GNode;
-import april.graph.Graph;
-import april.graph.GraphSolver;
-import april.graph.Linearization;
-import april.image.Homography33b;
-import april.jcam.ImageConvert;
-import april.jcam.ImageSource;
-import april.jcam.ImageSourceFormat;
 import april.jmat.LinAlg;
-import april.jmat.ordering.MinimumDegreeOrdering;
-import april.tag.CameraUtil;
-import april.tag.Tag36h11;
-import april.tag.TagDetection;
-import april.tag.TagDetector;
-import april.tag.TagFamily;
-import april.util.StructureReader;
-import april.util.StructureWriter;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
 import april.vis.VisData;
@@ -49,6 +31,22 @@ import april.vis.VisDataPointStyle;
 import april.vis.VisImage;
 import april.vis.VisText;
 import april.vis.VisWorld;
+import aprilO.graph.CholeskySolver;
+import aprilO.graph.GEdge;
+import aprilO.graph.GNode;
+import aprilO.graph.Graph;
+import aprilO.graph.GraphSolver;
+import aprilO.graph.Linearization;
+import aprilO.image.Homography33b;
+import aprilO.jcam.ImageConvert;
+import aprilO.jmat.ordering.MinimumDegreeOrdering;
+import aprilO.tag.CameraUtil;
+import aprilO.tag.Tag36h11;
+import aprilO.tag.TagDetection;
+import aprilO.tag.TagDetector;
+import aprilO.tag.TagFamily;
+import aprilO.util.StructureReader;
+import aprilO.util.StructureWriter;
 
 public class IntrinsicsPanel extends Broadcaster implements ActionListener
 {
@@ -62,10 +60,8 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
 
     private String goButtonText = "Go";
     private String stopButtonText = "Stop";
-    private String resetButtonText = "Reset";
     private String captureButtonText = "Capture";
     private JButton goButton = new JButton(goButtonText);
-    private JButton resetButton = new JButton(resetButtonText);
     private JButton captureButton = new JButton(captureButtonText);
     
     private TagDetector td = new TagDetector(new Tag36h11());
@@ -118,47 +114,16 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
 
         goButton.addActionListener(this);
         captureButton.addActionListener(this);
-        resetButton.addActionListener(this);
         Box buttonBox = new Box(BoxLayout.X_AXIS);
         buttonBox.setBorder(new EmptyBorder(new Insets(5, 10, 5, 10)));
         buttonBox.add(goButton);
         buttonBox.add(captureButton);
-        buttonBox.add(resetButton);
         buttonBox.add(Box.createHorizontalStrut(30));
         JSeparator separator = new JSeparator();
         JPanel buttonPanel = new JPanel(new BorderLayout());
         buttonPanel.add(separator, BorderLayout.NORTH);
         buttonPanel.add(buttonBox, java.awt.BorderLayout.EAST);
         add(buttonPanel, BorderLayout.SOUTH);
-        
-        // ///////////////////////
-        // Create ground truth
-        {
-            tagPositions = new HashMap<Integer, TagPosition>();
-            TagFamily tf = new Tag36h11();
-            int tagsPerRow = 24;  // XXX get from config
-            
-            for (int y = 0; y < tagsPerRow; y++)
-            {
-                for (int x = 0; x < tagsPerRow; x++)
-                {
-                    TagPosition tp = new TagPosition();
-                    tp.id = y * tagsPerRow + x;
-
-                    if (tp.id >= tf.codes.length)
-                    {
-                        continue;
-                    }
-
-                    // XXX get from config
-                    tp.cx = x * 0.0254; 
-                    tp.cy = -y * 0.0254;
-                    tp.size = 0.0254 * 8.0 / 10.0;
-
-                    tagPositions.put(tp.id, tp);
-                }
-            }
-        }
     }
 
     private void initVis()
@@ -173,64 +138,48 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         vc.getViewManager().interfaceMode = 1.0;
         vcImages.setBackground(Color.BLACK);
         vcImages.getViewManager().interfaceMode = 1.0;
-        vcImages.getViewManager().viewGoal.fit2D(new double[] { 3.4 , 0 }, new double[] { 3.9, 0.6 });
     }
     
     class CaptureThread extends Thread
     {
-        String url;
-        ImageSource isrc;
-        ImageSourceFormat ifmt;
+        String url, format;
+        int width, height;
+        CameraDriver driver;
         boolean stop = false;
         
         // protected by synchronizing on CaptureThread
         GCalibrateEdge lastEdge;
         GExtrinsicsNode lastNode;
 
-        CaptureThread(String url)
+        CaptureThread(String url) throws ConfigException
         {
+            driver = new CameraDriver(url, config);
             this.url = url;
-            
-            try
-            {
-                isrc = ImageSource.make(url);
-                ifmt = isrc.getCurrentFormat();
-            } catch (IOException e)
-            {
-                e.printStackTrace();
-            }
+            this.format = driver.getFormat();
+            this.width  = driver.getWidth();
+            this.height = driver.getHeight();
         }
 
-        public int getWidth()
-        {
-            return ifmt.width;
-        }
-        
-        public int getHeight()
-        {
-            return ifmt.height;
-        }
-        
         public void run()
         {
             boolean first = true;
             BufferedImage image = null;
             BufferedImage undistortedImage = null;
             
-            isrc.start();
+            driver.start();
             
             while (!stop)
             {
-                byte[] imageBuffer = isrc.getFrame();
-                image = ImageConvert.convertToImage(ifmt.format, ifmt.width, ifmt.height, imageBuffer);
-                Distortion dist = new Distortion(((GIntrinsicsNode) g.nodes.get(0)).state, ifmt.width, ifmt.height);
-                undistortedImage = ImageConvert.convertToImage(ifmt.format, ifmt.width, ifmt.height, dist.naiveBufferUndistort(imageBuffer));    
+                byte[] imageBuffer = driver.getFrameBuffer();
+                image = ImageConvert.convertToImage(format, width, height, imageBuffer);
+                Distortion dist = new Distortion(((GIntrinsicsNode) g.nodes.get(0)).state, width, height);
+                undistortedImage = ImageConvert.convertToImage(format, width, height, dist.naiveBufferUndistort(imageBuffer));    
                 
                 synchronized(this)
                 {
                     lastEdge = null;
     
-                    ArrayList<TagDetection> detections = td.process(image, new double[] { ifmt.width / 2.0, ifmt.height / 2.0 });
+                    ArrayList<TagDetection> detections = td.process(image, new double[] { width / 2.0, height / 2.0 });
 
                     {
                         VisWorld.Buffer vb = vw.getBuffer("camera");
@@ -295,7 +244,14 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                     }
                 }
             }
-            isrc.stop();
+            
+            try
+            {
+                driver.kill();
+            } catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -348,11 +304,6 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
             iterateThread = null;
             goButton.setText(goButtonText);
         }
-        else if(e.getActionCommand().equals(resetButtonText))
-        {
-            stop();
-            alertListener();
-        }
     }
 
     class IterateThread extends Thread
@@ -366,7 +317,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         {
             GraphSolver gs = new CholeskySolver(g, new MinimumDegreeOrdering());
             VisWorld.Buffer vbDirections = vw.getBuffer("directions");
-            int text = captureThread.getHeight()+120;
+            VisWorld.Buffer vbError = vw.getBuffer("error");
 
             int ncorr = 0;
             int count = 0, size = 10;
@@ -378,16 +329,18 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                 gs.iterate();
 
                 double state[] = g.nodes.get(0).state;
-                vbDirections.addBuffered(new VisText(new double[]{0,text-20*0}, VisText.ANCHOR.LEFT,"Calibrating..."));
-                vbDirections.addBuffered(new VisText(new double[]{0,text-20*1}, VisText.ANCHOR.LEFT, "    focal length:    " + ConfigUtil.round(state[0],4) + ", " + ConfigUtil.round(state[1],4)));
-                vbDirections.addBuffered(new VisText(new double[]{0,text-20*2}, VisText.ANCHOR.LEFT, "    image center:    " + ConfigUtil.round(state[2],4) + ", " + ConfigUtil.round(state[3],4)));
-                vbDirections.addBuffered(new VisText(new double[]{0,text-20*3}, VisText.ANCHOR.LEFT, "    distortion:    " + ConfigUtil.round(state[4],4) + ", " + ConfigUtil.round(state[5],4) + ", " + ConfigUtil.round(state[6],4) + ", " + ConfigUtil.round(state[7],4)));
-                vbDirections.addBuffered(new VisText(new double[]{0,text-20*4}, VisText.ANCHOR.LEFT, "    skew:    " + ConfigUtil.round(state[8],4)));
-                
+                String directions = "<<left>> \n \n \n \n \n \n \n " +
+                                    "<<mono-big>>Parameters:\n \n \n \n " +
+                                    "<<mono-small>>focal length: " + (int)state[0] + ", " + (int)state[1] + "\n \n" +
+                                    "image center: " + (int)state[2] + ", " + (int)state[3] + "\n \n"+
+                                    "distortion: " + ConfigUtil.round(state[4],4) + ", " + ConfigUtil.round(state[5],4) + ", " + ConfigUtil.round(state[6],4) + ", " + ConfigUtil.round(state[7],4) + "\n \n" +
+                                    "skew: " + ConfigUtil.round(state[8],4) + "\n \n " + 
+                                    "<<left>>                                                                        \n \n \n \n \n \n \n ";
+                vbDirections.addBuffered(new VisText(VisText.ANCHOR.CENTER, directions));
                 vbDirections.switchBuffer();
                 
                 update();
-
+                
                 ncorr = 0;
                 for (GEdge ge : g.edges)
                 {
@@ -397,7 +350,6 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                     }
                 }
 
-                VisWorld.Buffer vbError = vw.getBuffer("error");
                 vbError.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, "<<blue, big>>Error: " + ConfigUtil.round(g.getErrorStats().chi2/ncorr,3)));
                 vbError.switchBuffer();
             }
@@ -417,14 +369,8 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                 e.printStackTrace();
             }
             
-            vbDirections.addBuffered(new VisText(new double[]{0,text-20*0}, VisText.ANCHOR.LEFT,
-                    "Calibration complete!  The camera feed is now undistorted.  If everything looks ok, hit next"));
-            vbDirections.addBuffered(new VisText(new double[]{0,text-20*1}, VisText.ANCHOR.LEFT, "    focal length:    " + ConfigUtil.round(state[0],4) + ", " + ConfigUtil.round(state[1],4)));
-            vbDirections.addBuffered(new VisText(new double[]{0,text-20*2}, VisText.ANCHOR.LEFT, "    image center:    " + ConfigUtil.round(state[2],4) + ", " + ConfigUtil.round(state[3],4)));
-            vbDirections.addBuffered(new VisText(new double[]{0,text-20*3}, VisText.ANCHOR.LEFT, "    distortion:    " + ConfigUtil.round(state[4],4) + ", " + ConfigUtil.round(state[5],4) + ", " + ConfigUtil.round(state[6],4) + ", " + ConfigUtil.round(state[7],4)));
-            vbDirections.addBuffered(new VisText(new double[]{0,text-20*4}, VisText.ANCHOR.LEFT, "    skew:    " + ConfigUtil.round(state[8],4)));
-            
-            vbDirections.switchBuffer();
+            vbError.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, "<<green, big>>Calibration completed! Hit next to continue."));
+            vbError.switchBuffer();
 
             goButton.setText(goButtonText);
         }
@@ -466,7 +412,17 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                 xoff++;
             }
         }
-
+        
+        if(xoff <= 5)
+        {
+            vcImages.getViewManager().viewGoal.fit2D(new double[] { (xoff-1)/2.0, 0 }, new double[] { (xoff+1)/2.0 , 0.5 });
+        }
+        else
+        {
+            xoff -= 5;
+            vcImages.getViewManager().viewGoal.fit2D(new double[] { 2+xoff, 0 }, new double[] { 3+xoff , 0.5 });
+        }
+        
         vb.switchBuffer();
     }
 
@@ -714,13 +670,44 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
             ConfigUtil.verifyConfig(config);
 
             vwImages.clear();
+
+            // ///////////////////////
+            // Create ground truth
+            {
+                tagPositions = new HashMap<Integer, TagPosition>();
+                TagFamily tf = new Tag36h11();
+                int tagsPerRow = config.requireInt("mosaic_tags_per_row");
+                int columns = config.requireInt("mosaic_rows");
+                int rows = config.requireInt("mosaic_columns");
+                double spacing = config.requireDouble("mosaic_tag_spacing");
+                
+                for (int y = 0; y < tagsPerRow; y++)
+                {
+                    for (int x = 0; x < tagsPerRow; x++)
+                    {
+                        TagPosition tp = new TagPosition();
+                        tp.id = y * tagsPerRow + x;
+
+                        if (tp.id >= tf.codes.length)
+                        {
+                            continue;
+                        }
+
+                        tp.cx = x * spacing; 
+                        tp.cy = -y * spacing;
+                        tp.size = spacing * columns / rows;
+
+                        tagPositions.put(tp.id, tp);
+                    }
+                }
+            }
             
             captureThread = new CaptureThread(url);
             captureThread.start();
 
             g = new Graph();
             double f = 400; // XXX random guess for f
-            g.nodes.add(new GIntrinsicsNode(f, f, captureThread.getHeight()/2.0, captureThread.getWidth()/2.0));
+            g.nodes.add(new GIntrinsicsNode(f, f, captureThread.height/2.0, captureThread.width/2.0));
         } catch (IOException e)
         {
             e.printStackTrace();
@@ -774,7 +761,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                                    "<<left>>HINT #2: The four images above are the minimum; the more unique images\n"+
                                    "<<left>>                 you capture, the better the parameters will be.\n \n \n \n ";
 
-            vbDirections.addBuffered(new VisChain(new VisText(VisText.ANCHOR.CENTER, directions)));
+            vbDirections.addBuffered(new VisText(VisText.ANCHOR.CENTER, directions));
         }
         
         vbDirections.switchBuffer();

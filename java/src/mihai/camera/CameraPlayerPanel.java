@@ -1,7 +1,6 @@
 package mihai.camera;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
@@ -27,23 +26,22 @@ import april.vis.VisImage;
 import april.vis.VisText;
 import april.vis.VisWorld;
 
-public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, ImageReader.Listener
+public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
 {
     private static final long serialVersionUID = 1L;
     static LCM lcm = LCM.getSingleton();
 
     private int columns;
     private int maxWidth, maxHeight;
-    private HashMap<Integer, Integer> widthHash = new HashMap<Integer, Integer>();
-    private HashMap<Integer, Integer> heightHash = new HashMap<Integer, Integer>();
-    private HashMap<Integer, String> formatHash = new HashMap<Integer, String>();
+    private HashMap<String, Integer> widthHash = new HashMap<String, Integer>();
+    private HashMap<String, Integer> heightHash = new HashMap<String, Integer>();
+    private HashMap<String, String> formatHash = new HashMap<String, String>();
     
-    private ArrayList<ImageReader> irs;
-    private BufferedImage image;
+    private ArrayList<Capture> captures;
     
     private VisWorld vw;
     private VisCanvas vc;
-    private ArrayList<Integer> cameraPosition = new ArrayList<Integer>();
+    private ArrayList<String> cameraPosition = new ArrayList<String>();
     
     public CameraPlayerPanel(int columns, boolean wizard) throws CameraException, IOException, ConfigException
     {
@@ -53,23 +51,74 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
         vw = new VisWorld();
         vc = new VisCanvas(vw);
         vc.getViewManager().interfaceMode = 1.0;
-        vc.setBackground(Color.BLACK);
+//        vc.setBackground(Color.BLACK);
         
         lcm.subscribeAll(this);
         add(vc);
+    }
+    
+    class Capture extends Thread
+    {
+        private String id;
+        private CameraDriver driver;
+        private boolean run = true;
+        VisWorld.Buffer vb;
+        private double x, y;
+
+        String format;
+        int width, height;
+        public Capture(CameraDriver driver)
+        {
+            format=driver.getFormat();
+            width=driver.getWidth();
+            height=driver.getHeight();
+            this.driver = driver;
+            this.id = driver.getCameraId();
+
+            vb = vw.getBuffer(id);
+            int slot = cameraPosition.indexOf(id);
+            x = maxWidth*(slot%columns);
+            y =-maxHeight*(slot/columns);
+        }
+        
+        public void run()
+        {
+            driver.start();
+
+            while(run)
+            {
+                vb.addBuffered(new VisChain(LinAlg.translate(x, y, 0.0), new VisImage(driver.getFrameImage())));
+                vb.addBuffered(new VisText(new double[]{x + widthHash.get(id)/2, y + heightHash.get(id),}, 
+                        VisText.ANCHOR.TOP, id));
+                vb.switchBuffer();
+            }
+            
+            try
+            {
+                driver.kill();
+            } catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
+        }
+        
+        public void kill()
+        {
+            run = false;
+        }
     }
     
     public void messageReceived(LCM lcm, String channel, LCMDataInputStream ins)
     {
         try
         {
-            if (channel.contains("cam"))
+            if (channel.contains("camera "))
             {
                 image_path_t imagePath = new image_path_t(ins);
-                int camera = imagePath.id;
+                String camera = imagePath.id;
                 byte[] buffer = new byte[imagePath.width * imagePath.height];
                 new FileInputStream(new File(imagePath.img_path)).read(buffer);
-                image = ImageConvert.convertToImage(imagePath.format,imagePath.width, imagePath.height, buffer);
+                BufferedImage image = ImageConvert.convertToImage(imagePath.format,imagePath.width, imagePath.height, buffer);
                 
                 int position = cameraPosition.indexOf(camera);
                 if(position == -1)
@@ -78,7 +127,7 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
                     cameraPosition.add(camera);
                 }
                 
-                VisWorld.Buffer vb = vw.getBuffer("cam" + camera);
+                VisWorld.Buffer vb = vw.getBuffer(camera);
                 vb.addBuffered(new VisChain(LinAlg.translate(new double[] {maxWidth*(position%columns),-maxHeight*(position/columns),0}), new VisImage(image)));
                 
                 if(image.getWidth() > maxWidth) maxWidth = image.getWidth();
@@ -92,21 +141,6 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
         }
     }
 
-	public void handleImage(byte[] imageBuffer, long timeStamp, int camera)
-	{
-	    int slot = cameraPosition.indexOf(camera);
-	    double x = maxWidth*(slot%columns);
-	    double y =-maxHeight*(slot/columns);
-	 
-	    BufferedImage image = ImageConvert.convertToImage(
-	            formatHash.get(camera), widthHash.get(camera), heightHash.get(camera), imageBuffer);
-	    VisWorld.Buffer vb = vw.getBuffer("cam" + camera);
-        vb.addBuffered(new VisChain(LinAlg.translate(x, y, 0.0), new VisImage(image)));
-        vb.addBuffered(new VisText(new double[]{x + widthHash.get(camera)/2, y + heightHash.get(camera),}, 
-                VisText.ANCHOR.TOP, "Camera "+camera));
-        vb.switchBuffer();
-	}
-
     @Override
     public void go(String configPath, String... urls)
     {
@@ -116,7 +150,7 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
             config = new ConfigFile(configPath);
             ConfigUtil.verifyConfig(config);
             if(ImageSource.getCameraURLs().size() == 0) new CameraException(CameraException.NO_CAMERA).printStackTrace();
-            irs = new ArrayList<ImageReader>();
+            captures = new ArrayList<Capture>();
             if(urls.length == 0)
             {
                 ArrayList<String> u = ImageSource.getCameraURLs();
@@ -124,11 +158,9 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
             }
             for (String url : urls)
             {
-                ImageReader test = new ImageReader(config, url);
+                CameraDriver test = new CameraDriver(url, config);
                 if(test.isGood())
                 {
-                    test.addListener(this);
-                    
                     if(test.getWidth() > maxWidth) maxWidth = test.getWidth();
                     if(test.getHeight() > maxHeight) maxHeight = test.getHeight();
 
@@ -136,13 +168,13 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
                     widthHash.put(test.getCameraId(), test.getWidth());
                     heightHash.put(test.getCameraId(), test.getHeight());
                     formatHash.put(test.getCameraId(), test.getFormat());
-                    test.start();
-                    irs.add(test);
+                    captures.add(new Capture(test));
                 }
             }
-        }catch (CameraException e)
-        {
-            e.printStackTrace();
+            for(Capture c : captures)
+            {
+                c.start();
+            }
         } catch (IOException e)
         {
             e.printStackTrace();
@@ -151,22 +183,16 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber, Ima
             e.printStackTrace();
         }
         
-        if(irs.size() == 0) new CameraException(CameraException.NO_CAMERA).printStackTrace();
-        vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { columns*maxWidth, maxHeight*Math.ceil((double)irs.size()/(columns*maxWidth))});
+        if(captures.size() == 0) new CameraException(CameraException.NO_CAMERA).printStackTrace();
+        vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { columns*maxWidth, maxHeight*Math.ceil((double)captures.size()/(columns*maxWidth))});
     }
 
     @Override
     public void stop()
     {      
-        for(ImageReader ir : irs)
+        for(Capture c : captures)
         {
-            try
-            {
-                ir.kill();
-            } catch (InterruptedException e)
-            {
-                e.printStackTrace();
-            }
+            c.kill();
         }
     }
     

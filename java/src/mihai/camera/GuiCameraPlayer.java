@@ -37,9 +37,8 @@ public class GuiCameraPlayer extends JFrame
         GetOpt opts = new GetOpt();
         
         opts.addBoolean('h', "help", false, "See this help screen");
-        opts.addBoolean('a', "all", true, "LCM mode: display images from all cameras published via lcm");
-        opts.addBoolean('s', "standAlone", true, "Standalone mode: will capture images from all cameras");
-        opts.addString('n', "config", System.getenv("APRIL_CONFIG")+ File.separator + "camera.config", "location of config file (standalone mode only)");
+        opts.addBoolean('l', "lcm", false, "display images from all cameras published via lcm");
+        opts.addString('c', "config", System.getenv("APRIL_CONFIG")+ File.separator + "camera.config", "location of config file (standalone mode only)");
         opts.addInt('x', "columns", 2, "number of columns in which to display camera images (standalone and lcm mode)");
         
         if (!opts.parse(args))
@@ -54,13 +53,13 @@ public class GuiCameraPlayer extends JFrame
             System.exit(1);
         }
         
-        if(opts.getBoolean("standAlone"))
-        {
-            new GuiCameraPlayer(opts.getString("config"), opts.getInt("columns"));
-        }
-        else if(opts.getBoolean("all"))
+        if(opts.getBoolean("lcm"))
         {
             new GuiCameraPlayer(opts.getInt("columns"));
+        }
+        else
+        {
+            new GuiCameraPlayer(opts.getString("config"), opts.getInt("columns"));
         }
     }
 }

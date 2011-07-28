@@ -2,16 +2,16 @@ package mihai.tracker;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import mihai.camera.ImageReader;
+import mihai.camera.CameraDriver;
 import mihai.camera.TagDetector2;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.ConfigUtil;
 import april.config.Config;
-import april.jcam.ImageConvert;
 import april.jmat.LinAlg;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
+import aprilO.util.TimeUtil;
 
 /**
  * Tracks a given objects in 3D space (used by ObjectTracker)
@@ -19,7 +19,7 @@ import april.tag.TagDetection;
  * @author Mihai Bulic
  *
  */
-public class Track extends Thread implements ImageReader.Listener
+public class Track extends Thread
 {
     ArrayList<Listener> listeners = new ArrayList<Listener>();
 
@@ -30,13 +30,11 @@ public class Track extends Thread implements ImageReader.Listener
     private double kc[]; // Distortion
     private double alpha;// Skew
 
-    private ImageReader ir;
+    private CameraDriver driver;
 
     // pull out into subclass
+    private boolean run = true;
     private TagDetector2 td;
-    private int width;
-    private int height;
-    private String format;
     
     public interface Listener
     {
@@ -54,19 +52,15 @@ public class Track extends Thread implements ImageReader.Listener
         alpha = config.requireDouble("alpha");
         transformation = LinAlg.xyzrpyToMatrix(config.requireDoubles("xyzrpy"));
         
-    	ir = new ImageReader(config.getRoot(), url);
-    	ir.addListener(this);
+    	driver = new CameraDriver(url, config);
     	
         // pull out into subclass
-    	width = ir.getWidth();
-    	height = ir.getHeight();
-    	format = ir.getFormat();
     	td = new TagDetector2(new Tag36h11(),fc, cc, kc, alpha);
     }
 
-    public int getIndex()
+    public String getCameraId()
     {
-    	return ir.getCameraId();
+    	return driver.getCameraId();
     }
     
     public double[][] getTransformationMatrix()
@@ -76,17 +70,18 @@ public class Track extends Thread implements ImageReader.Listener
     
     public boolean isGood()
     {
-    	return ir.isGood();
+    	return driver.isGood();
     }
     
     public void start()
     {
-        ir.start();
+        driver.start();
     }
     
     public void kill() throws InterruptedException
     {
-        ir.kill();
+        run = false;
+        driver.join();
     }
 
     public void addListener(Listener listener)
@@ -94,20 +89,30 @@ public class Track extends Thread implements ImageReader.Listener
         listeners.add(listener);
     }
 
-    // force override
-    public void handleImage(byte[] image, long timeStamp, int camera)
+    public void run()
     {
-        ArrayList<TagDetection> tags = td.process(ImageConvert.convertToImage(format, width, height, image), cc);
-        ArrayList<ImageObjectDetection> objects = new ArrayList<ImageObjectDetection>(tags.size());
-        
-        for(TagDetection tag : tags)
+        while(run)
         {
-            objects.add(new ImageObjectDetection(tag.id, id, timeStamp, tag.cxy, transformation, fc, cc));
+            ArrayList<TagDetection> tags = td.process(driver.getFrameImage(), cc);
+            ArrayList<ImageObjectDetection> objects = new ArrayList<ImageObjectDetection>(tags.size());
+            
+            for(TagDetection tag : tags)
+            {
+                objects.add(new ImageObjectDetection(tag.id, id, TimeUtil.utime(), tag.cxy, transformation, fc, cc));
+            }
+            
+            for (Listener listener : listeners)
+            {
+                listener.handleDetections(objects, transformation);
+            }
         }
         
-        for (Listener listener : listeners)
+        try
         {
-            listener.handleDetections(objects, transformation);
+            driver.kill();
+        } catch (InterruptedException e)
+        {
+            e.printStackTrace();
         }
     }
 }

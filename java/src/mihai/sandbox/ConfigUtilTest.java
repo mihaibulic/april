@@ -13,7 +13,7 @@ import mihai.util.ConfigException;
 import april.config.Config;
 import april.config.ConfigFile;
 
-public class ConfigUtil
+public class ConfigUtilTest
 {
     /**
      * same as setValue except this is used when the variable to be set is an array

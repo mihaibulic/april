@@ -4,12 +4,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import mihai.camera.ImageReader;
+import mihai.camera.CameraDriver;
 import mihai.camera.TagDetector2;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
-import mihai.util.PointUtil;
 import mihai.util.ConfigUtil;
+import mihai.util.PointUtil;
 import april.config.Config;
 import april.jcam.ImageConvert;
 import april.jmat.LinAlg;
@@ -23,17 +23,16 @@ import april.tag.TagDetection;
  * @author Mihai Bulic
  *
  */
-public class Camera implements ImageReader.Listener
+public class Camera
 {
     private int masterIndex;
-    private ImageReader ir;
+    private CameraDriver driver;
     private ArrayList<TagDetection> detections;
     private ArrayList< Tag > tagsL;
     private ArrayList<double[]> potentialPositions;
     private double[] xyzrpy;
     private double[][] matrix;
 
-    private int imageCount = 0;
     private ArrayList<byte[]> imageBuffers;
     private int width;
     private int height;
@@ -71,28 +70,23 @@ public class Camera implements ImageReader.Listener
         detections = new ArrayList<TagDetection>();
         potentialPositions = new ArrayList<double[]>();
         
-        ir = new ImageReader(config.getRoot(), url);
-        width = ir.getWidth();
-        height = ir.getHeight();
-        format = ir.getFormat();
+        driver = new CameraDriver(url, config);
+        width = driver.getWidth();
+        height = driver.getHeight();
+        format = driver.getFormat();
     }
     
     public void aggregateTags(int size, double tagSize) throws InterruptedException
     {
-        imageCount = size;
         imageBuffers = new ArrayList<byte[]>();
         
-        this.ir.addListener(this);
-        ir.start();
+        driver.start();
         
-        synchronized(imageBuffers)
+        while(imageBuffers.size() < size)
         {
-            while(imageBuffers.size() < size)
-            {
-                imageBuffers.wait();
-            }
+            imageBuffers.add(driver.getFrameBuffer());
         }
-        ir.kill();
+        driver.kill();
         
         TagDetector2 td = new TagDetector2(new Tag36h11(), fc, cc, kc, alpha);
         for(byte[] buffer: imageBuffers)
@@ -166,19 +160,19 @@ public class Camera implements ImageReader.Listener
         return matrix;
     }
     
-    public ImageReader getReader()
+    public CameraDriver getDriver()
     {
-        return ir;
+        return driver;
     }
 
     public String getUrl()
     {
-        return ir.getUrl();
+        return driver.getUrl();
     }
 
-    public int getCameraId()
+    public String getCameraId()
     {
-        return ir.getCameraId();
+        return driver.getCameraId();
     }
     
     public int getMain()
@@ -207,12 +201,12 @@ public class Camera implements ImageReader.Listener
     
     public boolean isGood()
     {
-        return ir.isGood();
+        return driver.isGood();
     }
     
     public void kill() throws InterruptedException
     {
-        ir.kill();
+        driver.kill();
     }
     
     public void setMaster(int master)
@@ -246,21 +240,6 @@ public class Camera implements ImageReader.Listener
         this.matrix = matrix;
         this.xyzrpy = LinAlg.matrixToXyzrpy(matrix);
         this.masterIndex = master;
-    }
-    
-    public void handleImage(byte[] image, long timeStamp, int camera)
-    {
-        if(imageBuffers.size() >= imageCount)
-        {
-            synchronized(imageBuffers)
-            {
-                imageBuffers.notify();
-            }
-        }
-        else
-        {
-            imageBuffers.add(image);
-        }
     }
 }
 

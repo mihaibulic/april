@@ -3,100 +3,82 @@ package mihai.camera;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import april.util.TimeUtil;
 
 import lcm.lcm.LCM;
 import mihai.lcmtypes.image_path_t;
 
 /**
  * 
- * Saves images (byte[]) given to it by ImageReader to a specified output directory and publishes the path via an LCM message 
+ * Saves images (byte[]) given to it by CameraDriver to a specified output directory and publishes the path via an LCM message 
  * 
  * @author Mihai Bulic
  *
  */
-public class ImageSaver extends Thread implements ImageReader.Listener
+public class ImageSaver extends Thread
 {
     private LCM lcm = LCM.getSingleton();
 
     private boolean run = true;
-    private Object lock = new Object();
-    private boolean imageReady = false;
-    private byte[] imageBuffer;
-    private double timeStamp = 0;
-    private int width;
-    private int height;
-    private String format;
+    private CameraDriver driver;
     
-    private String url;
-    private int id; 
+    private String id; 
     private String outputDir = "";
     private int saveCounter = 0;
 
-    public ImageSaver(ImageReader ir, String url, String outputDir)
+    public ImageSaver(CameraDriver driver, String outputDir)
     {
-    	id = ir.getCameraId();
-    	this.url = url;
-        this.outputDir = outputDir + "cam" + id;
+        this.driver = driver;
+        id = driver.getCameraId();
+        this.outputDir = outputDir + id;
         File dir = new File(this.outputDir);
         dir.mkdirs();
-        
-        width = ir.getWidth();
-        height = ir.getHeight();
-        format = ir.getFormat();
-        
-        ir.addListener(this);
-        ir.start();
     }
     
     public void run()
     {
-        if(url == null) return;
+        int width = driver.getWidth();
+        int height = driver.getHeight();
+        String format = driver.getFormat();
+
+        driver.start();
         
         while (run)
         {
-            synchronized(lock)
-            {
-                try
-                {
-                    while(!imageReady)
-                    {
-                        lock.wait();
-                    }
-                } catch (InterruptedException e)
-                {
-                    e.printStackTrace();
-                }
-	            image_path_t imagePath = new image_path_t();
-	
-	            try
-	            {
-	                imagePath.img_path = saveImage(imageBuffer);
-	                imagePath.width = width;
-	                imagePath.height = height;
-	                imagePath.format = format;
-	                imagePath.utime = (long)timeStamp;
-	                imagePath.id = id;
-	            } catch (NullPointerException e)
-	            {
-	            	if(run)
-	            	{
-	            		e.printStackTrace();
-	            	}
-	            	else
-	            	{
-	            		break;
-	            	}
-	            } catch (IOException e)
-	            {
-	                e.printStackTrace();
-	            }
+            image_path_t imagePath = new image_path_t();
 
-	            lcm.publish("cam" + id, imagePath);
-	            imageReady = false;
+            try
+            {
+                imagePath.img_path = saveImage(driver.getFrameBuffer());
+                imagePath.width = width;
+                imagePath.height = height;
+                imagePath.format = format;
+                imagePath.utime = (long)TimeUtil.utime();
+                imagePath.id = ""+id;
+            } catch (NullPointerException e)
+            {
+            	if(run)
+            	{
+            		e.printStackTrace();
+            	}
+            	else
+            	{
+            		break;
+            	}
+            } catch (IOException e)
+            {
+                e.printStackTrace();
             }
+
+            lcm.publish("camera " + id, imagePath);
         }
     }
 
+    public String getCameraId()
+    {
+        return id;
+    }
+    
     private String saveImage(byte[] image) throws NullPointerException, IOException
     {
         String filepath = outputDir + File.separator + "IMG" + saveCounter;
@@ -114,26 +96,11 @@ public class ImageSaver extends Thread implements ImageReader.Listener
     }
     
     /**
-     * Stops the reader in a safe way
+     * Stops the driver in a safe way
+     * @throws InterruptedException 
      */
-    public void kill()
+    public void kill() throws InterruptedException
     {
-    	synchronized(lock)
-        {
-    		run = false;
-	    	imageReady = true;
-	    	lock.notify();
-        }
-    }
-
-    public void handleImage(byte[] im, long time, int camera)
-    {
-        synchronized(lock)
-        {
-            imageBuffer = im;
-            timeStamp = time;
-            imageReady = true;
-            lock.notify();
-        }
+        driver.kill();
     }
 }

@@ -51,7 +51,7 @@ public class ConfigUtil
             if(Math.abs(value[x]) < 0.001)
                 value[x] = 0;
             
-            stringValue[x] = Double.toString(round(value[x],4));
+            stringValue[x] = round(value[x],4);
         }
         
         return setValues(configPath, path, variable, stringValue);
@@ -88,7 +88,7 @@ public class ConfigUtil
         if(Math.abs(value) < 0.001)
             value = 0;
         
-        return setValue(configPath, path, variable, Double.toString(round(value,4)));
+        return setValue(configPath, path, variable, round(value,4));
     }
     
     /**
@@ -262,7 +262,7 @@ public class ConfigUtil
      * Used to round numbers to be written to a config file
      */
     // XXX - move to a separate config file when more general util methods are available
-    public static double round(double number, int decimals) 
+    public static String round(double number, int decimals) 
     {
         String format = "#.";
         for(int x = 0; x < decimals; x++)
@@ -271,6 +271,21 @@ public class ConfigUtil
         }
         
         DecimalFormat twoDForm = new DecimalFormat(format);
-        return Double.valueOf(twoDForm.format(number));
+        String newNumber = twoDForm.format(number);
+
+        int index = newNumber.indexOf('.');
+        if(index == -1)
+        {
+            index = newNumber.length();
+            newNumber += ".";
+        }
+        
+        int itt = decimals - (newNumber.length()-(index+1));
+        for(int x = 0; x < itt; x++)
+        {
+            newNumber += "0";
+        }
+        
+        return newNumber;
     }
 }

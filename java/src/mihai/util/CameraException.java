@@ -4,6 +4,7 @@ public class CameraException extends Exception
 {
     private static final long serialVersionUID = 1L;
     
+    public static final int NULL_IMAGESOURCE = 0;
     public static final int NO_CAMERA = 1;
     public static final int NO_TAGS = 2;
     public static final int UNCERTAIN = 3;
@@ -20,6 +21,9 @@ public class CameraException extends Exception
         
         switch(err)
         {
+            case NULL_IMAGESOURCE:
+                msg += "The imagesource is null.";
+                break;
             case NO_CAMERA:
                 msg += "No cameras found.";
                 break;

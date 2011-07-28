@@ -14,18 +14,15 @@ import april.jcam.ImageSourceFormat;
 public class CameraDriver extends Thread
 {
     private int samples = 10;
-    private double chi = 0.01;
+    private double chi2Tolerance = 0.001;
     private double minimumSlope = 0.01;
     private double timeThresh = 0.0;
     private int verbosity = -1;
     private boolean gui = false;
-    private SyncErrorDetector sync;
+    private SyncErrorDetector sync = null;
 
-    private boolean hiRes = true;
-    private boolean color8 = true;
-    private int fps = 60;
-    private String id;
-    private String url;
+    private String id = "";
+    private String url = "";
     private ImageSource isrc;
     private ImageSourceFormat ifmt;
     
@@ -50,47 +47,51 @@ public class CameraDriver extends Thread
         }
         
         ifmt = isrc.getCurrentFormat();
-        
-        sync = new SyncErrorDetector(samples, chi, minimumSlope, timeThresh, verbosity, gui);
     }
 
     public CameraDriver(String url, Config config) throws ConfigException
     {
         config = config.getRoot().getChild(getSubUrl(config, url));
-        ConfigUtil.verifyConfig(config);
-        
+
         run = isValidUrl(config, url);
         if(run)
         {
             this.url = url;
             
             id = config.requireString("id");
-            hiRes = config.requireBoolean("hiRes");
-            color8 = config.requireBoolean("color8");
-            fps = config.requireInt("fps");
             
+            String format = config.getString("format", "GRAY8");
+            int width = config.getInt("width", 752);
+            int height = config.getInt("height", 480);
+            int fps = config.getInt("fps", 60);
+
             try
             {
                 isrc = ImageSource.make(url);
+                setImageSource(format, width, height, fps);
             } catch (IOException e)
             {
                 e.printStackTrace();
+            } catch (CameraException e)
+            {
+                e.printStackTrace();
             }
-
-            // 760x480 8 = 0, 760x480 16 = 1, 380x240 8 = 2, 380x240 16 = 3
-            // converts booleans to 1/0 and combines them into an int
-            isrc.setFormat(Integer.parseInt("" + (hiRes ? 0 : 1) + (color8 ? 0 : 1), 2));
-            isrc.setFeatureValue(15, fps); // frame-rate, idx=11
-
+            
             ifmt = isrc.getCurrentFormat();
             
             config = config.getRoot().getChild("sync");
             ConfigUtil.verifyConfig(config);
-            sync = new SyncErrorDetector(config);
+            samples = config.requireInt("samples");
+            chi2Tolerance = config.requireDouble("chi2Tolerance");
+            timeThresh = config.requireDouble("timeThresh");
+            minimumSlope = config.requireDouble("minimumSlope");
+            verbosity = config.requireInt("verbosity");
+            gui = config.requireBoolean("gui");
+            sync = new SyncErrorDetector(samples, chi2Tolerance, minimumSlope, timeThresh, verbosity, gui);
         }
     }
 
-    public CameraDriver(String url, boolean hiRes, boolean color8, int fps,
+    public CameraDriver(String url, String format, int width, int height, int fps,
             int samples, double chi, double minimumSlope, double timeThresh, int verbosity, boolean gui)
     {
         this.url = url;
@@ -98,15 +99,15 @@ public class CameraDriver extends Thread
         try
         {
             isrc = ImageSource.make(url);
+            setImageSource(format, width, height, fps);
         } catch (IOException e)
+        {
+            e.printStackTrace();
+        } catch (CameraException e)
         {
             e.printStackTrace();
         }
 
-        // 760x480 8 = 0, 760x480 16 = 1, 380x240 8 = 2, 380x240 16 = 3
-        // converts booleans to 1/0 and combines them into an int
-        isrc.setFormat(Integer.parseInt("" + (hiRes ? 0 : 1) + (color8 ? 0 : 1), 2));
-        isrc.setFeatureValue(15, fps); // frame-rate, idx=11
         ifmt = isrc.getCurrentFormat();
 
         sync = new SyncErrorDetector(samples, chi, minimumSlope, timeThresh, verbosity, gui);
@@ -115,16 +116,21 @@ public class CameraDriver extends Thread
     public void run()
     {
         isrc.start();
+        byte[] imageBuffer;
         
         while (run)
         {
-            byte imageBuffer[] = isrc.getFrame();
-            
+            imageBuffer = isrc.getFrame();
+
             if(imageBuffer != null)
             {
-                sync.addTimePointGreyFrame(imageBuffer);
-
-                int status = sync.verify();
+                int status = SyncErrorDetector.SYNC_GOOD;
+                if(sync != null)
+                {
+                    sync.addTimePointGreyFrame(imageBuffer);
+                    status = sync.verify();
+                }
+                
                 if(status == SyncErrorDetector.SYNC_GOOD)
                 {
                     synchronized(imageLock)
@@ -136,14 +142,12 @@ public class CameraDriver extends Thread
                 } 
                 else if (status == SyncErrorDetector.RECOMMEND_ACTION)
                 {
-                    try
-                    {
-                        toggleImageSource(isrc);
-                    } catch (ConfigException e)
-                    {
-                        e.printStackTrace();
-                    }
+                    toggleImageSource();
                 }
+            }
+            else
+            {
+                toggleImageSource();
             }
         }
         
@@ -155,14 +159,14 @@ public class CameraDriver extends Thread
         }
     }
     
-    private void toggleImageSource(ImageSource isrc) throws ConfigException
+    private void toggleImageSource()
     {
+        int f = isrc.getCurrentFormatIndex();
         isrc.stop();
-        int currentFormat = isrc.getCurrentFormatIndex();
-        isrc.setFormat(currentFormat);
-
+        isrc.setFormat(f);
         isrc.start();
-        sync = new SyncErrorDetector(samples, chi, minimumSlope, timeThresh, verbosity, gui);
+        
+        sync = new SyncErrorDetector(samples, chi2Tolerance, minimumSlope, timeThresh, verbosity, gui);
     }
 
     public String getCameraId()
@@ -230,7 +234,7 @@ public class CameraDriver extends Thread
     
     public static String getSubUrl(Config config, String url)
     {
-        String prefix = config.requireString("default_url");
+        String prefix = config.getRoot().requireString("default_url");
         
         if(url.contains(prefix))
         {
@@ -259,20 +263,44 @@ public class CameraDriver extends Thread
     
     public static boolean isValidUrl(Config config, String url)
     {
-        config = config.getChild(getSubUrl(config, url));
-        return (config != null && config.getBoolean("valid", false));
+        config = config.getRoot().getChild(getSubUrl(config, url));
+        return (config != null && config.getBoolean("valid", false) && ImageSource.getCameraURLs().contains(url));
+    }
+    
+    private void setImageSource(String format, int width, int height, int fps) throws CameraException
+    {
+        if(isrc == null) throw new CameraException(CameraException.NULL_IMAGESOURCE);
+        
+        setFormat(format, width, height);
+        
+        isrc.setFeatureValue(14, 1); // frame-rate-manuel, idx=14
+        isrc.setFeatureValue(15, fps); // frame-rate, idx=15
+        isrc.setFeatureValue(16, 1); // enable timestamps
     }
 
-    public void setFormat(boolean hiRes, boolean color8)
+    public void setFormat(String format, int width, int height) throws CameraException
     {
+        if(isrc == null) throw new CameraException(CameraException.NULL_IMAGESOURCE);
+        
         isrc.stop();
-        isrc.setFormat(Integer.parseInt("" + (hiRes ? 0 : 1) + (color8 ? 0 : 1), 2));
+        
+        int formats = isrc.getNumFormats();
+        for(int x = 0; x < formats; x++)
+        {
+            ImageSourceFormat f = isrc.getFormat(x);
+            if(f.format.contains(format) && f.width == width && f.height == height)
+            {
+                isrc.setFormat(x);
+                break;
+            }
+        }
+        
         ifmt = isrc.getCurrentFormat();
-        isrc.start();
     }
 
     public void setFramerate(int fps)
     {
+        isrc.setFeatureValue(14, 1); // frame-rate-manuel, idx=14
         isrc.setFeatureValue(15, fps); // frame-rate, idx=11
     }
     

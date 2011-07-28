@@ -1,18 +1,15 @@
 package mihai.camera;
 
-import java.io.Console;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.ConfigUtil;
-
 import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageSource;
 import april.util.GetOpt;
-import april.util.TimeUtil;
 
 /**
  * 
@@ -29,9 +26,6 @@ public class CameraRecorder
 
         opts.addBoolean('h', "help", false, "See this help screen");
         opts.addString('n', "config", System.getenv("CONFIG")+"/camera.config", "location of config file");
-        opts.addString('r', "resolution", "", "lo=380x240, hi=760x480 (overrides config resolution)");
-        opts.addString('c', "colors", "", "gray8 or gray16 (overrides config color setting)");
-        opts.addString('f', "fps", "", "framerate to use if player (overrides config framerate)");
         opts.addString('d', "dir", "", "Path to save images");
         opts.addString('l', "log", "", "name of lcm log");
         
@@ -50,68 +44,38 @@ public class CameraRecorder
         
         Config config = new ConfigFile(opts.getString("config"));
         ConfigUtil.verifyConfig(config);
-        if(!opts.getString("resolution").isEmpty())
-        {
-        	config.setBoolean("loRes", opts.getString("resolution").contains("lo"));
-        }
-        if(!opts.getString("colors").isEmpty())
-        {
-        	config.setBoolean("color16", opts.getString("colors").contains("16"));
-        }
-        if(!opts.getString("fps").isEmpty())
-        {
-        	config.setInt("fps", Integer.parseInt(opts.getString("fps")));
-        }
-        if(!opts.getString("dir").isEmpty())
-        {
-        	config.setString("dir", opts.getString("dir"));
-        }
-        if(!opts.getString("log").isEmpty())
-        {
-        	config.setString("log", opts.getString("log"));
-        }
+        String dir = opts.getString("dir").isEmpty() ? config.requireString("dir") : opts.getString("dir");
+        String log = opts.getString("log").isEmpty() ? config.requireString("log") : opts.getString("log");
         
         if(ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
 
-        String dir = config.getString("dir") + (!config.getString("dir").endsWith("/") ? "/" : "");
+        dir += (!dir.endsWith("/") ? "/" : "");
         new File(dir).mkdirs();
         
-        Runtime.getRuntime().exec("lcm-logger " + dir + config.getString("log"));
+        Runtime.getRuntime().exec("lcm-logger " + dir + log);
         
-        ArrayList<String> urls = ImageSource.getCameraURLs();
-        ImageReader irs[] = new ImageReader[urls.size()];
-        ImageSaver iss[] = new ImageSaver[urls.size()];
-        
-        for (int x = 0; x < irs.length; x++)
-        {
-            try
-            {
-                irs[x] = new ImageReader(config, urls.get(x));
-                iss[x] = new ImageSaver(irs[x], urls.get(x), dir);
-                iss[x].start();
-            } catch (Exception e)
-            {
-                e.printStackTrace();
-            }
-
-        }
-        
-        TimeUtil.sleep(1500);
-        Console console = System.console();
-        
+        ArrayList<ImageSaver> iss = new ArrayList<ImageSaver>();
         while(true)
         {
-	        if(console.readLine("Type q or quit to exit\t").contains("q"))
-	        {
-	        	for (int x = 0; x < irs.length; x++)
-	            {
-	        		iss[x].kill();
-	        		iss[x].join();
-	        		irs[x].kill();
-	        		irs[x].join();
-	            }
-	        	System.exit(0);
-	        }
+            ArrayList<String> urls = ImageSource.getCameraURLs();
+            
+            for (int x = 0; x < urls.size(); x++)
+            {
+                try
+                {
+                    CameraDriver test = new CameraDriver(urls.get(x), config);
+                    if(test.isGood())
+                    {
+                        ImageSaver is = new ImageSaver(test, dir);
+                        is.start();
+                        iss.add(is);
+                    }
+                } catch (Exception e)
+                {
+                    e.printStackTrace();
+                }
+            }
+            Thread.sleep(1000);
         }
     }
 }
