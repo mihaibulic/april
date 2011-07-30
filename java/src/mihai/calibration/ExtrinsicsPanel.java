@@ -41,7 +41,7 @@ public class ExtrinsicsPanel extends Broadcaster
     private Config config;
     
     private Calibrate calibrate;
-    private boolean kill = false;
+    private boolean run = true;
     
     public ExtrinsicsPanel(String id) throws ConfigException, CameraException, IOException, InterruptedException
     {
@@ -50,7 +50,6 @@ public class ExtrinsicsPanel extends Broadcaster
         vw = new VisWorld();
         vc = new VisCanvas(vw);
         vc.setBackground(Color.BLACK);
-        vc.getViewManager().interfaceMode = 1.0;
         vbTags = vw.getBuffer("tags");
         vbTags.setDrawOrder(1);
         vbCameras = vw.getBuffer("cameras");
@@ -234,7 +233,7 @@ public class ExtrinsicsPanel extends Broadcaster
             stop = false;
         }
         
-        return stop || kill;
+        return stop || !run;
     }
     
     class Distance extends Function
@@ -467,7 +466,7 @@ public class ExtrinsicsPanel extends Broadcaster
         {
             try
             {
-                Camera test = new Camera(config.getChild(CameraDriver.getSubUrl(config, url)), url);
+                Camera test = new Camera(config, url);
                 if(test.isGood())
                 {
                     cameras.add(test);
@@ -491,7 +490,7 @@ public class ExtrinsicsPanel extends Broadcaster
     @Override
     public void stop()
     {
-        kill = true;
+        run = false;
         for(Camera cam : cameras)
         {
             try

@@ -1,6 +1,7 @@
 package mihai.camera;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
@@ -51,7 +52,7 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
         vw = new VisWorld();
         vc = new VisCanvas(vw);
         vc.getViewManager().interfaceMode = 1.0;
-//        vc.setBackground(Color.BLACK);
+        vc.setBackground(Color.BLACK);
         
         lcm.subscribeAll(this);
         add(vc);
@@ -61,19 +62,21 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
     {
         private String id;
         private CameraDriver driver;
-        private boolean run = true;
-        VisWorld.Buffer vb;
         private double x, y;
+        private VisWorld.Buffer vb;
 
+        private boolean run = true, done = false;
+        private Object lock = new Object();
+        
         String format;
         int width, height;
         public Capture(CameraDriver driver)
         {
+            this.driver = driver;
+            this.id = driver.getCameraId();
             format=driver.getFormat();
             width=driver.getWidth();
             height=driver.getHeight();
-            this.driver = driver;
-            this.id = driver.getCameraId();
 
             vb = vw.getBuffer(id);
             int slot = cameraPosition.indexOf(id);
@@ -84,7 +87,6 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
         public void run()
         {
             driver.start();
-
             while(run)
             {
                 vb.addBuffered(new VisChain(LinAlg.translate(x, y, 0.0), new VisImage(driver.getFrameImage())));
@@ -93,18 +95,31 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
                 vb.switchBuffer();
             }
             
-            try
+            synchronized(lock)
             {
                 driver.kill();
-            } catch (InterruptedException e)
-            {
-                e.printStackTrace();
+                done = true;
+                lock.notify();
             }
         }
         
         public void kill()
         {
             run = false;
+            
+            synchronized(lock)
+            {
+                while(!done)
+                {
+                    try
+                    {
+                        lock.wait();
+                    } catch (InterruptedException e)
+                    {
+                        e.printStackTrace();
+                    }
+                }
+            }
         }
     }
     

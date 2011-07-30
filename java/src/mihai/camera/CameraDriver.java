@@ -244,14 +244,20 @@ public class CameraDriver extends Thread
         return url;
     }
     
-    public void kill() throws InterruptedException
+    public void kill()
     {
         run = false;
         synchronized(driverLock)
         {
             while(!done)
             {
-                driverLock.wait();
+                try
+                {
+                    driverLock.wait();
+                } catch (InterruptedException e)
+                {
+                    e.printStackTrace();
+                }
             }
         }
     }
@@ -264,6 +270,7 @@ public class CameraDriver extends Thread
     public static boolean isValidUrl(Config config, String url)
     {
         config = config.getRoot().getChild(getSubUrl(config, url));
+        
         return (config != null && config.getBoolean("valid", false) && ImageSource.getCameraURLs().contains(url));
     }
     

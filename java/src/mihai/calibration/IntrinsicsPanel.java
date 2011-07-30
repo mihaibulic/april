@@ -145,7 +145,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         String url, format;
         int width, height;
         CameraDriver driver;
-        boolean stop = false;
+        boolean run = true;
         
         // protected by synchronizing on CaptureThread
         GCalibrateEdge lastEdge;
@@ -168,7 +168,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
             
             driver.start();
             
-            while (!stop)
+            while (run)
             {
                 byte[] imageBuffer = driver.getFrameBuffer();
                 image = ImageConvert.convertToImage(format, width, height, imageBuffer);
@@ -245,13 +245,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                 }
             }
             
-            try
-            {
-                driver.kill();
-            } catch (InterruptedException e)
-            {
-                e.printStackTrace();
-            }
+            driver.kill();
         }
     }
 
@@ -293,7 +287,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         }
         else if(e.getActionCommand().equals(stopButtonText))
         {
-            iterateThread.stop = true;
+            iterateThread.run = false;
             try
             {
                 iterateThread.join();
@@ -308,7 +302,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
 
     class IterateThread extends Thread
     {
-        public boolean stop = false;
+        public boolean run = true;
 
         IterateThread()
         {}
@@ -322,7 +316,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
             int ncorr = 0;
             int count = 0, size = 10;
             double[] oldChi2 = new double[size];
-            while(!stop && (!shouldStop(oldChi2, g.getErrorStats().chi2, 0.1, ncorr) || count < 10))
+            while(run && (!shouldStop(oldChi2, g.getErrorStats().chi2, 0.1, ncorr) || count < 10))
             {
                 oldChi2[(count++)%size] = g.getErrorStats().chi2;
                 
@@ -354,24 +348,27 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                 vbError.switchBuffer();
             }
             
-            double state[] = g.nodes.get(0).state;
-            try
+            if(run)
             {
-                ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(config, url)}, "fc", new double[]{state[0], state[1]});
-                ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(config, url)}, "cc", new double[]{state[2], state[3]});
-                ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(config, url)}, "kc", new double[]{state[4], state[5], state[6], state[7], state[8]});
-                ConfigUtil.setValue(configPath, new String[]{CameraDriver.getSubUrl(config, url)}, "alpha", state[9]);
-            } catch (ConfigException e)
-            {
-                e.printStackTrace();
-            } catch (IOException e)
-            {
-                e.printStackTrace();
+                double state[] = g.nodes.get(0).state;
+                try
+                {
+                    ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(config, url)}, "fc", new double[]{state[0], state[1]});
+                    ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(config, url)}, "cc", new double[]{state[2], state[3]});
+                    ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(config, url)}, "kc", new double[]{state[4], state[5], state[6], state[7], state[8]});
+                    ConfigUtil.setValue(configPath, new String[]{CameraDriver.getSubUrl(config, url)}, "alpha", state[9]);
+                } catch (ConfigException e)
+                {
+                    e.printStackTrace();
+                } catch (IOException e)
+                {
+                    e.printStackTrace();
+                }
+                
+                vbError.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, "<<green, big>>Calibration completed! Hit next to continue."));
+                vbError.switchBuffer();
             }
             
-            vbError.addBuffered(new VisText(VisText.ANCHOR.BOTTOM_LEFT, "<<green, big>>Calibration completed! Hit next to continue."));
-            vbError.switchBuffer();
-
             goButton.setText(goButtonText);
         }
         
@@ -724,13 +721,13 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         {
             if(iterateThread != null)
             {
-                iterateThread.stop = true;
+                iterateThread.run = false;
                 iterateThread.join();
             }
             
             if(captureThread != null)
             {
-                captureThread.stop = true;
+                captureThread.run = false;
                 captureThread.join();
             }
         } catch (InterruptedException e)

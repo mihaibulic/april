@@ -56,7 +56,7 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         {
             vw = new VisWorld();
             vc = new VisCanvas(vw);
-            //        vbRays = vw.getBuffer("rays");
+//            vbRays = vw.getBuffer("rays");
 //            vbRays.setDrawOrder(1);
             vbObjects = vw.getBuffer("objects");
             vbObjects.setDrawOrder(2);
@@ -325,13 +325,7 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         run = false;
         for(Track t : tracks)
         {
-            try
-            {
-                t.kill();
-            } catch (InterruptedException e)
-            {
-                e.printStackTrace();
-            }
+            t.kill();
         }
     }
 

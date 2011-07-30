@@ -1,5 +1,6 @@
 package mihai.calibration;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,7 +12,6 @@ import mihai.util.ConfigException;
 import mihai.util.ConfigUtil;
 import mihai.util.PointUtil;
 import april.config.Config;
-import april.jcam.ImageConvert;
 import april.jmat.LinAlg;
 import april.tag.CameraUtil;
 import april.tag.Tag36h11;
@@ -33,10 +33,7 @@ public class Camera
     private double[] xyzrpy;
     private double[][] matrix;
 
-    private ArrayList<byte[]> imageBuffers;
-    private int width;
-    private int height;
-    private String format;
+    private ArrayList<BufferedImage> images;
     
     private double fc[]; // Focal length, in pixels, [X Y]
     private double cc[];
@@ -59,7 +56,9 @@ public class Camera
     public Camera(Config config, String url) throws CameraException, IOException, ConfigException
     {
         ConfigUtil.verifyConfig(config);
-    	
+        driver = new CameraDriver(url, config);
+
+        config = config.getRoot().getChild(CameraDriver.getSubUrl(config, url));
     	xyzrpy = config.requireDoubles("xyzrpy");
     	matrix = LinAlg.xyzrpyToMatrix(xyzrpy);
         fc = config.requireDoubles("fc");
@@ -69,29 +68,23 @@ public class Camera
     	
         detections = new ArrayList<TagDetection>();
         potentialPositions = new ArrayList<double[]>();
-        
-        driver = new CameraDriver(url, config);
-        width = driver.getWidth();
-        height = driver.getHeight();
-        format = driver.getFormat();
     }
     
     public void aggregateTags(int size, double tagSize) throws InterruptedException
     {
-        imageBuffers = new ArrayList<byte[]>();
+        images = new ArrayList<BufferedImage>();
         
         driver.start();
-        
-        while(imageBuffers.size() < size)
+        while(images.size() < size)
         {
-            imageBuffers.add(driver.getFrameBuffer());
+            images.add(driver.getFrameImage());
         }
         driver.kill();
         
         TagDetector2 td = new TagDetector2(new Tag36h11(), fc, cc, kc, alpha);
-        for(byte[] buffer: imageBuffers)
+        for(BufferedImage image: images)
         {
-            detections.addAll(td.process(ImageConvert.convertToImage(format, width, height, buffer), cc));
+            detections.addAll(td.process(image, cc));
         }
         
         Collections.sort(detections, new TagDetectionComparator());
