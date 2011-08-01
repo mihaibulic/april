@@ -449,7 +449,7 @@ public class ExtrinsicsPanel extends Broadcaster
         try
         {
             this.configPath = configPath;
-            config = new ConfigFile(configPath);
+            config = new ConfigFile(configPath).getChild("extrinsics");
             ConfigUtil.verifyConfig(config);
         } catch (IOException e)
         {
@@ -459,7 +459,7 @@ public class ExtrinsicsPanel extends Broadcaster
             e.printStackTrace();
         }
         
-        tagSize = config.requireDouble("extrinsics_tag_size");
+        tagSize = config.requireDouble("tag_size");
 
         cameras = new ArrayList<Camera>();
         for(String url : urls)
@@ -504,7 +504,7 @@ public class ExtrinsicsPanel extends Broadcaster
     }
     
     @Override
-    public void showDirections(boolean show)
+    public void showDisplay(boolean show)
     {
         // no directions to show
     }

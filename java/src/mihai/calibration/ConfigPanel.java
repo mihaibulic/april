@@ -59,7 +59,7 @@ public class ConfigPanel extends Broadcaster implements ActionListener
     }
     
     @Override
-    public void showDirections(boolean show)
+    public void showDisplay(boolean show)
     {
         // no directions to show
     }

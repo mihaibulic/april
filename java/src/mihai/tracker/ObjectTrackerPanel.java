@@ -390,7 +390,7 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
     {}
     
     @Override
-    public void showDirections(boolean show)
+    public void showDisplay(boolean show)
     {
         VisWorld.Buffer vbDirections = vw.getBuffer("directions");
         vbDirections.setDrawOrder(10);

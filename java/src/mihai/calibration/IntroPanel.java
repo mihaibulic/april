@@ -79,7 +79,7 @@ public class IntroPanel extends Broadcaster
         // no error messages to display
     }
     
-    public void showDirections(boolean show)
+    public void showDisplay(boolean show)
     {
         // no optional directions to show
     }

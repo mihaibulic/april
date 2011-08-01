@@ -29,6 +29,6 @@ public class SettingsPanel extends Broadcaster
     {}
     
     @Override
-    public void showDirections(boolean show)
+    public void showDisplay(boolean show)
     {}
 }

@@ -42,7 +42,7 @@ public class CameraRecorder
             System.exit(1);
         }
         
-        Config config = new ConfigFile(opts.getString("config"));
+        Config config = new ConfigFile(opts.getString("config")).getChild("logging");
         ConfigUtil.verifyConfig(config);
         String dir = opts.getString("dir").isEmpty() ? config.requireString("dir") : opts.getString("dir");
         String log = opts.getString("log").isEmpty() ? config.requireString("log") : opts.getString("log");

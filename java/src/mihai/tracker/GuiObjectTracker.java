@@ -34,7 +34,7 @@ public class GuiObjectTracker extends JFrame implements ActionListener
         if (ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
         
         otp = new ObjectTrackerPanel(display);
-        otp.showDirections(true);
+        otp.showDisplay(true);
         
         ArrayList<String> allUrls = ImageSource.getCameraURLs();
         ArrayList<String> urls = new ArrayList<String>();
@@ -84,6 +84,6 @@ public class GuiObjectTracker extends JFrame implements ActionListener
 
     public void actionPerformed(ActionEvent arg0)
     {
-        otp.showDirections(directions.isSelected()); 
+        otp.showDisplay(directions.isSelected()); 
     }
 }

@@ -220,7 +220,7 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
     }
     
     @Override
-    public void showDirections(boolean show)
+    public void showDisplay(boolean show)
     {
         VisWorld.Buffer vbDirections = vw.getBuffer("directions");
         vbDirections.setDrawOrder(10);

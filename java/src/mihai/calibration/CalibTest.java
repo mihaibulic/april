@@ -3,6 +3,7 @@ package mihai.calibration;
 import java.awt.BorderLayout;
 import java.awt.Toolkit;
 import javax.swing.JFrame;
+import mihai.calibrate.intrinsics.IntrinsicsPanel;
 
 public class CalibTest extends JFrame implements Broadcaster.Listener
 {

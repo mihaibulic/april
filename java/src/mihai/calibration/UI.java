@@ -21,6 +21,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSeparator;
 import javax.swing.border.EmptyBorder;
+import mihai.calibrate.intrinsics.IntrinsicsPanel;
 import mihai.camera.CameraDriver;
 import mihai.camera.CameraPlayerPanel;
 import mihai.tracker.ObjectTrackerPanel;
@@ -47,7 +48,7 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
     
     private String next = "Next";
     private String back = "Back";
-    private String directions = "Show directions";
+    private String directions = "Display directions and progress";
     private JButton nextButton = new JButton(next);
     private JButton backButton = new JButton(back);
     private JCheckBox directionsBox = new JCheckBox(directions, true);
@@ -123,7 +124,7 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
             cl.show(mainPanel, Integer.toString(card));
             currentCard = card;
             cards.get(currentCard).go(configPath, urls.toArray(new String[urls.size()]));
-            cards.get(currentCard).showDirections(directionsBox.isSelected());
+            cards.get(currentCard).showDisplay(directionsBox.isSelected());
         }
         else
         {
@@ -166,7 +167,7 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
         }
         else if(event.getActionCommand().equals(directions))
         {
-            cards.get(currentCard).showDirections(directionsBox.isSelected());
+            cards.get(currentCard).showDisplay(directionsBox.isSelected());
         }
     }
     
