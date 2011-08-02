@@ -1,4 +1,4 @@
-package mihai.camera;
+package mihai.camera.util;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;

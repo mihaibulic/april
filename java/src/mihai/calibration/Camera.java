@@ -5,9 +5,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import mihai.calibrate.random.TagDetectionComparator;
 import mihai.camera.CameraDriver;
-import mihai.camera.TagDetector2;
-import mihai.util.CameraException;
+import mihai.camera.util.CameraException;
+import mihai.camera.util.TagDetector2;
 import mihai.util.ConfigException;
 import mihai.util.ConfigUtil;
 import mihai.util.PointUtil;
@@ -41,6 +42,19 @@ public class Camera
     private double alpha;
     
     private HashMap< Integer, double[]> tagsH = new HashMap<Integer, double[]>();
+    
+    class Tag
+    {
+        double[] xyzrpy;
+        double[][] matrix;
+        int id;
+        
+        @Override
+        public boolean equals(Object a)
+        {
+            return (id == ((Tag)a).id);
+        }
+    }
     
     /**
      * @deprecated temporary only for testing
@@ -108,8 +122,11 @@ public class Camera
                 points[b] = LinAlg.matrixToXyzrpy(M);
             }
             
-            double[] tagXyzrpy = PointUtil.calculateItt(points); 
-            tagsL.add(new Tag(tagXyzrpy, last_id));
+            double[] tagXyzrpy = PointUtil.calculateItt(points);
+            Tag t = new Tag();
+            t.xyzrpy = tagXyzrpy;
+            t.id = last_id;
+            tagsL.add(t);
             tagsH.put(last_id, tagXyzrpy);
         }
     }

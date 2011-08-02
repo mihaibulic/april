@@ -3,7 +3,8 @@ package mihai.camera;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import mihai.util.CameraException;
+import java.util.Collections;
+import mihai.camera.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.ConfigUtil;
 import april.config.Config;
@@ -23,11 +24,13 @@ public class CameraRecorder
     public static void main(String[] args) throws IOException, CameraException, InterruptedException, ConfigException
     {
         GetOpt opts = new GetOpt();
+        Config config = null;
 
         opts.addBoolean('h', "help", false, "See this help screen");
         opts.addString('n', "config", System.getenv("CONFIG")+"/camera.config", "location of config file");
-        opts.addString('d', "dir", "", "Path to save images");
-        opts.addString('l', "log", "", "name of lcm log");
+        opts.addBoolean('s', "simple", false, "ignores config file and records from any URLs given as command line args");
+        opts.addString('d', "dir", "/tmp/imageLog/", "Path to save images (for simple mode only)");
+        opts.addString('l', "log", "default.log", "name of lcm log (for simple mode only)");
         
         if (!opts.parse(args))
         {
@@ -41,38 +44,54 @@ public class CameraRecorder
             opts.doHelp();
             System.exit(1);
         }
-        
-        Config config = new ConfigFile(opts.getString("config")).getChild("logging");
-        ConfigUtil.verifyConfig(config);
-        String dir = opts.getString("dir").isEmpty() ? config.requireString("dir") : opts.getString("dir");
-        String log = opts.getString("log").isEmpty() ? config.requireString("log") : opts.getString("log");
-        
         if(ImageSource.getCameraURLs().size() == 0) throw new CameraException(CameraException.NO_CAMERA);
-
-        dir += (!dir.endsWith("/") ? "/" : "");
+        
+        String dir = opts.getString("dir");
+        String log = opts.getString("log");
+        if(!opts.getBoolean("simple"))
+        {
+            config = new ConfigFile(opts.getString("config")).getChild("logging");
+            ConfigUtil.verifyConfig(config);
+            
+            dir = config.requireString("dir");
+            log = config.requireString("log");
+        }
+        
+        dir += (!dir.endsWith(File.separator) ? File.separator : "");
         new File(dir).mkdirs();
-        
         Runtime.getRuntime().exec("lcm-logger " + dir + log);
-        
-        ArrayList<ImageSaver> iss = new ArrayList<ImageSaver>();
+
+        int id = 0;
         while(true)
         {
             ArrayList<String> urls = ImageSource.getCameraURLs();
+            Collections.sort(urls);
             
-            for (int x = 0; x < urls.size(); x++)
+            if(opts.getBoolean("simple"))
             {
-                try
+                for(String url : args)
                 {
-                    CameraDriver test = new CameraDriver(urls.get(x), config);
-                    if(test.isGood())
+                    if(urls.contains(url))
                     {
-                        ImageSaver is = new ImageSaver(test, dir);
-                        is.start();
-                        iss.add(is);
+                        new ImageSaverSimple(url, dir, id++).start();
                     }
-                } catch (Exception e)
+                }
+            }
+            else
+            {
+                for (String url : urls)
                 {
-                    e.printStackTrace();
+                    try
+                    {
+                        CameraDriver test = new CameraDriver(url, config);
+                        if(test.isGood())
+                        {
+                            new ImageSaver(test, dir).start();
+                        }
+                    } catch (Exception e)
+                    {
+                        e.printStackTrace();
+                    }
                 }
             }
             Thread.sleep(1000);

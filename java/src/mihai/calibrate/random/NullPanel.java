@@ -1,29 +1,24 @@
-package mihai.calibration;
+package mihai.calibrate.random;
 
 import java.awt.BorderLayout;
-import javax.swing.JLabel;
+import mihai.calibration.Broadcaster;
 
-public class SettingsPanel extends Broadcaster
+public class NullPanel extends Broadcaster
 {
     private static final long serialVersionUID = 1L;
 
-    public SettingsPanel(String id)
+    public NullPanel()
     {
-        super(id, new BorderLayout());
-        
-        add(new JLabel("Hi!"), BorderLayout.CENTER);
+        super(new BorderLayout());
     }
-
     @Override
     public void go(String configPath, String...urls)
-    {
-        alertListener();
-    }
+    {}
 
     @Override
     public void stop()
     {}
-
+    
     @Override
     public void displayMsg(String msg, boolean error)
     {}

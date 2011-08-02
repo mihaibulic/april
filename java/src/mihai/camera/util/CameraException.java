@@ -1,4 +1,4 @@
-package mihai.util;
+package mihai.camera.util;
 
 public class CameraException extends Exception
 {
@@ -11,9 +11,7 @@ public class CameraException extends Exception
     public static final int CYCLE = 4;
     public static final int UNKNOWN_URL = 5;
     public static final int FPS = 6;
-    
-    public static final int MAX_LO_RES = 120; // max framerate on low resolution for pt grey firefly camera
-    public static final int MAX_HI_RES = 60; // max framerate on high resolution for pt grey firefly camera
+    public static final int FILE_TOO_LARGE = 7;
     
     public CameraException(int err)
     {
@@ -41,6 +39,9 @@ public class CameraException extends Exception
                 break;
             case FPS:
                 msg += "FPS is too large. It must be less then or equal to 120 if resolution is low, or 60 is resolution is high.";
+                break;
+            case FILE_TOO_LARGE:
+                msg += "This file is too large to open.";
                 break;
             default:
                 msg += "Unknown error";

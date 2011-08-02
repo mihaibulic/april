@@ -1,10 +1,10 @@
-package mihai.camera;
+package mihai.camera.util;
 
 import java.awt.Toolkit;
 import java.io.File;
 import java.io.IOException;
 import javax.swing.JFrame;
-import mihai.util.CameraException;
+import mihai.camera.CameraPlayerPanel;
 import mihai.util.ConfigException;
 import april.util.GetOpt;
 

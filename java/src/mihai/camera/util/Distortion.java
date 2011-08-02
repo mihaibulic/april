@@ -1,4 +1,4 @@
-package mihai.camera;
+package mihai.camera.util;
 
 import april.image.Homography33;
 import april.jmat.Function;

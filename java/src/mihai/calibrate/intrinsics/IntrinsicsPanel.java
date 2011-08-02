@@ -18,7 +18,7 @@ import javax.swing.JSplitPane;
 import javax.swing.border.EmptyBorder;
 import mihai.calibration.Broadcaster;
 import mihai.camera.CameraDriver;
-import mihai.camera.Distortion;
+import mihai.camera.util.Distortion;
 import mihai.util.ConfigException;
 import mihai.util.ConfigUtil;
 import april.config.Config;

@@ -3,7 +3,7 @@ package mihai.camera;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import magic.camera.util.SyncErrorDetector;
-import mihai.util.CameraException;
+import mihai.camera.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.ConfigUtil;
 import april.config.Config;
@@ -279,10 +279,24 @@ public class CameraDriver extends Thread
         if(isrc == null) throw new CameraException(CameraException.NULL_IMAGESOURCE);
         
         setFormat(format, width, height);
-        
-        isrc.setFeatureValue(14, 1); // frame-rate-manuel, idx=14
-        isrc.setFeatureValue(15, fps); // frame-rate, idx=15
-        isrc.setFeatureValue(16, 1); // enable timestamps
+
+        for(int x = 0; x < isrc.getNumFeatures(); x++)
+        {
+            String name = isrc.getFeatureName(x);
+            
+            if(name.equals("frame-rate-manual"))
+            {
+                isrc.setFeatureValue(x, 1);
+            }
+            else if(name.equals("frame-rate"))
+            {
+                isrc.setFeatureValue(x, fps);
+            }
+            else if(name.equals("timestamps-enable"))
+            {
+                isrc.setFeatureValue(x, 1);
+            }
+        }
     }
 
     public void setFormat(String format, int width, int height) throws CameraException
@@ -307,8 +321,33 @@ public class CameraDriver extends Thread
 
     public void setFramerate(int fps)
     {
-        isrc.setFeatureValue(14, 1); // frame-rate-manuel, idx=14
-        isrc.setFeatureValue(15, fps); // frame-rate, idx=11
+        for(int x = 0; x < isrc.getNumFeatures(); x++)
+        {
+            String name = isrc.getFeatureName(x);
+            
+            if(name.equals("frame-rate-manual"))
+            {
+                isrc.setFeatureValue(x, 1);
+            }
+            else if(name.equals("frame-rate"))
+            {
+                isrc.setFeatureValue(x, fps);
+            }
+        }
+    }
+    
+    public void setFeature(String feature, int value)
+    {
+        for(int x = 0; x < isrc.getNumFeatures(); x++)
+        {
+            String name = isrc.getFeatureName(x);
+            
+            if(name.equals(feature))
+            {
+                isrc.setFeatureValue(x, value);
+            }
+        }
+
     }
     
     public void setSync(SyncErrorDetector newSync)

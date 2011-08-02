@@ -6,8 +6,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import mihai.calibrate.random.CameraComparator;
 import mihai.camera.CameraDriver;
-import mihai.util.CameraException;
+import mihai.camera.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.ConfigUtil;
 import mihai.vis.VisCamera;
@@ -104,8 +105,8 @@ public class ExtrinsicsPanel extends Broadcaster
         int auxIndex = 0;
         double mainM[][];
         double auxM[][];
-        ArrayList<Tag> mainTags = mainCam.getTagsList();
-        ArrayList<Tag> auxTags = auxCam.getTagsList();
+        ArrayList<Camera.Tag> mainTags = mainCam.getTagsList();
+        ArrayList<Camera.Tag> auxTags = auxCam.getTagsList();
         
         auxCam.setMaster(main);
         auxCam.clearPotentialPositions();
@@ -240,7 +241,7 @@ public class ExtrinsicsPanel extends Broadcaster
     {
         ArrayList<Camera> cameras;;
         HashMap<Integer,double[]>[] tagsH;
-        ArrayList<Tag>[] tagsL;
+        ArrayList<Camera.Tag>[] tagsL;
         
         @SuppressWarnings("unchecked") // can't infer generic when making arrays of HashMaps or ArrayLists
         public Distance(ArrayList<Camera> cameras)
@@ -426,7 +427,7 @@ public class ExtrinsicsPanel extends Broadcaster
                 double[][] camM = cam.getTransformationMatrix();
                 vbCameras.addBuffered(new VisChain(camM, new VisCamera(colors[x], 0.08)));
                 
-                for (Tag tag : cam.getTagsList())   
+                for (Camera.Tag tag : cam.getTagsList())   
                 {
                     double tagM[][] = tag.matrix;
                     vbTags.addBuffered(new VisChain(camM, tagM, new VisRectangle(tagSize, tagSize, 

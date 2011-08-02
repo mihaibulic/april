@@ -1,4 +1,4 @@
-package mihai.calibration;
+package mihai.calibrate.random;
 
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
@@ -6,6 +6,7 @@ import java.awt.event.ActionListener;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import mihai.calibration.Broadcaster;
 
 public class ConfigPanel extends Broadcaster implements ActionListener
 {

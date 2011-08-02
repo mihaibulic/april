@@ -6,7 +6,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import javax.swing.JFrame;
-import mihai.camera.Distortion;
+import mihai.camera.util.Distortion;
 import mihai.util.ConfigUtil;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;

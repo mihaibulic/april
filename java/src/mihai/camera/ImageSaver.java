@@ -54,7 +54,7 @@ public class ImageSaver extends Thread
                 imagePath.height = height;
                 imagePath.format = format;
                 imagePath.utime = (long)TimeUtil.utime();
-                imagePath.id = ""+id;
+                imagePath.id = id;
             } catch (NullPointerException e)
             {
             	if(run)
@@ -70,7 +70,7 @@ public class ImageSaver extends Thread
                 e.printStackTrace();
             }
 
-            lcm.publish("camera " + id, imagePath);
+            lcm.publish(id, imagePath);
         }
     }
 

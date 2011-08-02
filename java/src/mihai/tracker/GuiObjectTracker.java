@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import mihai.camera.CameraDriver;
-import mihai.util.CameraException;
+import mihai.camera.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.ConfigUtil;
 import april.config.Config;

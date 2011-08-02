@@ -3,7 +3,7 @@ package mihai.sandbox;
 import java.io.File;
 import java.io.IOException;
 import mihai.camera.CameraDriver;
-import mihai.util.CameraException;
+import mihai.camera.util.CameraException;
 import mihai.util.ConfigException;
 import april.config.Config;
 import april.config.ConfigFile;

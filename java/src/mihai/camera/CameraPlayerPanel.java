@@ -12,8 +12,8 @@ import lcm.lcm.LCM;
 import lcm.lcm.LCMDataInputStream;
 import lcm.lcm.LCMSubscriber;
 import mihai.calibration.Broadcaster;
+import mihai.camera.util.CameraException;
 import mihai.lcmtypes.image_path_t;
-import mihai.util.CameraException;
 import mihai.util.ConfigException;
 import mihai.util.ConfigUtil;
 import april.config.Config;
@@ -125,34 +125,56 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
     
     public void messageReceived(LCM lcm, String channel, LCMDataInputStream ins)
     {
-        try
+        if (channel.startsWith("camera"))
         {
-            if (channel.contains("camera "))
+            try
             {
                 image_path_t imagePath = new image_path_t(ins);
-                String camera = imagePath.id;
-                byte[] buffer = new byte[imagePath.width * imagePath.height];
-                new FileInputStream(new File(imagePath.img_path)).read(buffer);
+                String id = imagePath.id;
+
+                File f = new File(imagePath.img_path);
+                long length = f.length();
+                if (length > Integer.MAX_VALUE) 
+                {
+                    throw new CameraException(CameraException.FILE_TOO_LARGE);
+                }
+
+                byte[] buffer = new byte[(int)length];
+                new FileInputStream(f).read(buffer);
+                
+                System.out.println(imagePath.width + " " + imagePath.height + " " + buffer.length + " " + imagePath.format);
                 BufferedImage image = ImageConvert.convertToImage(imagePath.format,imagePath.width, imagePath.height, buffer);
                 
-                int position = cameraPosition.indexOf(camera);
-                if(position == -1)
+                int slot = cameraPosition.indexOf(id);
+                if(slot == -1)
                 {
-                    position = cameraPosition.size();
-                    cameraPosition.add(camera);
+                    slot = cameraPosition.size();
+                    cameraPosition.add(id);
+                    widthHash.put(id, imagePath.width);
+                    heightHash.put(id, imagePath.height);
+                    formatHash.put(id, imagePath.format);
                 }
+                int x = maxWidth*(slot%columns);
+                int y =-maxHeight*(slot/columns);
                 
-                VisWorld.Buffer vb = vw.getBuffer(camera);
-                vb.addBuffered(new VisChain(LinAlg.translate(new double[] {maxWidth*(position%columns),-maxHeight*(position/columns),0}), new VisImage(image)));
+                VisWorld.Buffer vb = vw.getBuffer(id);
+                vb.addBuffered(new VisChain(LinAlg.translate(new double[] {maxWidth*(slot%columns),-maxHeight*(slot/columns),0}), new VisImage(image)));
+                vb.addBuffered(new VisText(new double[]{x + widthHash.get(id)/2, y + heightHash.get(id),}, 
+                        VisText.ANCHOR.TOP, id));
                 
-                if(image.getWidth() > maxWidth) maxWidth = image.getWidth();
-                if(image.getHeight() > maxHeight) maxHeight = image.getHeight();
-                vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { columns*maxWidth, maxHeight*Math.ceil((double)cameraPosition.size()/(columns*maxWidth))});
+                if(imagePath.width > maxWidth) maxWidth = imagePath.width;
+                if(imagePath.height > maxHeight) maxHeight = imagePath.height;
+                vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, 
+                        new double[] { (captures.size() >= columns ? columns : captures.size())*maxWidth, 
+                        maxHeight*Math.ceil((double)captures.size()/(columns*maxWidth))});
                 vb.switchBuffer();
+            } catch (IOException e)
+            {
+                e.printStackTrace();
+            } catch (CameraException e)
+            {
+                e.printStackTrace();
             }
-        } catch (IOException e)
-        {
-            e.printStackTrace();
         }
     }
 
@@ -199,7 +221,9 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
         }
         
         if(captures.size() == 0) new CameraException(CameraException.NO_CAMERA).printStackTrace();
-        vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { columns*maxWidth, maxHeight*Math.ceil((double)captures.size()/(columns*maxWidth))});
+        vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, 
+                new double[] { (captures.size() >= columns ? columns : captures.size())*maxWidth, 
+                maxHeight*Math.ceil((double)captures.size()/(columns*maxWidth))});
     }
 
     @Override

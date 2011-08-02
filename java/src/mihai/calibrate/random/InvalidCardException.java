@@ -1,4 +1,4 @@
-package mihai.calibration;
+package mihai.calibrate.random;
 
 public class InvalidCardException extends Exception
 {

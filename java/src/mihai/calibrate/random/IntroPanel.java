@@ -1,4 +1,4 @@
-package mihai.calibration;
+package mihai.calibrate.random;
 
 import java.awt.BorderLayout;
 import java.awt.Font;
@@ -9,6 +9,7 @@ import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EtchedBorder;
+import mihai.calibration.Broadcaster;
 
 public class IntroPanel extends Broadcaster
 {
