@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 
-<project name="mihai" default="build" basedir=".">
+<project name="work" default="build" basedir=".">
 
   <!-- Build everything -->
   <target name="build" depends="generate-lcmtypes,build-java,build-jar"/>
@@ -12,7 +12,7 @@
   <target name="distclean" depends="clean">
     <delete dir="build"/>
     <delete dir="docs"/>
-    <delete file="mihai.jar"/>
+    <delete file="work.jar"/>
     <delete dir="depcache"/>
   </target>
 
@@ -41,7 +41,7 @@
 
   <!-- Build Jar -->
   <target name="build-jar">
-    <jar destfile="mihai.jar" compress="false">
+    <jar destfile="work.jar" compress="false">
 
       <fileset dir="build">
 	<include name="**/*.class" />
@@ -49,10 +49,10 @@
       </fileset>
 
       <manifest>
-	<attribute name="Main-Class" value="edu.umich.mihai.BasicCameraGUI" />
+	<attribute name="Main-Class" value="april.camera.examples.BasicCameraGUI" />
       </manifest>
     </jar>
-    <copy file="mihai.jar" todir="." />
+    <copy file="work.jar" todir="." />
   </target>
 
   <target name="build-java">
@@ -74,7 +74,7 @@
     <delete>
       <fileset dir="build" includes="**/*.class"/>
       <fileset dir="." includes="**/*~" defaultexcludes="no"/>
-      <fileset dir="." includes="mihai.jar"/>
+      <fileset dir="." includes="work.jar"/>
     </delete>
   </target>
 

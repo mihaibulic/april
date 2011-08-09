@@ -1,0 +1,115 @@
+package april.camera.examples;
+
+import java.awt.BorderLayout;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import javax.swing.JFrame;
+import lcm.lcm.LCM;
+import april.camera.CameraDriver;
+import april.jcam.ImageConvert;
+import april.jcam.ImageSource;
+import april.util.GetOpt;
+import april.vis.VisCanvas;
+import april.vis.VisChain;
+import april.vis.VisImage;
+import april.vis.VisTexture;
+import april.vis.VisWorld;
+
+public class CameraExample
+{
+    static LCM lcm = LCM.getSingleton();
+
+    private CameraDriver driver;
+    private boolean run = true;
+    
+    private JFrame jf;
+    private VisWorld vw = new VisWorld();
+    private VisCanvas vc = new VisCanvas(vw);
+    private VisWorld.Buffer vbImage = vw.getBuffer("images");
+    
+    public CameraExample(String url) throws Exception
+    {
+        driver = new CameraDriver(url);
+        showGUI();
+
+        run();
+    }
+    
+    public void showGUI()
+    {
+        jf = new JFrame("Basic Image GUI");
+        jf.setLayout(new BorderLayout());
+        jf.add(vc, BorderLayout.CENTER);
+        jf.setSize(1000, 500);
+        jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        jf.setVisible(true);
+    }
+    
+    public void run()
+    {
+        byte[] imageBuffer;
+        BufferedImage post, pre;
+        driver.start();
+        
+        String format = driver.getFormat();
+        int w = driver.getWidth();
+        int h = driver.getHeight();
+        
+        while(run)
+        {
+            imageBuffer = driver.getFrameBuffer();
+            
+            // Do stuff with byte array (example, modify each RGB value as such: red += 10, green +=5, blue += 1)
+            for(int x = 0; x < w; x++)
+            {
+                for(int y = 0; y < h; y++)
+                {
+                    imageBuffer[y*w + x] += (10<<16 + 5<<8 + 1);
+                }
+            }
+
+            // Convert to image to display if buffer was modified
+            post = ImageConvert.convertToImage(format, w, h, imageBuffer);
+            
+            // Or get the original image directly
+            pre = driver.getFrameImage();
+
+            vbImage.addBuffered(new VisChain(
+                   new VisImage(new VisTexture(pre ),new double[] { 0, 0}, new double[] {w, h }, true),
+                   new VisImage(new VisTexture(post),new double[] { w, h }, new double[] {2*w, 2*h }, true)));
+            vbImage.switchBuffer();
+        }
+    }
+    
+    public static void main(String[] args) throws Exception
+    {
+        GetOpt opts = new GetOpt();
+        opts.addBoolean('h', "help", false, "see this help screen");
+        
+        if (!opts.parse(args))
+        {
+            System.out.println("option error: " + opts.getReason());
+        }
+        
+        if (opts.getBoolean("help"))
+        {
+            System.out.println("Usage: displays images from camera specified");  
+            System.out.println("Cameras available:");
+            ArrayList<String> urls = ImageSource.getCameraURLs();
+            for(String url : urls)
+            {
+                System.out.println(url);
+            }
+
+            opts.doHelp();
+            System.exit(1);
+        }
+        
+        new CameraExample(opts.getString("camera"));
+    }
+
+    public void kill()
+    {
+        run = false;
+    }
+}
