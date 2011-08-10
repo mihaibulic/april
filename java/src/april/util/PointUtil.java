@@ -193,4 +193,13 @@ public class PointUtil
         
         return line;
     }
+    
+    public static void print(double[] point)
+    {
+        for(double p : point)
+        {
+            System.out.print(p + "\t");
+        }
+        System.out.println("");
+    }
 }

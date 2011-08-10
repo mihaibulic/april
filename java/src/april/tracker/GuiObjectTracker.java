@@ -48,7 +48,7 @@ public class GuiObjectTracker extends JFrame implements ActionListener
                 urls.add(url);
             }
         }
-        otp.go(configPath, urls.toArray(new String[urls.size()]));
+        otp.go(configPath);
         
         directions = new JCheckBox("show directions", true);
         add(otp, BorderLayout.CENTER);

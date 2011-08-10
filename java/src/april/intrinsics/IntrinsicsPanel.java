@@ -27,8 +27,10 @@ import april.util.ConfigUtil;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
 import april.vis.VisData;
+import april.vis.VisDataFillStyle;
 import april.vis.VisDataLineStyle;
 import april.vis.VisImage;
+import april.vis.VisRectangle;
 import april.vis.VisText;
 import april.vis.VisWorld;
 import aprilO.graph.CholeskySolver;
@@ -63,14 +65,14 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
     private TagDetector td = new TagDetector(new Tag36h11());
     private HashMap<Integer, TagPosition> tagPositions;
     private CaptureThread captureThread;
-
+    private String url, configPath;
+    
     private IterateThread iterateThread;
     private Graph g;
     
-    private String configPath;
-    private Config config;
-    private String url;
-    private int urlId;
+//    private String configPath;
+//    private Config config;
+//    private String url;
     
     static class Status
     {
@@ -80,6 +82,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         
         boolean show;
         String display;
+        String directions;
         int mode;
     }
     
@@ -94,11 +97,11 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
      * @param urlId - It's a little weird to send the index when the url could be sent just as easily.  
      *                This is for consistency (urls always sent through go method)
      */
-    public IntrinsicsPanel(String id, int urlId) 
+    public IntrinsicsPanel(String id, String url) 
     {
         super(new BorderLayout());
         
-        this.urlId = urlId;
+        this.url = url;
         
         initVis();
         
@@ -151,36 +154,35 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
     
     class CaptureThread extends Thread
     {
-        private boolean run = true, done = false;
-        private Object lock = new Object();   
-        
-        private String url, format;
-        private int width, height;
+        private boolean run = true;
         private CameraDriver driver;
+        
+        int width, height;
         
         // protected by synchronizing on CaptureThread
         private GCalibrateEdge lastEdge;
         private GExtrinsicsNode lastNode;
 
-        CaptureThread(String url) throws ConfigException
+        CaptureThread(String url, Config config) throws ConfigException
         {
             driver = new CameraDriver(url, config);
-            this.url = url;
-            this.format = driver.getFormat();
-            this.width  = driver.getWidth();
-            this.height = driver.getHeight();
+            width = driver.getWidth();
+            height = driver.getHeight();
+
+            vc.getViewManager().viewGoal.fit2D(new double[] { width*0.20, height*0.20 }, 
+                    new double[] { width*0.80, height*0.80 });
         }
 
         public void run()
         {
-            boolean first = true;
             BufferedImage image = null;
             BufferedImage undistortedImage = null;
-            
+            String format = driver.getFormat();
+
             driver.start();
-            
             while (run)
             {
+
                 byte[] imageBuffer = driver.getFrameBuffer();
                 image = ImageConvert.convertToImage(format, width, height, imageBuffer);
                 Distortion dist = new Distortion(((GIntrinsicsNode) g.nodes.get(0)).state, width, height);
@@ -192,58 +194,31 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
     
                     ArrayList<TagDetection> detections = td.process(image, new double[] { width / 2.0, height / 2.0 });
 
+                    ArrayList<double[]> correspondences = new ArrayList<double[]>();
+                    Homography33b h = new Homography33b();
+                    int cur = 0;
+                    while(cur < detections.size())
                     {
-                        VisWorld.Buffer vb = vw.getBuffer("camera");
-                        vb.addBuffered(new VisImage(undistortedImage));
-    
-                        for (TagDetection tag : detections)
+                        TagDetection d = detections.get(cur);
+                        TagPosition tp = tagPositions.get(d.id);
+                        if (tp == null)
                         {
-                            double p0[] = dist.undistort(tag.interpolate(-1, -1));
-                            double p1[] = dist.undistort(tag.interpolate(1, -1));
-                            double p2[] = dist.undistort(tag.interpolate(1, 1));
-                            double p3[] = dist.undistort(tag.interpolate(-1, 1));
-    
-                            vb.addBuffered(new VisChain(LinAlg.translate(0, image.getHeight(), 0), LinAlg.scale(1, -1, 1), new VisData(new VisDataLineStyle(Color.blue, 4), p0, p1, p2, p3, p0), new VisData(new VisDataLineStyle(Color.green, 4), p0, p1), // x
-                                                                                                                                                                                                                                                                                                                                                                                 // axis
-                            new VisData(new VisDataLineStyle(Color.red, 4), p0, p3))); // y
-                                                                                       // axis
+                            detections.remove(cur);
                         }
-    
-                        vb.switchBuffer();
+                        else
+                        {
+                            cur++;
+                            h.addCorrespondence(tp.cx, tp.cy, d.cxy[0], d.cxy[1]);
+                            correspondences.add(new double[] { tp.cx, tp.cy, d.cxy[0], d.cxy[1] });
+                        }
                     }
-    
-                    if (first)
-                    {
-                        first = false;
-                        int w = image.getWidth();
-                        int h = image.getHeight();
-                        
-                        vc.getViewManager().viewGoal.fit2D(new double[] { w*0.20, h*0.20 }, new double[] { w*0.80, h*0.80 });
-                    }
-    
+                    
                     // every frame adds 6 unknowns, so we need at
                     // least 8 tags for it to be worth the
                     // trouble.
                     int minTags = 8;
-                    ArrayList<double[]> correspondences = new ArrayList<double[]>();
-    
-                    if (detections.size() >= minTags)
+                    if (detections.size() >= minTags) 
                     {
-                        // compute a homography using the entire set of tags
-                        Homography33b h = new Homography33b();
-                        for (TagDetection d : detections)
-                        {
-                            TagPosition tp = tagPositions.get(d.id);
-                            if (tp == null)
-                            {
-                                System.out.println("Found tag that doesn't exist in model: " + d.id);
-                                continue;
-                            }
-    
-                            h.addCorrespondence(tp.cx, tp.cy, d.cxy[0], d.cxy[1]);
-                            correspondences.add(new double[] { tp.cx, tp.cy, d.cxy[0], d.cxy[1] });
-                        }
-    
                         double fx = ((GIntrinsicsNode) g.nodes.get(0)).state[0];
                         double fy = ((GIntrinsicsNode) g.nodes.get(0)).state[1];
                         double cx = ((GIntrinsicsNode) g.nodes.get(0)).state[2];
@@ -256,34 +231,45 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                         lastNode.state = LinAlg.matrixToXyzrpy(P);
                         lastNode.init = LinAlg.copy(lastNode.state);
                     }
+                    
+                    {
+                        VisWorld.Buffer vb = vw.getBuffer("camera");
+                        vb.addBuffered(new VisImage(undistortedImage));
+    
+                        for (TagDetection tag : detections)
+                        {
+                            double p0[] = dist.undistort(tag.interpolate(-1, -1));
+                            double p1[] = dist.undistort(tag.interpolate(1, -1));
+                            double p2[] = dist.undistort(tag.interpolate(1, 1));
+                            double p3[] = dist.undistort(tag.interpolate(-1, 1));
+    
+                            vb.addBuffered(new VisChain(LinAlg.translate(0, height, 0), 
+                                    LinAlg.scale(1, -1, 1), 
+                                    new VisData(new VisDataLineStyle(Color.blue, 4), 
+                                    p0, p1, p2, p3, p0), 
+                                    new VisData(new VisDataLineStyle(Color.green, 4), p0, p1), // x
+                                    new VisData(new VisDataLineStyle(Color.red, 4), p0, p3))); // y
+                                                                                       // axis
+                        }
+    
+                        vb.switchBuffer();
+                    }
                 }
             }
             driver.kill();
-            
-            synchronized(lock)
-            {
-                done = true;
-                lock.notify();
-            }
         }
         
         public void kill()
         {
             run = false;
-            synchronized(lock)
+
+            try
             {
-                while(!done)
-                {
-                    try
-                    {
-                        lock.wait();
-                    } catch (InterruptedException e)
-                    {
-                        e.printStackTrace();
-                    }
-                }
+                this.join();
+            } catch (InterruptedException e)
+            {
+                e.printStackTrace();
             }
-            
         }
     }
 
@@ -331,10 +317,11 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                 double state[] = g.nodes.get(0).state;
                 try
                 {
-                    ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(url)}, "fc", new double[]{state[0], state[1]});
-                    ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(url)}, "cc", new double[]{state[2], state[3]});
-                    ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(url)}, "kc", new double[]{state[4], state[5], state[6], state[7], state[8]});
-                    ConfigUtil.setValue(configPath, new String[]{CameraDriver.getSubUrl(url)}, "alpha", state[9]);
+                    String[] path = {CameraDriver.getSubUrl(url)};
+                    ConfigUtil.setValues(configPath, path, "fc", new double[]{state[0], state[1]});
+                    ConfigUtil.setValues(configPath, path, "cc", new double[]{state[2], state[3]});
+                    ConfigUtil.setValues(configPath, path, "kc", new double[]{state[4], state[5], state[6], state[7], state[8]});
+                    ConfigUtil.setValue(configPath, path, "alpha", state[9]);
                 } catch (ConfigException e)
                 {
                     e.printStackTrace();
@@ -432,13 +419,13 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         if(status.mode == Status.ITTERATING)
         {
             double state[] = g.nodes.get(0).state;
-            status.display =   "<<left>> \n \n \n \n \n \n " +
+            status.display =   "<<left>> \n \n \n \n \n \n \n " +
             "<<mono-big>>Parameters:\n \n \n \n " +
             "<<mono-small>>focal length: " + (int)state[0] + ", " + (int)state[1] + "\n \n" +
             "image center: " + (int)state[2] + ", " + (int)state[3] + "\n \n"+
             "distortion: " + ConfigUtil.round(state[4],4) + ", " + ConfigUtil.round(state[5],4) + ", " + ConfigUtil.round(state[6],4) + ", " + ConfigUtil.round(state[7],4) + "\n \n" +
             "skew: " + ConfigUtil.round(state[8],4) + "\n \n " + 
-            "<<left>>                                                                        \n \n \n \n \n \n \n ";
+            "<<left>>                                                                                \n \n \n \n \n \n \n \n ";
         }
 
         if(status.show)
@@ -506,7 +493,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
             initGraph();
             update();
             status.mode = Status.INITIAL;
-            status.display = config.requireString("display");
+            status.display = status.directions;
             showDisplay(status.show);
             
             VisWorld.Buffer vbMessage = vw.getBuffer("message");
@@ -520,18 +507,28 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
     }
 
     @Override
-    public void go(String configPath, String... urls)
+    public void go(String configPath)
     {
         try
         {
             this.configPath = configPath;
-            this.url = urls[urlId];
-            config = new ConfigFile(configPath).getChild("intrinsics");
+            Config config = new ConfigFile(configPath).getChild("intrinsics");
             ConfigUtil.verifyConfig(config);
 
             status = new Status();
             status.mode = Status.INITIAL;
-            status.display = config.requireString("display");
+            status.display = "<<mono-small>>DIRECTIONS\n \n"+
+                "<<mono-small>><<left>> Place the tag mosaic in the following four positions and click capture:\n \n"+
+                "<<mono-small>><<left>>     1. Close up: camera should be looking straight at the mosaic\n"+
+                "<<mono-small>><<left>>                  and as close as possible\n \n"+
+                "<<mono-small>><<left>>     2. Far away: camera should be looking straight at the mosaic and far\n"+
+                "<<mono-small>><<left>>                  away, but close enough so the camera can see most tags\n \n"+
+                "<<mono-small>><<left>>     3. Angle 1: place camera so that it views the mosaic at a sharp angle\n \n"+
+                "<<mono-small>><<left>>     4. Angle 2: keep the camera at a sharp angle, but turn it 90 degrees\n"+
+                "<<mono-small>><<left>>                  so the video feed is sideways\n \n \n"+
+                "<<mono-small>><<left>>HINT #1: Not all tags must be visible in every image.\n \n"+
+                "<<mono-small>><<left>>HINT #2: The four images above are the minimum; the more unique images\n "+
+                "<<mono-small>><<left>>                 you capture, the better the parameters will be.";
             
             // Create ground truth
             {
@@ -563,7 +560,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                 }
             }
             
-            captureThread = new CaptureThread(url);
+            captureThread = new CaptureThread(url, config);
             captureThread.start();
 
             initGraph();
@@ -619,7 +616,11 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         status.show = show;
         if(show)
         {
-            vbDisplay.addBuffered(new VisText(VisText.ANCHOR.CENTER, status.display));
+            VisText v = new VisText(VisText.ANCHOR.CENTER, status.display);
+            v.dropShadowColor = new Color(0,0,0,0);
+            vbDisplay.addBuffered(new VisChain(new VisRectangle(new double[]{0,0}, 
+                    new double[]{captureThread.width,captureThread.height}, 
+                    new VisDataFillStyle(new Color(0,0,0,200))), v));
         }
         vbDisplay.switchBuffer();
     }

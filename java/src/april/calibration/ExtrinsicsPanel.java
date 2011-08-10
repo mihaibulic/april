@@ -6,10 +6,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import april.camera.Camera;
 import april.camera.CameraDriver;
 import april.camera.util.CameraException;
 import april.config.Config;
 import april.config.ConfigFile;
+import april.jcam.ImageSource;
 import april.jmat.Function;
 import april.jmat.LinAlg;
 import april.jmat.Matrix;
@@ -25,6 +27,11 @@ import april.vis.VisRectangle;
 import april.vis.VisText;
 import april.vis.VisWorld;
 
+/**
+ * 
+ * @author april
+ * @deprecated
+ */
 public class ExtrinsicsPanel extends Broadcaster
 {
     private static final long serialVersionUID = 1L;
@@ -445,7 +452,7 @@ public class ExtrinsicsPanel extends Broadcaster
     }
     
     @Override
-    public void go(String configPath, String...urls)
+    public void go(String configPath)
     {
         try
         {
@@ -463,7 +470,7 @@ public class ExtrinsicsPanel extends Broadcaster
         tagSize = config.requireDouble("tag_size");
 
         cameras = new ArrayList<Camera>();
-        for(String url : urls)
+        for(String url : ImageSource.getCameraURLs())
         {
             try
             {

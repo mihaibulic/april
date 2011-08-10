@@ -10,6 +10,7 @@ import april.camera.CameraDriver;
 import april.camera.util.CameraException;
 import april.config.Config;
 import april.config.ConfigFile;
+import april.jcam.ImageSource;
 import april.jmat.Function;
 import april.jmat.LinAlg;
 import april.jmat.Matrix;
@@ -329,7 +330,7 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         }
     }
 
-    public void go(String configPath, String...urls)
+    public void go(String configPath)
     {
         try
         {
@@ -338,7 +339,7 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         
             objectManager = new ObjectManager();
             tracks = new ArrayList<Track>();
-            for(String url : urls)
+            for(String url : ImageSource.getCameraURLs())
             {
                 try
                 {

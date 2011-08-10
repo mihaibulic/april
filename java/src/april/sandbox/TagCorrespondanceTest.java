@@ -5,7 +5,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Random;
 import javax.swing.JFrame;
-import april.calibration.Camera;
+import april.camera.Camera;
 import april.camera.util.CameraException;
 import april.config.Config;
 import april.config.ConfigFile;

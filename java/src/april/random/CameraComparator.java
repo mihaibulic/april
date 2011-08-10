@@ -1,14 +1,14 @@
 package april.random;
 
 import java.util.Comparator;
-import april.calibration.Camera;
+import april.camera.Camera;
 
 
 /**
  * Compares two Cameras and returns 1 if camera1 has more tagdetections then camera2
  * 
  * @author Mihai Bulic
- *
+ * @deprecated
  */
 public class CameraComparator implements Comparator<Camera>
 {

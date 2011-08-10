@@ -33,8 +33,7 @@ public class Track extends Thread
     private CameraDriver driver;
 
     // pull out into subclass
-    private boolean run = true, done = false;
-    private Object lock = new Object();
+    private boolean run = true;
     
     private TagDetector2 td;
     
@@ -78,23 +77,16 @@ public class Track extends Thread
     public void kill()
     {
         run = false;
-        
-        synchronized(lock)
+
+        try
         {
-            while(!done)
-            {
-                try
-                {
-                    lock.wait();
-                } catch (InterruptedException e)
-                {
-                    e.printStackTrace();
-                }
-            }
-            driver.kill();
+            this.join();
+        } catch (InterruptedException e)
+        {
+            e.printStackTrace();
         }
     }
-
+    
     public void addListener(Listener listener)
     {
         listeners.add(listener);
@@ -118,13 +110,6 @@ public class Track extends Thread
             {
                 listener.handleDetections(objects, transformation);
             }
-        }
-        
-        synchronized(lock)
-        {
-            driver.kill();
-            done = true;
-            lock.notify();
         }
     }
 }

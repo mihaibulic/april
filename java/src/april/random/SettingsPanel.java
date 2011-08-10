@@ -16,7 +16,7 @@ public class SettingsPanel extends Broadcaster
     }
 
     @Override
-    public void go(String configPath, String...urls)
+    public void go(String configPath)
     {
         alertListener();
     }

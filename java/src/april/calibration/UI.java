@@ -26,6 +26,7 @@ import april.camera.CameraPlayerPanel;
 import april.camera.util.CameraException;
 import april.config.Config;
 import april.config.ConfigFile;
+import april.extrinsics.NewExtrinsicsPanel;
 import april.intrinsics.IntrinsicsPanel;
 import april.jcam.ImageSource;
 import april.random.ConfigPanel;
@@ -126,7 +127,7 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
             CardLayout cl = (CardLayout)mainPanel.getLayout();
             cl.show(mainPanel, Integer.toString(card));
             currentCard = card;
-            cards.get(currentCard).go(configPath, urls.toArray(new String[urls.size()]));
+            cards.get(currentCard).go(configPath);
             cards.get(currentCard).showDisplay(directionsBox.isSelected());
         }
         else
@@ -136,23 +137,13 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
 
     }
     
-    public void next() throws InvalidCardException
-    {
-        setCard(currentCard+1);
-    }
-    
-    public void back() throws InvalidCardException
-    {
-        setCard(currentCard-1);
-    }
-    
     public void actionPerformed(ActionEvent event)
     {
         if(event.getActionCommand().equals(next))
         {
             try
             {
-                next();
+                setCard(currentCard+1);
             } catch (InvalidCardException e)
             {
                 e.printStackTrace();
@@ -162,7 +153,7 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
         {
             try
             {
-                back();
+                setCard(currentCard-1);
             } catch (InvalidCardException e)
             {
                 e.printStackTrace();
@@ -183,26 +174,7 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
 
     public void handle(String id, boolean ready, String ...info )
     {
-        if(id == EXTRINSICS)
-        {
-            if(ready == true)
-            {
-                nextButton.setEnabled(true);
-                backButton.setEnabled(true);
-            }
-            else
-            {
-                try
-                {
-                    back();
-                } catch (InvalidCardException e)
-                {
-                    e.printStackTrace();
-                }
-                cards.get(currentCard).displayMsg("Error: no tags detected", true);
-            }
-        }
-        else if(id.equals(CONFIG))
+        if(id.equals(CONFIG))
         {
             
             if(ready)
@@ -213,27 +185,27 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
                     config = new ConfigFile(configPath);
                     ConfigUtil.verifyConfig(config);
                     
-                    ArrayList<String> allUrls = ImageSource.getCameraURLs();
                     urls.clear();
                     
-                    for(String url : allUrls)
+                    boolean noCameras = true;
+                    for(String url : ImageSource.getCameraURLs())
                     {
                         if(CameraDriver.isValidUrl(config, url))
                         {
-                            add(new IntrinsicsPanel(cards.size()+"", urls.size())); 
-                            urls.add(url);
+                            add(new IntrinsicsPanel(cards.size()+"", url));
+                            noCameras = false;
                         }
                     }
 
-                    if(urls.isEmpty())
+                    if(noCameras)
                     {
                         JOptionPane.showMessageDialog(this, "No cameras found.  Please plug them in an reclick the config file.");
-                    }
+                    } 
                     else
                     {
                         nextButton.setEnabled(true);
                         add(new CameraPlayerPanel(2, true));
-                        add(new ExtrinsicsPanel(EXTRINSICS));
+                        add(new NewExtrinsicsPanel(EXTRINSICS));
                         add(new ObjectTrackerPanel(true));
                     }
                     
@@ -246,15 +218,36 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
                 } catch (IOException e)
                 {
                     e.printStackTrace();
-                } catch (InterruptedException e)
-                {
-                    e.printStackTrace();
                 }
             }
             else
             {
                 nextButton.setEnabled(false);
             }
+        }
+        else if(id == EXTRINSICS)
+        {
+            if(ready == true)
+            {
+                nextButton.setEnabled(true);
+                backButton.setEnabled(true);
+            }
+            else
+            {
+                try
+                {
+                    setCard(currentCard-1);
+                } catch (InvalidCardException e)
+                {
+                    e.printStackTrace();
+                }
+                cards.get(currentCard).displayMsg("Error: no tags detected", true);
+            }
+        }
+        else
+        {
+            nextButton.setEnabled(ready);
+            backButton.setEnabled(ready);
         }
     }
 }

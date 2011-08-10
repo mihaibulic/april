@@ -31,8 +31,6 @@ public class CameraDriver extends Thread
     private byte[] imageBuffer;
 
     private boolean run = true;
-    private boolean done = false;
-    private Object driverLock = new Object();
 
     public CameraDriver(String url)
     {
@@ -149,13 +147,7 @@ public class CameraDriver extends Thread
                 toggleImageSource();
             }
         }
-        
         isrc.stop();
-        synchronized(driverLock)
-        {
-            done = true;
-            driverLock.notify();
-        }
     }
     
     private void toggleImageSource()
@@ -243,20 +235,33 @@ public class CameraDriver extends Thread
     public void kill()
     {
         run = false;
-        synchronized(driverLock)
+
+        try
         {
-            while(!done)
-            {
-                try
-                {
-                    driverLock.wait();
-                } catch (InterruptedException e)
-                {
-                    e.printStackTrace();
-                }
-            }
+            this.join();
+        } catch (InterruptedException e)
+        {
+            e.printStackTrace();
         }
     }
+    
+//    public void kill()
+//    {
+//        run = false;
+//        synchronized(driverLock)
+//        {
+//            while(!done)
+//            {
+//                try
+//                {
+//                    driverLock.wait();
+//                } catch (InterruptedException e)
+//                {
+//                    e.printStackTrace();
+//                }
+//            }
+//        }
+//    }
     
     public boolean isGood()
     {

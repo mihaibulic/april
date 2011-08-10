@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import lcm.lcm.LCM;
 import lcm.lcm.LCMDataInputStream;
 import lcm.lcm.LCMSubscriber;
@@ -23,29 +22,30 @@ import april.util.ConfigException;
 import april.util.ConfigUtil;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
+import april.vis.VisDataFillStyle;
 import april.vis.VisImage;
+import april.vis.VisRectangle;
 import april.vis.VisText;
 import april.vis.VisWorld;
 
 public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
 {
     private static final long serialVersionUID = 1L;
-    static LCM lcm = LCM.getSingleton();
 
+    static LCM lcm = LCM.getSingleton();
     private String dir;
 
+    private boolean show;
     private int columns;
     private int maxWidth, maxHeight;
-    private HashMap<String, Integer> widthHash = new HashMap<String, Integer>();
-    private HashMap<String, Integer> heightHash = new HashMap<String, Integer>();
-    private HashMap<String, String> formatHash = new HashMap<String, String>();
 
-    private ArrayList<CaptureThread> captures;
-
+    private Discover discoveryThread;
+    private ArrayList<Camera> cameras;
+    
     private VisWorld vw;
     private VisCanvas vc;
-    private ArrayList<String> cameraPosition = new ArrayList<String>();
-
+    private boolean change = true;
+    
     public CameraPlayerPanel(int columns, boolean wizard) throws CameraException, IOException, ConfigException
     {
         this(columns, wizard, null);
@@ -70,56 +70,55 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
         add(vc);
     }
     
-    class DiscoverThread extends Thread
+    class Discover extends Thread
     {
         private Config config;
-        private String urls[];
+        private boolean run = true;
         
-        public DiscoverThread(Config config, String...urls)
+        public Discover(Config config)
         {
             this.config = config;
-            this.urls = urls;
         }
         
         public void run()
         {
-            boolean standalone = (urls.length == 0);
-            
             try
             {
-                while(true)
+                while(run)
                 {
-                    if (standalone)
+                    for (String url : ImageSource.getCameraURLs())
                     {
-                        ArrayList<String> u = ImageSource.getCameraURLs();
-                        urls = u.toArray(new String[u.size()]);
-                    }
-                    for (String url : urls)
-                    {
-                        CameraDriver test = new CameraDriver(url, config);
-                        if (test.isGood())
+                        if (CameraDriver.isValidUrl(config, url))
                         {
-                            if (test.getWidth() > maxWidth)
-                                maxWidth = test.getWidth();
-                            if (test.getHeight() > maxHeight)
-                                maxHeight = test.getHeight();
-        
-                            cameraPosition.add(test.getCameraId());
-                            widthHash.put(test.getCameraId(), test.getWidth());
-                            heightHash.put(test.getCameraId(), test.getHeight());
-                            formatHash.put(test.getCameraId(), test.getFormat());
-                            CaptureThread c = new CaptureThread(test);
-                            c.start();
-                            captures.add(c);
+                            change = true;
+
+                            Camera newCamera = new Camera(url, config);
+                            newCamera.start();
+                            cameras.add(newCamera);
                         }
                     }
                     
-                    vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, new double[] { (captures.size() >= columns ? columns : captures.size()) * maxWidth, maxHeight * Math.ceil((double) captures.size() / (columns * maxWidth)) });
-                    Thread.sleep(100);
+                    if(change)
+                    {
+                        showDisplay(show);
+                        vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, getDimension());
+                        change = false;
+                    }
+                    Thread.sleep(1000);
                 }
-            } catch (ConfigException e)
+            } catch (InterruptedException e)
             {
                 e.printStackTrace();
+            }
+        }
+        
+        public void kill()
+        {
+            run = false;
+
+            try
+            {
+                this.join();
             } catch (InterruptedException e)
             {
                 e.printStackTrace();
@@ -127,29 +126,58 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
         }
     }
 
-    class CaptureThread extends Thread
+    class Camera extends Thread
     {
-        private String id;
         private CameraDriver driver;
-        private double x, y;
         private VisWorld.Buffer vb;
+        private boolean run = true;
 
-        private boolean run = true, done = false;
-        private Object lock = new Object();
-
+        String id;
+        double x, y;
         String format;
         int width, height;
 
-        public CaptureThread(CameraDriver driver)
+        public Camera(String id)
         {
-            this.driver = driver;
-            this.id = driver.getCameraId();
+            this.id = id;
+        }
+        
+        public Camera(String id, String format, int width, int height, double x, double y)
+        {
+            this.id = id;
+            this.format = format;
+            this.width = width;
+            this.height = height;
+            this.x = x;
+            this.y = y;
+        }
+        
+        public Camera(String url, Config config)
+        {
+            try
+            {
+                driver = new CameraDriver(url, config);
+            } catch (ConfigException e)
+            {
+                e.printStackTrace();
+            }
+
+            id = driver.getCameraId();
             format = driver.getFormat();
             width = driver.getWidth();
             height = driver.getHeight();
+            
+            if (width > maxWidth)
+            {
+                maxWidth = width;
+            }
+            if (height > maxHeight)
+            {
+                maxHeight = height;
+            }
 
             vb = vw.getBuffer(id);
-            int slot = cameraPosition.indexOf(id);
+            int slot = cameras.size();
             x = maxWidth * (slot % columns);
             y = -maxHeight * (slot / columns);
         }
@@ -157,50 +185,53 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
         public void run()
         {
             driver.start();
+            
             while (run)
             {
                 vb.addBuffered(new VisChain(LinAlg.translate(x, y, 0.0), new VisImage(driver.getFrameImage())));
-                vb.addBuffered(new VisText(new double[] { x + widthHash.get(id) / 2, y + heightHash.get(id), }, VisText.ANCHOR.TOP, id));
+                vb.addBuffered(new VisText(new double[] { x+width/2.0, y+height, }, VisText.ANCHOR.TOP, id));
                 vb.switchBuffer();
             }
-
-            synchronized (lock)
-            {
-                driver.kill();
-                done = true;
-                lock.notify();
-            }
+            driver.kill();
         }
 
         public void kill()
         {
             run = false;
-
-            synchronized (lock)
+            try
             {
-                while (!done)
-                {
-                    try
-                    {
-                        lock.wait();
-                    } catch (InterruptedException e)
-                    {
-                        e.printStackTrace();
-                    }
-                }
+                this.join();
+            } catch (InterruptedException e1)
+            {
+                e1.printStackTrace();
             }
+        }
+        
+        @Override
+        public boolean equals(Object a)
+        {
+            return id.equals(((Camera)a).id);
         }
     }
 
+    private double[] getDimension()
+    {
+        double x = (cameras.size() >= columns ? columns : cameras.size()) * maxWidth;
+        double y = maxHeight * Math.ceil((double) cameras.size() / columns);
+        
+        return new double[]{x,y};
+    }
+    
     public void messageReceived(LCM lcm, String channel, LCMDataInputStream ins)
     {
         if (channel.startsWith("rec "))
         {
+            image_path_t imagePath;
             try
             {
-                image_path_t imagePath = new image_path_t(ins);
+                imagePath = new image_path_t(ins);
                 String id = imagePath.id;
-
+    
                 String finalDir = (dir != null ? dir : imagePath.dir);
                 finalDir += !finalDir.endsWith(File.separator) ? File.separator : "";
                 File f = new File(finalDir + imagePath.img_path);
@@ -209,35 +240,46 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
                 {
                     throw new CameraException(CameraException.FILE_TOO_LARGE);
                 }
-
+    
                 byte[] buffer = new byte[(int) length];
                 new FileInputStream(f).read(buffer);
-
+    
                 BufferedImage image = ImageConvert.convertToImage(imagePath.format, imagePath.width, imagePath.height, buffer);
-
-                int slot = cameraPosition.indexOf(id);
-                if (slot == -1)
+    
+                double x, y; 
+                if(cameras.contains(new Camera(id)))
                 {
-                    slot = cameraPosition.size();
-                    cameraPosition.add(id);
-                    widthHash.put(id, imagePath.width);
-                    heightHash.put(id, imagePath.height);
-                    formatHash.put(id, imagePath.format);
+                    x = cameras.get(cameras.indexOf(new Camera(id))).x;
+                    y = cameras.get(cameras.indexOf(new Camera(id))).y;
                 }
-                int x = maxWidth * (slot % columns);
-                int y = -maxHeight * (slot / columns);
-
+                else
+                {
+                    int slot = cameras.size();
+                    x = maxWidth * (slot % columns);
+                    y = -maxHeight * (slot / columns);
+                    cameras.add(new Camera(id, imagePath.format, imagePath.width, imagePath.height,x,y));
+                    change = true;
+                }
+    
                 VisWorld.Buffer vb = vw.getBuffer(id);
-                vb.addBuffered(new VisChain(LinAlg.translate(new double[] { maxWidth * (slot % columns), -maxHeight * (slot / columns), 0 }), new VisImage(image)));
-                vb.addBuffered(new VisText(new double[] { x + widthHash.get(id) / 2, y + heightHash.get(id), }, VisText.ANCHOR.TOP, id));
-
+                Camera c = cameras.get(cameras.indexOf(new Camera(id)));
+                vb.addBuffered(new VisChain(LinAlg.translate(new double[] { maxWidth * x, -maxHeight * y, 0 }), new VisImage(image)));
+                vb.addBuffered(new VisText(new double[] { x + c.width / 2, y + c.height, }, VisText.ANCHOR.TOP, id));
+    
                 if (imagePath.width > maxWidth)
+                {
                     maxWidth = imagePath.width;
+                }
                 if (imagePath.height > maxHeight)
+                {
                     maxHeight = imagePath.height;
-                vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, 
-                        new double[] { (cameraPosition.size() >= columns ? columns : cameraPosition.size()) * maxWidth, 
-                        maxHeight * Math.ceil((double) cameraPosition.size() / (columns * maxWidth)) });
+                }
+                
+                if(change)
+                {
+                    vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, getDimension());
+                    change = false;
+                }
                 vb.switchBuffer();
             } catch (IOException e)
             {
@@ -250,15 +292,16 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
     }
 
     @Override
-    public void go(String configPath, String... urls)
+    public void go(String configPath)
     {
         try
         {
             Config config = new ConfigFile(configPath);
             ConfigUtil.verifyConfig(config);
-            captures = new ArrayList<CaptureThread>();
+            cameras = new ArrayList<Camera>();
             
-            (new DiscoverThread(config, urls)).start();
+            discoveryThread = new Discover(config);
+            discoveryThread.start();
         } catch (IOException e)
         {
             e.printStackTrace();
@@ -271,7 +314,9 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
     @Override
     public void kill()
     {
-        for (CaptureThread c : captures)
+        discoveryThread.kill();
+        
+        for (Camera c : cameras)
         {
             c.kill();
         }
@@ -288,16 +333,41 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
     @Override
     public void showDisplay(boolean show)
     {
-        VisWorld.Buffer vbDirections = vw.getBuffer("directions");
-        vbDirections.setDrawOrder(10);
+        VisWorld.Buffer vbDisplay = vw.getBuffer("display");
+        vbDisplay.setDrawOrder(10);
 
+        this.show = show;
         if (show)
         {
-            String directions = "<<left>><<mono-small>> \n \n \n " + "DIRECTIONS: \n \n " + "<<left>> Place tags in the view of the cameras, follow these guidelines, and hit\n" + "" + "<<left>>               next to begin extrinsic calibration: \n \n" + "<<left>>   Layman's guidelines:\n" + "<<left>>       1. Each tag MUST be viewable by at least two cameras \n" + "<<left>>               (the more the better).\n \n" + "<<left>>       2. Each camera MUST see at least one tag (the more the better).\n \n" + "<<left>>       3. One must be able to 'connect' all the cameras together by seeing\n" + "<<left>>               common tags inbetween them.\n \n" + "<<left>>       4. The tags should be placed as far apart from one another as possible.\n \n" + "<<left>>       5. The more tags that are used the better.\n \n \n" + "<<left>>   Computer scienctist guideline:\n" + "<<left>>       A connected graph must be formable using cameras as nodes and \n" + "<<left>>               common tag detections as edges.\n \n" + "<<left>>   HINT: the more connections the better, with a complete graph being ideal";
+            String directions = "<<left>><<mono-small>> \n \n \n " + 
+            "DIRECTIONS: \n \n " + 
+            "<<left>> Place tags in the view of the cameras, follow these guidelines, and hit\n" + "" + 
+            "<<left>>               next to begin extrinsic calibration: \n \n" + 
+            "<<left>>   Layman's guidelines:\n" + 
+            "<<left>>       1. Each tag MUST be viewable by at least two cameras \n" + 
+            "<<left>>               (the more the better).\n \n" + 
+            "<<left>>       2. Each camera MUST see at least one tag (the more the better).\n \n" + 
+            "<<left>>       3. One must be able to 'connect' all the cameras together by seeing\n" + 
+            "<<left>>               common tags inbetween them.\n \n" + 
+            "<<left>>       4. The tags should be placed as far apart from one another as possible.\n \n" + 
+            "<<left>>       5. The more tags that are used the better.\n \n \n" + 
+            "<<left>>   Computer scienctist guideline:\n" + 
+            "<<left>>       A connected graph must be formable using cameras as nodes and \n" + 
+            "<<left>>               common tag detections as edges.\n \n" + 
+            "<<left>>   HINT: the more connections the better, with a complete graph being ideal";
 
-            vbDirections.addBuffered(new VisChain(new VisText(VisText.ANCHOR.CENTER, directions)));
+            VisText v = new VisText(VisText.ANCHOR.CENTER, directions);
+            v.dropShadowColor = new Color(0,0,0,0);
+            
+            for(Camera c : cameras)
+            {
+                vbDisplay.addBuffered(new VisRectangle(new double[]{c.x,c.y}, 
+                        new double[]{c.x+c.width,c.y+c.height}, 
+                        new VisDataFillStyle(new Color(0,0,0,200))));
+            }
+            vbDisplay.addBuffered(v);
         }
 
-        vbDirections.switchBuffer();
+        vbDisplay.switchBuffer();
     }
 }

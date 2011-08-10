@@ -10,6 +10,7 @@ import april.camera.CameraDriver;
 import april.camera.util.TagDetector2;
 import april.config.Config;
 import april.config.ConfigFile;
+import april.jcam.ImageSource;
 import april.jmat.LinAlg;
 import april.random.TagDetectionComparator;
 import april.tag.CameraUtil;
@@ -21,6 +22,7 @@ import april.util.PointUtil;
 import april.vis.VisCanvas;
 import april.vis.VisWorld;
 import aprilO.graph.CholeskySolver;
+import aprilO.graph.GNode;
 import aprilO.graph.Graph;
 import aprilO.graph.GraphSolver;
 import aprilO.jmat.ordering.MinimumDegreeOrdering;
@@ -36,7 +38,7 @@ public class NewExtrinsicsPanel extends Broadcaster
 
     private Graph g;
 
-    ArrayList<CaptureThread> captures;
+    private ManagerThread manager;
     
     public NewExtrinsicsPanel(String id)
     {
@@ -55,15 +57,15 @@ public class NewExtrinsicsPanel extends Broadcaster
     class CaptureThread extends Thread
     {
         private boolean run = true;
-        private boolean done = false;
-        private Object lock = new Object();
         
         private CameraDriver driver;
         private double[] fc, cc, kc;
         private double alpha, tagSize;
         
-        public CaptureThread(String url)
+        public CaptureThread(String url, Config config)
         {
+            config = config.getRoot().getChild(CameraDriver.getSubUrl(url));
+
             try
             {
                 driver = new CameraDriver(url, config);
@@ -72,8 +74,6 @@ public class NewExtrinsicsPanel extends Broadcaster
                 e.printStackTrace();
             }
             
-            run = driver.isGood();
-            config = config.getRoot().getChild(CameraDriver.getSubUrl(url));
             fc = config.requireDoubles("fc");
             cc = config.requireDoubles("cc");
             kc = config.requireDoubles("kc");
@@ -81,11 +81,6 @@ public class NewExtrinsicsPanel extends Broadcaster
             tagSize = config.getRoot().getChild("extrinsics").requireDouble("tag_size");
         }
     
-        public boolean isGood()
-        {
-            return run;
-        }
-        
         public void run()
         {
             if(run)
@@ -97,7 +92,7 @@ public class NewExtrinsicsPanel extends Broadcaster
                 g.nodes.add(new Node(true, driver.getCameraId()));
 
                 int end = 0;
-                int tempcount = 0;
+                int nodeCount = 0;
                 for (int start = 0; start < detections.size() && run; start = end)
                 {
                     int lastId = detections.get(start).id;
@@ -119,17 +114,16 @@ public class NewExtrinsicsPanel extends Broadcaster
     
                         double[] tagXyzrpy = PointUtil.getLocation(points);
     
-                        tempcount++;
+                        nodeCount++;
                         g.edges.add(new Edge(new int[] { curNode, g.nodes.size() }, tagXyzrpy));
                         g.nodes.add(new Node(false, lastId + ""));
                     }
                 }
-                System.out.println(driver.getCameraId() + " done! (" + tempcount + " nodes added)");
                 
-                synchronized(lock)
+                System.out.println(driver.getCameraId() + " done! (" + nodeCount + " nodes added)");
+                if(nodeCount == 0) 
                 {
-                    done = true;
-                    lock.notify();
+                    alertListener(false);
                 }
             }
         }
@@ -153,19 +147,13 @@ public class NewExtrinsicsPanel extends Broadcaster
         public void kill()
         {
             run = false;
-            
-            synchronized(lock)
+
+            try
             {
-                while(!done)
-                {
-                    try
-                    {
-                        lock.wait();
-                    } catch (InterruptedException e)
-                    {
-                        e.printStackTrace();
-                    }
-                }
+                this.join();
+            } catch (InterruptedException e)
+            {
+                e.printStackTrace();
             }
         }
     }
@@ -205,6 +193,18 @@ public class NewExtrinsicsPanel extends Broadcaster
 
             return stop;
         }
+        
+        public void kill()
+        {
+            run = false;
+            try
+            {
+                this.join();
+            } catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
+        }
     }
 
     public void update()
@@ -212,8 +212,86 @@ public class NewExtrinsicsPanel extends Broadcaster
     // XXX show progress/draw current set-up
     }
 
+    class ManagerThread extends Thread
+    {
+        private ArrayList<CaptureThread> captures = new ArrayList<CaptureThread>();
+        private IterateThread iterate;
+        private Config config;
+        
+        public ManagerThread(Config config)
+        {
+            this.config = config;
+        }
+        
+        public void run()
+        {
+            for(String url : ImageSource.getCameraURLs())
+            {
+                if(CameraDriver.isValidUrl(config, url))
+                {
+                    CaptureThread newThread = new CaptureThread(url, config);
+                    newThread.start();
+                    captures.add(newThread);
+                }
+            }
+            
+            for(CaptureThread c : captures)
+            {
+                try
+                {
+                    c.join();
+                } catch (InterruptedException e)
+                {
+                    e.printStackTrace();
+                }
+            }
+            
+            System.out.println("done capturing");
+            
+            iterate = new IterateThread();
+            iterate.start();
+            
+            System.out.println("started iterating");
+            
+            try
+            {
+                iterate.join();
+            } catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
+            System.out.println("done iterating. results: ");
+            
+            for(GNode n : g.nodes)
+            {
+                if(((Node)n).isCamera)
+                {
+                    PointUtil.print(((Node)n).state);
+                }
+            }
+        }
+        
+        public void kill()
+        {
+            for(CaptureThread c : captures)
+            {
+                c.kill();
+            }
+            
+            iterate.kill();
+            
+            try
+            {
+                this.join();
+            } catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
+        }
+    }
+    
     @Override
-    public void go(String configPath, String... urls)
+    public void go(String configPath)
     {
         try
         {
@@ -227,25 +305,14 @@ public class NewExtrinsicsPanel extends Broadcaster
             e.printStackTrace();
         }
         
-        captures = new ArrayList<CaptureThread>();
-        for(String url : urls)
-        {
-            CaptureThread test = new CaptureThread(url);
-            if(test.isGood())
-            {
-                test.start();
-                captures.add(test);
-            }
-        }
+        manager = new ManagerThread(config);
+        manager.start();
     }
 
     @Override
     public void kill()
     {
-        for(CaptureThread c : captures)
-        {
-            c.kill();
-        }
+        manager.kill();
     }
 
     @Override

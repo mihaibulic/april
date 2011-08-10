@@ -6,11 +6,9 @@ import java.util.ArrayList;
 import javax.swing.JFrame;
 import lcm.lcm.LCM;
 import april.camera.CameraDriver;
-import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.util.GetOpt;
 import april.vis.VisCanvas;
-import april.vis.VisChain;
 import april.vis.VisImage;
 import april.vis.VisTexture;
 import april.vis.VisWorld;
@@ -48,12 +46,12 @@ public class CameraExample
     public void run()
     {
         byte[] imageBuffer;
-        BufferedImage post, pre;
+        BufferedImage im;
         driver.start();
         
-        String format = driver.getFormat();
         int w = driver.getWidth();
         int h = driver.getHeight();
+        vc.getViewManager().viewGoal.fit2D(new double[]{0,0}, new double[]{w,h});
         
         while(run)
         {
@@ -69,14 +67,12 @@ public class CameraExample
             }
 
             // Convert to image to display if buffer was modified
-            post = ImageConvert.convertToImage(format, w, h, imageBuffer);
+//            post = ImageConvert.convertToImage(driver.getFormat(), w, h, imageBuffer);
             
             // Or get the original image directly
-            pre = driver.getFrameImage();
+            im = driver.getFrameImage();
 
-            vbImage.addBuffered(new VisChain(
-                   new VisImage(new VisTexture(pre ),new double[] { 0, 0}, new double[] {w, h }, true),
-                   new VisImage(new VisTexture(post),new double[] { w, h }, new double[] {2*w, 2*h }, true)));
+            vbImage.addBuffered(new VisImage(new VisTexture(im),new double[] { 0, 0}, new double[] {w, h }, true));
             vbImage.switchBuffer();
         }
     }
@@ -85,6 +81,7 @@ public class CameraExample
     {
         GetOpt opts = new GetOpt();
         opts.addBoolean('h', "help", false, "see this help screen");
+        opts.addString('u', "url", "dc1394", "url of camera to use");
         
         if (!opts.parse(args))
         {
@@ -105,7 +102,7 @@ public class CameraExample
             System.exit(1);
         }
         
-        new CameraExample(opts.getString("camera"));
+        new CameraExample(opts.getString("url"));
     }
 
     public void kill()

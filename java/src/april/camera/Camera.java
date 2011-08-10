@@ -1,11 +1,10 @@
-package april.calibration;
+package april.camera;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import april.camera.CameraDriver;
 import april.camera.util.CameraException;
 import april.camera.util.TagDetector2;
 import april.config.Config;
@@ -22,7 +21,7 @@ import april.util.PointUtil;
  * Tracks a camera's tag detections and coordinates relative to a master camera
  * 
  * @author Mihai Bulic
- *
+ * @deprecated
  */
 public class Camera
 {
@@ -43,11 +42,11 @@ public class Camera
     
     private HashMap< Integer, double[]> tagsH = new HashMap<Integer, double[]>();
     
-    class Tag
+    public class Tag
     {
-        double[] xyzrpy;
-        double[][] matrix;
-        int id;
+        public double[] xyzrpy;
+        public double[][] matrix;
+        public int id;
         
         @Override
         public boolean equals(Object a)
