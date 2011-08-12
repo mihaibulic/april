@@ -1,0 +1,6 @@
+package april.lcmtypes;
+
+struct panda_start_t
+{
+    int64_t utime;
+}

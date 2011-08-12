@@ -17,7 +17,7 @@ import april.jmat.Matrix;
 import april.jmat.NumericalJacobian;
 import april.lcmtypes.object_t;
 import april.util.ConfigException;
-import april.util.ConfigUtil;
+import april.util.ConfigUtil2;
 import april.vis.VisCamera;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
@@ -335,7 +335,7 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         try
         {
             Config config = new ConfigFile(configPath);
-            ConfigUtil.verifyConfig(config);
+            ConfigUtil2.verifyConfig(config);
         
             objectManager = new ObjectManager();
             tracks = new ArrayList<Track>();

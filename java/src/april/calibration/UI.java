@@ -34,7 +34,7 @@ import april.random.IntroPanel;
 import april.random.InvalidCardException;
 import april.tracker.ObjectTrackerPanel;
 import april.util.ConfigException;
-import april.util.ConfigUtil;
+import april.util.ConfigUtil2;
 
 public class UI extends JFrame implements ActionListener, Broadcaster.Listener
 {
@@ -183,7 +183,7 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
                 {
                     configPath = info[0];
                     config = new ConfigFile(configPath);
-                    ConfigUtil.verifyConfig(config);
+                    ConfigUtil2.verifyConfig(config);
                     
                     urls.clear();
                     

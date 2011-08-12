@@ -1,0 +1,6 @@
+package april.lcmtypes;
+
+struct lcm_spam_t
+{
+    string data;
+}

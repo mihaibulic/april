@@ -1,0 +1,18 @@
+package april.lcmtypes;
+
+struct panda_info_t
+{
+    int64_t utime;
+
+    int32_t num_of_formats;
+    int32_t width[num_of_formats];    
+    int32_t height[num_of_formats];    
+    string format[num_of_formats];    
+    int32_t format_index;                       // this is the format currently selected by the camera
+
+    int32_t num_of_features;
+    string feature_names[num_of_features];    
+    double feature_min[num_of_features];    
+    double feature_max[num_of_features];    
+    double feature_values[num_of_features];    // these are the current values of the features
+}

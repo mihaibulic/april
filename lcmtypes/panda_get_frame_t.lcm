@@ -1,0 +1,6 @@
+package april.lcmtypes;
+
+struct panda_get_frame_t
+{
+    int64_t utime;
+}

@@ -15,7 +15,7 @@ import april.tag.CameraUtil;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import april.tag.TagDetector;
-import april.util.ConfigUtil;
+import april.util.ConfigUtil2;
 import april.util.GetOpt;
 import april.util.ParameterGUI;
 import april.util.ParameterListener;
@@ -198,10 +198,10 @@ public class TagUndistortTest implements ParameterListener
                     vbImage.addBuffered(new VisChain(Mo, new VisRectangle(0.158, 0.158, new VisDataFillStyle(Color.red ))));
                     vbImage.addBuffered(new VisChain(Mn, new VisRectangle(0.158, 0.158, new VisDataFillStyle(Color.blue))));
                     
-                    System.out.println("before: " + ConfigUtil.round(o[0], 2) + ", " + ConfigUtil.round(o[1], 2) + ", " + ConfigUtil.round(o[2], 2) + "  " +
-                        ConfigUtil.round(o[3], 2) + ", " + ConfigUtil.round(o[4], 2) + ", " + ConfigUtil.round(o[5], 2));
-                    System.out.println("after: " + ConfigUtil.round(n[0], 2) + ", " + ConfigUtil.round(n[1], 2) + ", " + ConfigUtil.round(n[2], 2) + "  " +
-                        ConfigUtil.round(n[3], 2) + ", " + ConfigUtil.round(n[4], 2) + ", " + ConfigUtil.round(n[5], 2));
+                    System.out.println("before: " + ConfigUtil2.round(o[0], 2) + ", " + ConfigUtil2.round(o[1], 2) + ", " + ConfigUtil2.round(o[2], 2) + "  " +
+                        ConfigUtil2.round(o[3], 2) + ", " + ConfigUtil2.round(o[4], 2) + ", " + ConfigUtil2.round(o[5], 2));
+                    System.out.println("after: " + ConfigUtil2.round(n[0], 2) + ", " + ConfigUtil2.round(n[1], 2) + ", " + ConfigUtil2.round(n[2], 2) + "  " +
+                        ConfigUtil2.round(n[3], 2) + ", " + ConfigUtil2.round(n[4], 2) + ", " + ConfigUtil2.round(n[5], 2));
                     System.out.println("***********************");
                 }
 

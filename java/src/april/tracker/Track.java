@@ -10,7 +10,7 @@ import april.jmat.LinAlg;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import april.util.ConfigException;
-import april.util.ConfigUtil;
+import april.util.ConfigUtil2;
 import aprilO.util.TimeUtil;
 
 /**
@@ -44,7 +44,7 @@ public class Track extends Thread
     
     public Track(Config config, String url) throws ConfigException, CameraException, IOException
     {
-    	ConfigUtil.verifyConfig(config);
+    	ConfigUtil2.verifyConfig(config);
 
     	id = config.requireInt("id");
         fc = config.requireDoubles("fc");

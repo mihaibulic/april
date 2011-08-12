@@ -18,7 +18,7 @@ import april.jmat.Matrix;
 import april.jmat.NumericalJacobian;
 import april.random.CameraComparator;
 import april.util.ConfigException;
-import april.util.ConfigUtil;
+import april.util.ConfigUtil2;
 import april.vis.VisCamera;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
@@ -416,12 +416,12 @@ public class ExtrinsicsPanel extends Broadcaster
                 
                 double[] pos = cam.getXyzrpy();
                 output += "camera: " + cam.getCameraId() + "\n"; 
-                output += "    (x,y,z): " + ConfigUtil.round(pos[0],3) + ", " + ConfigUtil.round(pos[1],3) + ", " + ConfigUtil.round(pos[2],3) + "\n";
-                output += "    (r,p,y): " + ConfigUtil.round(pos[3],3) + ", " + ConfigUtil.round(pos[4],3) + ", " + ConfigUtil.round(pos[5],3) + "\n\n";
+                output += "    (x,y,z): " + ConfigUtil2.round(pos[0],3) + ", " + ConfigUtil2.round(pos[1],3) + ", " + ConfigUtil2.round(pos[2],3) + "\n";
+                output += "    (r,p,y): " + ConfigUtil2.round(pos[3],3) + ", " + ConfigUtil2.round(pos[4],3) + ", " + ConfigUtil2.round(pos[5],3) + "\n\n";
 
                 try
                 {
-                    ConfigUtil.setValues(configPath, new String[]{CameraDriver.getSubUrl(cam.getUrl())}, "xyzrpy", pos);
+                    ConfigUtil2.setValues(configPath, new String[]{CameraDriver.getSubUrl(cam.getUrl())}, "xyzrpy", pos);
                 } catch (ConfigException e)
                 {
                     e.printStackTrace();
@@ -458,7 +458,7 @@ public class ExtrinsicsPanel extends Broadcaster
         {
             this.configPath = configPath;
             config = new ConfigFile(configPath).getChild("extrinsics");
-            ConfigUtil.verifyConfig(config);
+            ConfigUtil2.verifyConfig(config);
         } catch (IOException e)
         {
             e.printStackTrace();

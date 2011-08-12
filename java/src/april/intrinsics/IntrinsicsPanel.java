@@ -23,7 +23,7 @@ import april.config.Config;
 import april.config.ConfigFile;
 import april.jmat.LinAlg;
 import april.util.ConfigException;
-import april.util.ConfigUtil;
+import april.util.ConfigUtil2;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
 import april.vis.VisData;
@@ -318,10 +318,10 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
                 try
                 {
                     String[] path = {CameraDriver.getSubUrl(url)};
-                    ConfigUtil.setValues(configPath, path, "fc", new double[]{state[0], state[1]});
-                    ConfigUtil.setValues(configPath, path, "cc", new double[]{state[2], state[3]});
-                    ConfigUtil.setValues(configPath, path, "kc", new double[]{state[4], state[5], state[6], state[7], state[8]});
-                    ConfigUtil.setValue(configPath, path, "alpha", state[9]);
+                    ConfigUtil2.setValues(configPath, path, "fc", new double[]{state[0], state[1]});
+                    ConfigUtil2.setValues(configPath, path, "cc", new double[]{state[2], state[3]});
+                    ConfigUtil2.setValues(configPath, path, "kc", new double[]{state[4], state[5], state[6], state[7], state[8]});
+                    ConfigUtil2.setValue(configPath, path, "alpha", state[9]);
                 } catch (ConfigException e)
                 {
                     e.printStackTrace();
@@ -423,8 +423,8 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
             "<<mono-big>>Parameters:\n \n \n \n " +
             "<<mono-small>>focal length: " + (int)state[0] + ", " + (int)state[1] + "\n \n" +
             "image center: " + (int)state[2] + ", " + (int)state[3] + "\n \n"+
-            "distortion: " + ConfigUtil.round(state[4],4) + ", " + ConfigUtil.round(state[5],4) + ", " + ConfigUtil.round(state[6],4) + ", " + ConfigUtil.round(state[7],4) + "\n \n" +
-            "skew: " + ConfigUtil.round(state[8],4) + "\n \n " + 
+            "distortion: " + ConfigUtil2.round(state[4],4) + ", " + ConfigUtil2.round(state[5],4) + ", " + ConfigUtil2.round(state[6],4) + ", " + ConfigUtil2.round(state[7],4) + "\n \n" +
+            "skew: " + ConfigUtil2.round(state[8],4) + "\n \n " + 
             "<<left>>                                                                                \n \n \n \n \n \n \n \n ";
         }
 
@@ -513,7 +513,7 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         {
             this.configPath = configPath;
             Config config = new ConfigFile(configPath).getChild("intrinsics");
-            ConfigUtil.verifyConfig(config);
+            ConfigUtil2.verifyConfig(config);
 
             status = new Status();
             status.mode = Status.INITIAL;

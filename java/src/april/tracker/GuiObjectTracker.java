@@ -15,7 +15,7 @@ import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageSource;
 import april.util.ConfigException;
-import april.util.ConfigUtil;
+import april.util.ConfigUtil2;
 import april.util.GetOpt;
 
 public class GuiObjectTracker extends JFrame implements ActionListener
@@ -39,7 +39,7 @@ public class GuiObjectTracker extends JFrame implements ActionListener
         ArrayList<String> allUrls = ImageSource.getCameraURLs();
         ArrayList<String> urls = new ArrayList<String>();
         Config config = new ConfigFile(configPath);
-        ConfigUtil.verifyConfig(config);
+        ConfigUtil2.verifyConfig(config);
         
         for(String url : allUrls)
         {

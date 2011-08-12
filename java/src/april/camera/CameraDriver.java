@@ -9,7 +9,7 @@ import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
 import april.util.ConfigException;
-import april.util.ConfigUtil;
+import april.util.ConfigUtil2;
 
 public class CameraDriver extends Thread
 {
@@ -77,7 +77,7 @@ public class CameraDriver extends Thread
             ifmt = isrc.getCurrentFormat();
             
             config = config.getRoot().getChild("sync");
-            ConfigUtil.verifyConfig(config);
+            ConfigUtil2.verifyConfig(config);
             samples = config.requireInt("samples");
             chi2Tolerance = config.requireDouble("chi2Tolerance");
             timeThresh = config.requireDouble("timeThresh");
@@ -244,24 +244,6 @@ public class CameraDriver extends Thread
             e.printStackTrace();
         }
     }
-    
-//    public void kill()
-//    {
-//        run = false;
-//        synchronized(driverLock)
-//        {
-//            while(!done)
-//            {
-//                try
-//                {
-//                    driverLock.wait();
-//                } catch (InterruptedException e)
-//                {
-//                    e.printStackTrace();
-//                }
-//            }
-//        }
-//    }
     
     public boolean isGood()
     {

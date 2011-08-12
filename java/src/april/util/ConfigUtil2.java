@@ -14,7 +14,7 @@ import java.util.StringTokenizer;
 import april.config.Config;
 import april.config.ConfigFile;
 
-public class ConfigUtil
+public class ConfigUtil2
 {
     
     /**

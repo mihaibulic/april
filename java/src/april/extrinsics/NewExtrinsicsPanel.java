@@ -17,7 +17,7 @@ import april.tag.CameraUtil;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import april.util.ConfigException;
-import april.util.ConfigUtil;
+import april.util.ConfigUtil2;
 import april.util.PointUtil;
 import april.vis.VisCanvas;
 import april.vis.VisWorld;
@@ -296,7 +296,7 @@ public class NewExtrinsicsPanel extends Broadcaster
         try
         {
             config = new ConfigFile(configPath).getChild("extrinsics");
-            ConfigUtil.verifyConfig(config);
+            ConfigUtil2.verifyConfig(config);
         } catch (IOException e)
         {
             e.printStackTrace();

@@ -9,7 +9,7 @@ import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageSource;
 import april.util.ConfigException;
-import april.util.ConfigUtil;
+import april.util.ConfigUtil2;
 import april.util.GetOpt;
 
 /**
@@ -27,7 +27,7 @@ public class CameraRecorder
         Config config = null;
 
         opts.addBoolean('h', "help", false, "See this help screen");
-        opts.addString('n', "config", System.getenv("CONFIG")+"/camera.config", "location of config file");
+        opts.addString('n', "config", System.getenv("APRIL_CONFIG")+"/camera.config", "location of config file");
         opts.addBoolean('s', "simple", false, "ignores config file and records from any URLs given as command line args");
         opts.addString('d', "dir", "/tmp/imageLog/", "Path to save images (for simple mode only)");
         opts.addString('l', "log", "default.log", "name of lcm log (for simple mode only)");
@@ -57,7 +57,7 @@ public class CameraRecorder
         if(!opts.getBoolean("simple"))
         {
             config = new ConfigFile(opts.getString("config")).getChild("logging");
-            ConfigUtil.verifyConfig(config);
+            ConfigUtil2.verifyConfig(config);
             
             dir = config.requireString("dir");
             log = config.requireString("log");

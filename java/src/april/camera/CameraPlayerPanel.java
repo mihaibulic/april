@@ -19,7 +19,7 @@ import april.jcam.ImageSource;
 import april.jmat.LinAlg;
 import april.lcmtypes.image_path_t;
 import april.util.ConfigException;
-import april.util.ConfigUtil;
+import april.util.ConfigUtil2;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
 import april.vis.VisDataFillStyle;
@@ -40,7 +40,7 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
     private int maxWidth, maxHeight;
 
     private Discover discoveryThread;
-    private ArrayList<Camera> cameras;
+    private ArrayList<Camera> cameras = new ArrayList<Camera>();
     
     private VisWorld vw;
     private VisCanvas vc;
@@ -226,10 +226,9 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
     {
         if (channel.startsWith("rec "))
         {
-            image_path_t imagePath;
             try
             {
-                imagePath = new image_path_t(ins);
+                image_path_t imagePath = new image_path_t(ins);
                 String id = imagePath.id;
     
                 String finalDir = (dir != null ? dir : imagePath.dir);
@@ -265,6 +264,7 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
                 Camera c = cameras.get(cameras.indexOf(new Camera(id)));
                 vb.addBuffered(new VisChain(LinAlg.translate(new double[] { maxWidth * x, -maxHeight * y, 0 }), new VisImage(image)));
                 vb.addBuffered(new VisText(new double[] { x + c.width / 2, y + c.height, }, VisText.ANCHOR.TOP, id));
+                vb.switchBuffer();
     
                 if (imagePath.width > maxWidth)
                 {
@@ -280,7 +280,6 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
                     vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, getDimension());
                     change = false;
                 }
-                vb.switchBuffer();
             } catch (IOException e)
             {
                 e.printStackTrace();
@@ -297,8 +296,7 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
         try
         {
             Config config = new ConfigFile(configPath);
-            ConfigUtil.verifyConfig(config);
-            cameras = new ArrayList<Camera>();
+            ConfigUtil2.verifyConfig(config);
             
             discoveryThread = new Discover(config);
             discoveryThread.start();

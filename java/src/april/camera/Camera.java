@@ -14,7 +14,7 @@ import april.tag.CameraUtil;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
 import april.util.ConfigException;
-import april.util.ConfigUtil;
+import april.util.ConfigUtil2;
 import april.util.PointUtil;
 
 /**
@@ -68,7 +68,7 @@ public class Camera
     
     public Camera(Config config, String url) throws CameraException, IOException, ConfigException
     {
-        ConfigUtil.verifyConfig(config);
+        ConfigUtil2.verifyConfig(config);
         driver = new CameraDriver(url, config);
 
         config = config.getRoot().getChild(CameraDriver.getSubUrl(url));

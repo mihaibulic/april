@@ -3,7 +3,7 @@ package april.sandbox;
 import java.io.IOException;
 import april.config.Config;
 import april.util.ConfigException;
-import april.util.ConfigUtil;
+import april.util.ConfigUtil2;
 
 public class StringToke
 {
@@ -13,7 +13,7 @@ public class StringToke
     
         try
         {
-            Config config = ConfigUtil.setValue(loc, new String[]{}, "fps", "250000");
+            Config config = ConfigUtil2.setValue(loc, new String[]{}, "fps", "250000");
             
             System.out.println(config.requireDouble("fps"));
         } catch (ConfigException e)
