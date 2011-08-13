@@ -3,10 +3,10 @@ package april.vis;
 import java.awt.Color;
 import javax.media.opengl.GL;
 import javax.media.opengl.glu.GLU;
-import april.vis.GLUtil;
-import april.vis.VisContext;
-import april.vis.VisObject;
-import april.vis.VisUtil;
+import aprilO.vis.GLUtil;
+import aprilO.vis.VisContext;
+import aprilO.vis.VisObject;
+import aprilO.vis.VisUtil;
 
 /** VisObject representing a camera. In the camera's coordinate frame,
  * the camera will appear to be looking down the -z axis, with y

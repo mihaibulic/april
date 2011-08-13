@@ -96,5 +96,4 @@ public class Edge extends GEdge
     {
         assert(false);
     }
-
 }

@@ -38,7 +38,7 @@ public class IntroPanel extends Broadcaster
 
         JPanel aprilPanel = new JPanel();
         JLabel aprilLabel = new JLabel(new ImageIcon(
-                System.getenv("APRIL_DOCS")+ File.separator+"april-logo.png",
+                System.getenv("APRIL_DOCS")+ File.separator+"aprilO-logo.png",
                 "The APRIL Robotics Laboratory at the University of Michigan"+
         		" investigates Autonomy, Perception, Robotics, Interfaces, and Learning," +
                 "and is part of the Computer Science and Engineering department. " + 

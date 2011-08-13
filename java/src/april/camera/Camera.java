@@ -7,15 +7,15 @@ import java.util.Collections;
 import java.util.HashMap;
 import april.camera.util.CameraException;
 import april.camera.util.TagDetector2;
-import april.config.Config;
-import april.jmat.LinAlg;
 import april.random.TagDetectionComparator;
-import april.tag.CameraUtil;
-import april.tag.Tag36h11;
-import april.tag.TagDetection;
 import april.util.ConfigException;
 import april.util.ConfigUtil2;
 import april.util.PointUtil;
+import april.config.Config;
+import april.jmat.LinAlg;
+import april.tag.CameraUtil;
+import april.tag.Tag36h11;
+import april.tag.TagDetection;
 
 /**
  * Tracks a camera's tag detections and coordinates relative to a master camera

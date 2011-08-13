@@ -1,7 +1,7 @@
 package april.calibration;
 
 import java.util.ArrayList;
-import april.tag.TagDetection;
+import aprilO.tag.TagDetection;
 
 public class CornerManager
 {

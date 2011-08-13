@@ -11,12 +11,12 @@ import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import april.camera.CameraDriver;
 import april.camera.util.CameraException;
-import april.config.Config;
-import april.config.ConfigFile;
-import april.jcam.ImageSource;
 import april.util.ConfigException;
 import april.util.ConfigUtil2;
 import april.util.GetOpt;
+import april.config.Config;
+import april.config.ConfigFile;
+import april.jcam.ImageSource;
 
 public class GuiObjectTracker extends JFrame implements ActionListener
 {

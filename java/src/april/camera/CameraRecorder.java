@@ -5,12 +5,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import april.camera.util.CameraException;
-import april.config.Config;
-import april.config.ConfigFile;
-import april.jcam.ImageSource;
 import april.util.ConfigException;
 import april.util.ConfigUtil2;
 import april.util.GetOpt;
+import april.config.Config;
+import april.config.ConfigFile;
+import april.jcam.ImageSource;
 
 /**
  * 

@@ -1,10 +1,10 @@
 package april.util;
 
 import java.util.ArrayList;
-import april.jmat.Function;
-import april.jmat.LinAlg;
-import april.jmat.Matrix;
-import april.jmat.NumericalJacobian;
+import aprilO.jmat.Function;
+import aprilO.jmat.LinAlg;
+import aprilO.jmat.Matrix;
+import aprilO.jmat.NumericalJacobian;
 
 public class PointUtil
 {
@@ -73,22 +73,12 @@ public class PointUtil
         @Override
         public double[] evaluate(double[] location, double[] distance)
         {
-            if(distance == null)
+            distance = new double[]{0};
+            for(double[] p : points)
             {
-                distance = new double[2];
-                for(int a = 0; a < distance.length; a++)
-                {
-                    distance[a] = 0;
-                }
+                distance[0] += LinAlg.squaredDistance(p, location);
             }
             
-            for(int b = 0; b < points.length; b++)
-            {
-                distance[0] += Math.sqrt(sq(points[b][0]-location[0])+sq(points[b][1]-location[1])+sq(points[b][2]-location[2]));
-                distance[1] += Math.sqrt(sq(points[b][3]-location[3])+sq(points[b][4]-location[4])+sq(points[b][5]-location[5]));
-            }
-            distance = LinAlg.scale(distance, 1./points.length);
-
             return distance;
         }
     }        

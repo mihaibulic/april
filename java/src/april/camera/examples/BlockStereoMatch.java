@@ -9,23 +9,23 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
-import april.jcam.ImageConvert;
-import april.jmat.LinAlg;
-import april.jmat.geom.GRay3D;
-import april.util.ParameterGUI;
-import april.util.ParameterListener;
-import april.util.TimeUtil;
-import april.vis.HelpOutput;
-import april.vis.VisCanvas;
-import april.vis.VisCanvasEventHandler;
-import april.vis.VisChain;
-import april.vis.VisCircle;
-import april.vis.VisDataFillStyle;
-import april.vis.VisImage;
-import april.vis.VisText;
-import april.vis.VisTexture;
-import april.vis.VisWorld;
-import april.vis.VisText.ANCHOR;
+import aprilO.jcam.ImageConvert;
+import aprilO.jmat.LinAlg;
+import aprilO.jmat.geom.GRay3D;
+import aprilO.util.ParameterGUI;
+import aprilO.util.ParameterListener;
+import aprilO.util.TimeUtil;
+import aprilO.vis.HelpOutput;
+import aprilO.vis.VisCanvas;
+import aprilO.vis.VisCanvasEventHandler;
+import aprilO.vis.VisChain;
+import aprilO.vis.VisCircle;
+import aprilO.vis.VisDataFillStyle;
+import aprilO.vis.VisImage;
+import aprilO.vis.VisText;
+import aprilO.vis.VisTexture;
+import aprilO.vis.VisWorld;
+import aprilO.vis.VisText.ANCHOR;
 
 public class BlockStereoMatch implements ParameterListener,
         VisCanvasEventHandler
@@ -62,8 +62,8 @@ public class BlockStereoMatch implements ParameterListener,
 
         try
         {
-            imageLeft = ImageIO.read(new File("/home/april/left"));
-            imageRight = ImageIO.read(new File("/home/april/right"));
+            imageLeft = ImageIO.read(new File("/home/aprilO/left"));
+            imageRight = ImageIO.read(new File("/home/aprilO/right"));
             left = new byte[imageLeft.getWidth()*imageLeft.getHeight()];
             right = new byte[imageRight.getWidth()*imageRight.getHeight()];
             widthLeft = imageLeft.getWidth();    

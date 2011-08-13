@@ -9,6 +9,9 @@ import java.util.HashMap;
 import april.camera.Camera;
 import april.camera.CameraDriver;
 import april.camera.util.CameraException;
+import april.random.CameraComparator;
+import april.util.ConfigException;
+import april.util.ConfigUtil2;
 import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageSource;
@@ -16,9 +19,6 @@ import april.jmat.Function;
 import april.jmat.LinAlg;
 import april.jmat.Matrix;
 import april.jmat.NumericalJacobian;
-import april.random.CameraComparator;
-import april.util.ConfigException;
-import april.util.ConfigUtil2;
 import april.vis.VisCamera;
 import april.vis.VisCanvas;
 import april.vis.VisChain;
@@ -29,7 +29,7 @@ import april.vis.VisWorld;
 
 /**
  * 
- * @author april
+ * @author aprilO
  * @deprecated
  */
 public class ExtrinsicsPanel extends Broadcaster

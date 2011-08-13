@@ -24,17 +24,17 @@ import javax.swing.border.EmptyBorder;
 import april.camera.CameraDriver;
 import april.camera.CameraPlayerPanel;
 import april.camera.util.CameraException;
-import april.config.Config;
-import april.config.ConfigFile;
 import april.extrinsics.NewExtrinsicsPanel;
 import april.intrinsics.IntrinsicsPanel;
-import april.jcam.ImageSource;
 import april.random.ConfigPanel;
 import april.random.IntroPanel;
 import april.random.InvalidCardException;
 import april.tracker.ObjectTrackerPanel;
 import april.util.ConfigException;
 import april.util.ConfigUtil2;
+import april.config.Config;
+import april.config.ConfigFile;
+import april.jcam.ImageSource;
 
 public class UI extends JFrame implements ActionListener, Broadcaster.Listener
 {
@@ -64,7 +64,7 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         Dimension d = Toolkit.getDefaultToolkit().getScreenSize();
         setSize(d.width/2, d.height);
-        setIconImage(Toolkit.getDefaultToolkit().getImage(System.getenv("APRIL_DOCS") + File.separator+"april-logo.png"));
+        setIconImage(Toolkit.getDefaultToolkit().getImage(System.getenv("APRIL_DOCS") + File.separator+"aprilO-logo.png"));
         
         try
         {

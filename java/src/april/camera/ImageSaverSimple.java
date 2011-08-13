@@ -5,10 +5,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import lcm.lcm.LCM;
-import april.jcam.ImageSource;
-import april.jcam.ImageSourceFormat;
 import april.lcmtypes.image_path_t;
-import april.util.TimeUtil;
+import aprilO.jcam.ImageSource;
+import aprilO.jcam.ImageSourceFormat;
+import aprilO.util.TimeUtil;
 
 public class ImageSaverSimple extends Thread
 {

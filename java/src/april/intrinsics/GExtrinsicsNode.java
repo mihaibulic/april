@@ -1,6 +1,6 @@
 package april.intrinsics;
 
-import april.jmat.LinAlg;
+import aprilO.jmat.LinAlg;
 import aprilO.graph.GNode;
 
 public class GExtrinsicsNode extends GNode

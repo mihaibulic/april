@@ -4,12 +4,12 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import magic.camera.util.SyncErrorDetector;
 import april.camera.util.CameraException;
+import april.util.ConfigException;
+import april.util.ConfigUtil2;
 import april.config.Config;
 import april.jcam.ImageConvert;
 import april.jcam.ImageSource;
 import april.jcam.ImageSourceFormat;
-import april.util.ConfigException;
-import april.util.ConfigUtil2;
 
 public class CameraDriver extends Thread
 {

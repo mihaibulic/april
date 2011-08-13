@@ -21,7 +21,7 @@ public class ConfigUtil2
      * WARNING: if value is < 0.001 it will be written as 0 to avoid scientific notation
      * 
      *ex: lets say we want to set root->child2->kid3->v1 to {1, 2, 3} in the following config 
-     *      structure which is in a config file located under /home/april/test.config
+     *      structure which is in a config file located under /home/aprilO/test.config
      *                  root
      *                  /   \
      *            child1    child2
@@ -31,7 +31,7 @@ public class ConfigUtil2
      *     v1   v2  v1 v2 v1 v2  v1 v2       
      * 
      * @param configPath - The filepath to the config file to be modified
-     *         ex: "/home/april/test.config"
+     *         ex: "/home/aprilO/test.config"
      * @param path - the path internal to the config file to find the variable to be changed
      *         make array of size 0 if it is in root
      *         ex: {"child2", "kid3"}
@@ -61,7 +61,7 @@ public class ConfigUtil2
      * WARNING: if value is < 0.001 it will be written as 0 to avoid scientific notation
      * 
      *ex: lets say we want to set root->child2->kid3->v1 to 1 in the following config 
-     *      structure which is in a config file located under /home/april/test.config
+     *      structure which is in a config file located under /home/aprilO/test.config
      *                  root
      *                  /   \
      *            child1    child2
@@ -71,7 +71,7 @@ public class ConfigUtil2
      *     v1   v2  v1 v2 v1 v2  v1 v2       
      * 
      * @param configPath - The filepath to the config file to be modified
-     *         ex: "/home/april/test.config"
+     *         ex: "/home/aprilO/test.config"
      * @param path - the path internal to the config file to find the variable to be changed
      *         make array of size 0 if it is in root
      *         ex: {"child2", "kid3"}
@@ -93,7 +93,7 @@ public class ConfigUtil2
     
     /**
      *ex: lets say we want to set root->child2->kid3->v1 to ":)" in the following config 
-     *      structure which is in a config file located under /home/april/test.config
+     *      structure which is in a config file located under /home/aprilO/test.config
      *                  root
      *                  /   \
      *            child1    child2
@@ -103,7 +103,7 @@ public class ConfigUtil2
      *     v1   v2  v1 v2 v1 v2  v1 v2       
      * 
      * @param configPath - The filepath to the config file to be modified
-     *         ex: "/home/april/test.config"
+     *         ex: "/home/aprilO/test.config"
      * @param path - the path internal to the config file to find the variable to be changed
      *         make array of size 0 if it is in root
      *         ex: {"child2", "kid3"}
@@ -123,7 +123,7 @@ public class ConfigUtil2
     /**
      *ex: lets say we want to set root->child2->kid3->v1 to "{ ":)", ":(", ":*", ";)" }" 
      *      in the following config structure which is in a config file located 
-     *      under /home/april/test.config
+     *      under /home/aprilO/test.config
      *                  root
      *                  /   \
      *            child1    child2
@@ -133,7 +133,7 @@ public class ConfigUtil2
      *     v1   v2  v1 v2 v1 v2  v1 v2       
      * 
      * @param configPath - The filepath to the config file to be modified
-     *         ex: "/home/april/test.config"
+     *         ex: "/home/aprilO/test.config"
      * @param path - the path internal to the config file to find the variable to be changed
      *         make array of size 0 if it is in root
      *         ex: {"child2", "kid3"}

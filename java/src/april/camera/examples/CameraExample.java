@@ -6,12 +6,12 @@ import java.util.ArrayList;
 import javax.swing.JFrame;
 import lcm.lcm.LCM;
 import april.camera.CameraDriver;
-import april.jcam.ImageSource;
 import april.util.GetOpt;
-import april.vis.VisCanvas;
-import april.vis.VisImage;
-import april.vis.VisTexture;
-import april.vis.VisWorld;
+import aprilO.jcam.ImageSource;
+import aprilO.vis.VisCanvas;
+import aprilO.vis.VisImage;
+import aprilO.vis.VisTexture;
+import aprilO.vis.VisWorld;
 
 public class CameraExample
 {
