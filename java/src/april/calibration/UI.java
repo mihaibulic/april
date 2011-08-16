@@ -64,7 +64,10 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         Dimension d = Toolkit.getDefaultToolkit().getScreenSize();
         setSize(d.width/2, d.height);
-        setIconImage(Toolkit.getDefaultToolkit().getImage(System.getenv("APRIL_DOCS") + File.separator+"aprilO-logo.png"));
+        
+        String logo = System.getenv("APRIL_DOCS");
+        logo += (logo.endsWith(File.separator) ? "" : File.separator) + "april-logo.png";
+        setIconImage(Toolkit.getDefaultToolkit().getImage(logo));
         
         try
         {
@@ -225,7 +228,7 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
                 nextButton.setEnabled(false);
             }
         }
-        else if(id == EXTRINSICS)
+        else if(id.equals(EXTRINSICS))
         {
             if(ready == true)
             {

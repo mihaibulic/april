@@ -30,7 +30,7 @@ public class CameraDriver extends Thread
     private Object imageLock = new Object();
     private byte[] imageBuffer;
 
-    private boolean run = true;
+    private volatile boolean run = true;
 
     public CameraDriver(String url)
     {

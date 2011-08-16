@@ -36,9 +36,11 @@ public class IntroPanel extends Broadcaster
         directionsPanel.add(empty2);
         directionsPanel.add(new JLabel("Press next to continue...", JLabel.CENTER));
 
+        String logo = System.getenv("APRIL_DOCS");
+        logo += (logo.endsWith(File.separator) ? "" : File.separator) + "april-logo.png";
+        
         JPanel aprilPanel = new JPanel();
-        JLabel aprilLabel = new JLabel(new ImageIcon(
-                System.getenv("APRIL_DOCS")+ File.separator+"aprilO-logo.png",
+        JLabel aprilLabel = new JLabel(new ImageIcon(logo,
                 "The APRIL Robotics Laboratory at the University of Michigan"+
         		" investigates Autonomy, Perception, Robotics, Interfaces, and Learning," +
                 "and is part of the Computer Science and Engineering department. " + 

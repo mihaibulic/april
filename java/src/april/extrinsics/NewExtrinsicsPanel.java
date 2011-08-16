@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import april.calibration.Broadcaster;
 import april.camera.CameraDriver;
 import april.camera.util.TagDetector2;
@@ -12,6 +13,9 @@ import april.config.Config;
 import april.config.ConfigFile;
 import april.jcam.ImageSource;
 import april.jmat.Function;
+import april.jmat.LinAlg;
+import april.jmat.Matrix;
+import april.jmat.NumericalJacobian;
 import april.random.TagDetectionComparator;
 import april.tag.Tag36h11;
 import april.tag.TagDetection;
@@ -20,9 +24,6 @@ import april.util.ConfigUtil2;
 import april.util.PointUtil;
 import april.vis.VisCanvas;
 import april.vis.VisWorld;
-import aprilO.jmat.LinAlg;
-import aprilO.jmat.Matrix;
-import aprilO.jmat.NumericalJacobian;
 
 public class NewExtrinsicsPanel extends Broadcaster
 {
@@ -35,6 +36,7 @@ public class NewExtrinsicsPanel extends Broadcaster
 
     private ManagerThread manager;
 
+    private ArrayList<Camera> cameras = new ArrayList<Camera>();
     private ArrayList<Point> points = new ArrayList<Point>();
     
     public NewExtrinsicsPanel(String id)
@@ -49,19 +51,38 @@ public class NewExtrinsicsPanel extends Broadcaster
         add(vc, BorderLayout.CENTER);
     }
 
-    public class Spot
+    class Camera
+    {
+        int id;
+        double[] fc, cc, kc;
+        double alpha;
+        double[] xyzrpy = new double[6];
+        
+        public Camera(int id, double[] fc, double[] cc, double[] kc, double alpha)
+        {
+            this.id = id;
+            this.fc = fc;
+            this.cc = cc;
+            this.kc = kc;
+            this.alpha = alpha;
+        }
+    }
+    
+    class Spot
     {
         double[] uv = new double[2];
-        String spotterId;
+        double[][] vector = new double[4][4];
+        int spotterId;
         
-        public Spot(double[] uv, String spotterId)
+        public Spot(double[] uv, double[][] vector, int spotterId)
         {
             this.uv = uv;
+            this.vector = vector;
             this.spotterId = spotterId;
         }
     }
 
-    public class Point
+    class Point
     {
         static final int TOP_LEFT  = 0;
         static final int TOP_RIGHT = 1;
@@ -87,14 +108,17 @@ public class NewExtrinsicsPanel extends Broadcaster
     
     class CaptureThread extends Thread
     {
-        private boolean run = true;
+        private volatile boolean run;
         
         private CameraDriver driver;
+        private int cameraId;
         private double[] fc, cc, kc;
         private double alpha;
+        private int pointsAdded = 0;
         
-        public CaptureThread(String url, Config config)
+        public CaptureThread(String url, Config config, int id)
         {
+            this.cameraId = id;
             config = config.getRoot().getChild(CameraDriver.getSubUrl(url));
 
             try
@@ -109,54 +133,52 @@ public class NewExtrinsicsPanel extends Broadcaster
             cc = config.requireDoubles("cc");
             kc = config.requireDoubles("kc");
             alpha = config.requireDouble("alpha");
+            
+            cameras.add(new Camera(id, fc, cc, kc, alpha));
         }
     
         public void run()
         {
-            if(run)
+            run = true;
+            
+            int imageCount = 30; // # of images to look for tags in
+            ArrayList<TagDetection> detections = getTags(imageCount);
+
+            int end = 0;
+            int initPoints = points.size();
+            for (int start = 0; start < detections.size() && run; start = end)
             {
-                int imageCount = 30; // # of images to look for tags in
-                ArrayList<TagDetection> detections = getTags(imageCount);
-    
-                int end = 0;
-                int nodeCount = 0;
-                for (int start = 0; start < detections.size() && run; start = end)
+                int lastId = detections.get(start).id;
+                int curId = lastId;
+
+                while (lastId == curId && ++end < detections.size())
                 {
-                    int lastId = detections.get(start).id;
-                    int curId = lastId;
-    
-                    while (lastId == curId && ++end < detections.size())
+                    curId = detections.get(end).id;
+                }
+
+                if (end - start > imageCount * 0.75) // tag must be seen in 3/4 images
+                {
+                    double[][] tl = new double[end - start][2];
+                    double[][] tr = new double[end - start][2];
+                    double[][] bl = new double[end - start][2];
+                    double[][] br = new double[end - start][2];
+                    for(int b = 0; b < end-start; b++)
                     {
-                        curId = detections.get(end).id;
+                        tl[b] = detections.get(start + b).p[Point.TOP_LEFT];
+                        tr[b] = detections.get(start + b).p[Point.TOP_RIGHT];
+                        bl[b] = detections.get(start + b).p[Point.BOT_LEFT];
+                        br[b] = detections.get(start + b).p[Point.BOT_RIGHT];
                     }
-    
-                    if (end - start > imageCount * 0.75) // tag must be seen in 3/4 images
-                    {
-                        double[][] tl = new double[end - start][2];
-                        double[][] tr = new double[end - start][2];
-                        double[][] bl = new double[end - start][2];
-                        double[][] br = new double[end - start][2];
-                        for(int b = 0; b < end-start; b++)
-                        {
-                            tl[b] = detections.get(start + b).p[Point.TOP_LEFT];
-                            tr[b] = detections.get(start + b).p[Point.TOP_RIGHT];
-                            bl[b] = detections.get(start + b).p[Point.BOT_LEFT];
-                            br[b] = detections.get(start + b).p[Point.BOT_RIGHT];
-                        }
-                        
-                        add(tl, lastId, Point.TOP_LEFT);
-                        add(tr, lastId, Point.TOP_RIGHT);
-                        add(bl, lastId, Point.BOT_LEFT);
-                        add(br, lastId, Point.BOT_RIGHT);
-                    }
+                    
+                    add(tl, lastId, Point.TOP_LEFT);
+                    add(tr, lastId, Point.TOP_RIGHT);
+                    add(bl, lastId, Point.BOT_LEFT);
+                    add(br, lastId, Point.BOT_RIGHT);
                 }
                 
-                System.out.println(driver.getCameraId() + " done! (" + nodeCount + " nodes added)");
-                if(nodeCount == 0) 
-                {
-                    alertListener(false);
-                }
             }
+            
+            System.out.println(driver.getCameraId() + " done! (" + (points.size()-initPoints) + " points added)");
         }
         
         private ArrayList<TagDetection> getTags(int imageCount)
@@ -175,20 +197,33 @@ public class NewExtrinsicsPanel extends Broadcaster
             return detections;
         }
         
-        private synchronized void add(double[][] p, int id, int corner)
+        private synchronized void add(double[][] p, int tagId, int corner)
         {
-            Point newPoint = new Point(id, corner);
+            Point newPoint = new Point(tagId, corner);
             int loc = points.indexOf(newPoint);
             double[] point = PointUtil.getLocation(p);
             
+            double[][] vector = LinAlg.matrixAB(
+                    LinAlg.matrixAB(LinAlg.rotateY(-1*Math.atan((point[0]-cc[0])/fc[0])) , 
+                                    LinAlg.rotateX(-1*Math.atan((point[1]-cc[1])/fc[1]))),
+                    LinAlg.translate(new double[]{0,0,100}));
+            
             if(loc == -1) // new point
             {
-                newPoint.uvs.add(new Spot(point, driver.getCameraId()));
+                newPoint.uvs.add(new Spot(point, vector, cameraId));
+                points.add(newPoint);
             }
             else
             {
-                points.get(loc).uvs.add(new Spot(point, driver.getCameraId()));
+                points.get(loc).uvs.add(new Spot(point, vector, cameraId));
             }
+            
+            pointsAdded++;
+        }
+        
+        public int getPointCount()
+        {
+            return pointsAdded;
         }
         
         public void kill()
@@ -207,35 +242,27 @@ public class NewExtrinsicsPanel extends Broadcaster
 
     class IterateThread extends Thread
     {
-        public boolean run = true;
-        private double[] locations;
-        
-        public IterateThread(int numberOfCams)
-        {
-            locations = new double[6*(numberOfCams+points.size())];
-            for(int x = 0; x < locations.length; x++)
-            {
-                locations[x] = 0;
-            }
-        }
+        private volatile boolean run = true;
         
         public void run()
         {
             int count = 0, size = 10;
             double[] oldChi2 = new double[size];
             double error = 0;
-            
+
             double threshold = 0.000001; // found experimentally 
             int ittLimit = 100;          // found experimentally 
 
             Distance distance = new Distance();
-
-            double[] eps = new double[locations.length];
-            for(int i = 0; i < eps.length; i++)
-            {
-                eps[i] = 0.0001;
-            }
             
+            double[] locations = new double[6*(cameras.size()+points.size())];
+            double[] eps = new double[locations.length];
+            for(int x = 0; x < locations.length; x++)
+            {
+                locations[x] = 0;
+                eps[x] = 0.0001;
+            }
+
             double[] oldR = null;
             double[] r = LinAlg.scale(distance.evaluate(locations), -1);
             Matrix I = Matrix.identity(locations.length, locations.length);
@@ -260,23 +287,71 @@ public class NewExtrinsicsPanel extends Broadcaster
                 update();
             }
             
-            class Distance extends Function
-            {
-                @Override
-                public double[] evaluate(double[] locations, double[] distance)
-                {
-                    if(distance == null)
-                    {
-                        distance = new double[locations.length];
-                    }
-                    
-                    
-                    
-                    return distance;
-                }
-            }
         }
 
+        class Distance extends Function
+        {
+            @Override
+            public double[] evaluate(double[] locations, double[] distance)
+            {
+                if(distance == null)
+                {
+                    distance = new double[points.size()*2];
+                }
+                
+                double[][] cameraPoses = new double[cameras.size()][6];
+                double[][] pointPoses = new double[points.size()][6];
+                
+                for(int x = 0; x < cameraPoses.length; x++)
+                {
+                    for(int y = 0; y < cameraPoses[x].length; y++)
+                    {
+                        cameraPoses[x][y] = locations[x*6 + y];
+                    }
+                }
+                
+                for(int x = 0; x < pointPoses.length; x++)
+                {
+                    for(int y = 0; y < pointPoses[x].length; y++)
+                    {
+                        pointPoses[x][y] = locations[(x+cameraPoses.length)*6 + y];
+                    }
+                }                
+                
+                for(int x = 0; x < pointPoses.length; x++)
+                {
+                    Point curPoint = points.get(x);
+                    for(int y = 0; y < curPoint.uvs.size(); y++)
+                    {
+                        Spot curSpot = curPoint.uvs.get(y);
+                        
+                        distance[x] += getDistance(cameraPoses[curSpot.spotterId], curSpot.vector, pointPoses[x]);
+                    }
+
+                    switch(x%4)
+                    {
+                        case Point.TOP_LEFT:
+                        case Point.TOP_RIGHT:
+                        case Point.BOT_LEFT:
+                            distance[pointPoses.length + x] = LinAlg.squaredDistance(pointPoses[x], pointPoses[x+1]); //distance to neighbor point
+                            break;
+                        case Point.BOT_RIGHT:
+                            distance[pointPoses.length + x] = LinAlg.squaredDistance(pointPoses[x], pointPoses[x-3]); //distance to neighbor point
+                            break;
+                    }
+                }
+                
+                return distance;
+            }
+        }
+        
+        private double getDistance(double[] camera, double[][] vector, double[] point)
+        {
+            // XXX
+            
+            return 0;
+        }
+        
         private boolean shouldStop(double[] oldChi2, double error, double threshold)
         {
             boolean stop = false;
@@ -293,11 +368,6 @@ public class NewExtrinsicsPanel extends Broadcaster
             return stop;
         }
      
-        private Point get(int id, int corner)
-        {
-            return points.get(points.indexOf(new Point(id, corner)));
-        }
-        
         public void kill()
         {
             run = false;
@@ -318,8 +388,10 @@ public class NewExtrinsicsPanel extends Broadcaster
 
     class ManagerThread extends Thread
     {
+        @SuppressWarnings("unused")
+        private volatile Thread thisThread = null;
         private ArrayList<CaptureThread> captures = new ArrayList<CaptureThread>();
-        private IterateThread iterate;
+        private IterateThread iterate = null;
         private Config config;
         
         public ManagerThread(Config config)
@@ -329,13 +401,13 @@ public class NewExtrinsicsPanel extends Broadcaster
         
         public void run()
         {
-            int cameras = 0;
+            thisThread = Thread.currentThread();
+            
             for(String url : ImageSource.getCameraURLs())
             {
                 if(CameraDriver.isValidUrl(config, url))
                 {
-                    cameras++;
-                    CaptureThread newThread = new CaptureThread(url, config);
+                    CaptureThread newThread = new CaptureThread(url, config, captures.size());
                     newThread.start();
                     captures.add(newThread);
                 }
@@ -346,17 +418,27 @@ public class NewExtrinsicsPanel extends Broadcaster
                 try
                 {
                     c.join();
+                    if(c.getPointCount() == 0)
+                    {
+                        alertListener(false);
+                    }
                 } catch (InterruptedException e)
                 {
                     e.printStackTrace();
                 }
             }
-            System.out.println("done capturing");
+
+            Iterator<Point> itr = points.iterator();
+            while(itr.hasNext())
+            {
+                if(itr.next().uvs.size() < 2)
+                {
+                    itr.remove();
+                }
+            }
             
-            iterate = new IterateThread(cameras);
+            iterate = new IterateThread();
             iterate.start();
-            System.out.println("started iterating");
-            
             try
             {
                 iterate.join();
@@ -364,26 +446,26 @@ public class NewExtrinsicsPanel extends Broadcaster
             {
                 e.printStackTrace();
             }
+            
             System.out.println("done iterating. results: ");
-            // XXX print results
         }
         
         public void kill()
         {
             for(CaptureThread c : captures)
             {
-                c.kill();
+                if(c.isAlive())
+                {
+                    c.kill();
+                }
+            }
+
+            if(iterate != null && iterate.isAlive())
+            {
+                iterate.kill();
             }
             
-            iterate.kill();
-            
-            try
-            {
-                this.join();
-            } catch (InterruptedException e)
-            {
-                e.printStackTrace();
-            }
+            thisThread = null;
         }
     }
     
