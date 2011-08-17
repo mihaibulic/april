@@ -71,19 +71,15 @@ public class IntroPanel extends Broadcaster
     {
         alertListener(true);
     }
+    
     @Override
     public void kill()
-    {
-        //This method doesn't do anything since this panel doesn't do anything
-    }
+    {}
+    
     @Override
     public void displayMsg(String msg, boolean error)
-    {
-        // no error messages to display
-    }
+    {}
     
     public void showDisplay(boolean show)
-    {
-        // no optional directions to show
-    }
+    {}
 }

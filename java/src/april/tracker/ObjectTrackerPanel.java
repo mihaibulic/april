@@ -63,9 +63,11 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
             vbObjects.setDrawOrder(2);
             vbCameras = vw.getBuffer("cameras");
             vbCameras.setDrawOrder(3);
+            vc.setBackground(Color.black);
             vc.getViewManager().viewGoal.fit2D(new double[] { -1, -1 }, new double[] { 1, 1});
+            
+            add(vc);
         }
-        
     }
     
     class Tracker extends Thread
@@ -372,9 +374,6 @@ public class ObjectTrackerPanel extends Broadcaster implements Track.Listener
         
         if(display) 
         {
-            vc.setBackground(Color.black);
-            add(vc);
-            
             for(int x = 0; x < tracks.size(); x++)
             {
                 double[][] camM = tracks.get(x).getTransformationMatrix();

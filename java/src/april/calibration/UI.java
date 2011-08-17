@@ -88,7 +88,6 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
         nextButton.addActionListener(this);
         backButton.addActionListener(this);
         directionsBox.addActionListener(this);
-//        directionsBox.setVisible(false);
         Box buttonBox = new Box(BoxLayout.X_AXIS);
         buttonBox.setBorder(new EmptyBorder(new Insets(5, 10, 5, 10)));
         buttonBox.add(directionsBox);
@@ -179,7 +178,6 @@ public class UI extends JFrame implements ActionListener, Broadcaster.Listener
     {
         if(id.equals(CONFIG))
         {
-            
             if(ready)
             {
                 try

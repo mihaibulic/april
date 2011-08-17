@@ -104,7 +104,7 @@ public class CameraPlayerPanel extends Broadcaster implements LCMSubscriber
                         vc.getViewManager().viewGoal.fit2D(new double[] { 0, 0 }, getDimension());
                         change = false;
                     }
-                    Thread.sleep(1000);
+                    Thread.sleep(2000);
                 }
             } catch (InterruptedException e)
             {

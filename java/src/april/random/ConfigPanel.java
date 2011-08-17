@@ -31,20 +31,6 @@ public class ConfigPanel extends Broadcaster implements ActionListener
         add(fileChooser, BorderLayout.CENTER);
     }
 
-    
-    public void go(String configPath)
-    {
-        alertListener(false);
-    // this method doesn't do anything since this panel doesn't do anything
-    }
-
-    @Override
-    public void kill()
-    {
-    // This method doesn't do anything since this panel doesn't do anything
-    }
-
-
     public void actionPerformed(ActionEvent event)
     {
         if(fileChooser.getSelectedFile().isFile())
@@ -52,16 +38,21 @@ public class ConfigPanel extends Broadcaster implements ActionListener
             alertListener(true, fileChooser.getSelectedFile().toString());
         }
     }
+    
+    public void go(String configPath)
+    {
+        alertListener(false);
+    }
+
+    @Override
+    public void kill()
+    {}
 
     @Override
     public void displayMsg(String msg, boolean error)
-    {
-        //no messages to display
-    }
+    {}
     
     @Override
     public void showDisplay(boolean show)
-    {
-        // no directions to show
-    }
+    {}
 }

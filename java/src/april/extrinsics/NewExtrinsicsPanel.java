@@ -22,7 +22,10 @@ import april.tag.TagDetection;
 import april.util.ConfigException;
 import april.util.ConfigUtil2;
 import april.util.PointUtil;
+import april.vis.VisCamera;
 import april.vis.VisCanvas;
+import april.vis.VisChain;
+import april.vis.VisSphere;
 import april.vis.VisWorld;
 
 public class NewExtrinsicsPanel extends Broadcaster
@@ -70,6 +73,7 @@ public class NewExtrinsicsPanel extends Broadcaster
     
     class Spot
     {
+        static final int RANGE = 100;
         double[] uv = new double[2];
         double[][] vector = new double[4][4];
         int spotterId;
@@ -145,7 +149,6 @@ public class NewExtrinsicsPanel extends Broadcaster
             ArrayList<TagDetection> detections = getTags(imageCount);
 
             int end = 0;
-            int initPoints = points.size();
             for (int start = 0; start < detections.size() && run; start = end)
             {
                 int lastId = detections.get(start).id;
@@ -175,10 +178,7 @@ public class NewExtrinsicsPanel extends Broadcaster
                     add(bl, lastId, Point.BOT_LEFT);
                     add(br, lastId, Point.BOT_RIGHT);
                 }
-                
             }
-            
-            System.out.println(driver.getCameraId() + " done! (" + (points.size()-initPoints) + " points added)");
         }
         
         private ArrayList<TagDetection> getTags(int imageCount)
@@ -202,11 +202,12 @@ public class NewExtrinsicsPanel extends Broadcaster
             Point newPoint = new Point(tagId, corner);
             int loc = points.indexOf(newPoint);
             double[] point = PointUtil.getLocation(p);
-            
+
             double[][] vector = LinAlg.matrixAB(
-                    LinAlg.matrixAB(LinAlg.rotateY(-1*Math.atan((point[0]-cc[0])/fc[0])) , 
-                                    LinAlg.rotateX(-1*Math.atan((point[1]-cc[1])/fc[1]))),
-                    LinAlg.translate(new double[]{0,0,100}));
+                    LinAlg.matrixAB(
+                            LinAlg.rotateY(-1*Math.atan((point[0]-cc[0])/fc[0])), 
+                            LinAlg.rotateX(-1*Math.atan((point[1]-cc[1])/fc[1]))), 
+                    LinAlg.translate(new double[]{0,0,Spot.RANGE}));
             
             if(loc == -1) // new point
             {
@@ -243,31 +244,38 @@ public class NewExtrinsicsPanel extends Broadcaster
     class IterateThread extends Thread
     {
         private volatile boolean run = true;
+        private double tagSize;
+        
+        public IterateThread(double tagSize)
+        {
+            this.tagSize = tagSize;
+        }
         
         public void run()
         {
-            int count = 0, size = 10;
-            double[] oldChi2 = new double[size];
-            double error = 0;
-
-            double threshold = 0.000001; // found experimentally 
-            int ittLimit = 100;          // found experimentally 
-
             Distance distance = new Distance();
             
-            double[] locations = new double[6*(cameras.size()+points.size())];
+            double error = 0;
+            double[] oldError = new double[10];
+            double[] locations = new double[6*cameras.size()+3*points.size()];
             double[] eps = new double[locations.length];
             for(int x = 0; x < locations.length; x++)
             {
-                locations[x] = 0;
+                locations[x] = (x%6==0 && x<cameras.size()*6) ? (x/6)+1 : 0;
                 eps[x] = 0.0001;
             }
+            
+            double[] b = new double[points.size()*2];
+            for(int x = 0; x < b.length; x++)
+            {
+                b[x] = x < points.size() ? 0 : tagSize;
+            }
 
-            double[] oldR = null;
-            double[] r = LinAlg.scale(distance.evaluate(locations), -1);
+            int count = 0;
+            double[] r = LinAlg.subtract(b, distance.evaluate(locations));
             Matrix I = Matrix.identity(locations.length, locations.length);
 
-            while (run && !shouldStop(oldChi2, error, 0.1))
+            while (run && /*!shouldStop(oldError, error, 0.000001) &&*/ count++ < 5000)
             {
                 double[][] _J = NumericalJacobian.computeJacobian(distance, locations, eps);
                 Matrix J = new Matrix(_J);
@@ -281,12 +289,15 @@ public class NewExtrinsicsPanel extends Broadcaster
                     locations[x] += 0.1*dx.get(x,0); // scaling by 0.1 helps keep results stable 
                 }
                 
-                oldR = r.clone();
-                r = LinAlg.scale(distance.evaluate(locations), -1);
+                r = LinAlg.subtract(b, distance.evaluate(locations));
 
-                update();
+                if(count % 10 == 0)
+                {
+                    update(locations);
+                }
             }
             
+            update(locations);
         }
 
         class Distance extends Function
@@ -300,21 +311,22 @@ public class NewExtrinsicsPanel extends Broadcaster
                 }
                 
                 double[][] cameraPoses = new double[cameras.size()][6];
-                double[][] pointPoses = new double[points.size()][6];
+                double[][] pointPoses = new double[points.size()][3];
                 
                 for(int x = 0; x < cameraPoses.length; x++)
                 {
                     for(int y = 0; y < cameraPoses[x].length; y++)
                     {
-                        cameraPoses[x][y] = locations[x*6 + y];
+                        cameraPoses[x][y] = locations[6*x + y];
                     }
                 }
                 
+                int offset = cameraPoses.length*6;
                 for(int x = 0; x < pointPoses.length; x++)
                 {
                     for(int y = 0; y < pointPoses[x].length; y++)
                     {
-                        pointPoses[x][y] = locations[(x+cameraPoses.length)*6 + y];
+                        pointPoses[x][y] = locations[3*x + offset + y];
                     }
                 }                
                 
@@ -325,7 +337,7 @@ public class NewExtrinsicsPanel extends Broadcaster
                     {
                         Spot curSpot = curPoint.uvs.get(y);
                         
-                        distance[x] += getDistance(cameraPoses[curSpot.spotterId], curSpot.vector, pointPoses[x]);
+                        distance[x] += PointUtil.getDistance(cameraPoses[curSpot.spotterId], curSpot.vector, Spot.RANGE, pointPoses[x]);
                     }
 
                     switch(x%4)
@@ -333,23 +345,16 @@ public class NewExtrinsicsPanel extends Broadcaster
                         case Point.TOP_LEFT:
                         case Point.TOP_RIGHT:
                         case Point.BOT_LEFT:
-                            distance[pointPoses.length + x] = LinAlg.squaredDistance(pointPoses[x], pointPoses[x+1]); //distance to neighbor point
+                            distance[pointPoses.length + x] = LinAlg.distance(pointPoses[x], pointPoses[x+1]); //distance to neighbor point
                             break;
                         case Point.BOT_RIGHT:
-                            distance[pointPoses.length + x] = LinAlg.squaredDistance(pointPoses[x], pointPoses[x-3]); //distance to neighbor point
+                            distance[pointPoses.length + x] = LinAlg.distance(pointPoses[x], pointPoses[x-3]); //distance to neighbor point
                             break;
                     }
                 }
                 
                 return distance;
             }
-        }
-        
-        private double getDistance(double[] camera, double[][] vector, double[] point)
-        {
-            // XXX
-            
-            return 0;
         }
         
         private boolean shouldStop(double[] oldChi2, double error, double threshold)
@@ -381,9 +386,45 @@ public class NewExtrinsicsPanel extends Broadcaster
         }
     }
 
-    public void update()
+    public void update(double[] locations)
     {
-    // XXX show progress/draw current set-up
+        for(int x = 0; x < cameras.size(); x++)
+        {
+            cameras.get(x).xyzrpy = new double[] {locations[6*x+0],
+                                                  locations[6*x+1],
+                                                  locations[6*x+2],
+                                                  locations[6*x+3],
+                                                  locations[6*x+4],
+                                                  locations[6*x+5]};
+        }
+        
+        int offset = cameras.size()*6;
+        for(int x = 0; x < points.size(); x++)
+        {
+            points.get(x).xyz = new double[] {locations[3*x+offset+0],
+                                              locations[3*x+offset+1],
+                                              locations[3*x+offset+2]};
+        }
+        
+        VisWorld.Buffer vb = vw.getBuffer("camera");
+        Color colors[] = {Color.blue, Color.cyan, Color.darkGray, Color.gray,
+                        Color.green, Color.lightGray, Color.magenta, Color.orange, Color.pink,
+                        Color.red, Color.white, Color.yellow, Color.black};
+
+        for(int x = 0; x < cameras.size(); x++)
+        {
+            double[][] M = LinAlg.xyzrpyToMatrix(cameras.get(x).xyzrpy);
+            vb.addBuffered(new VisChain(M, new VisCamera(colors[x%colors.length], 0.08)));
+        }
+        
+        for(int x = 0; x < points.size(); x++)
+        {
+            Point p = points.get(x);
+            double[][] M = LinAlg.xyzrpyToMatrix(new double[] {p.xyz[0], p.xyz[1], p.xyz[2], 0, 0, 0});
+            vb.addBuffered(new VisChain(M, new VisSphere(0.008, colors[p.id%colors.length])));
+        }
+        
+        vb.switchBuffer();
     }
 
     class ManagerThread extends Thread
@@ -427,7 +468,7 @@ public class NewExtrinsicsPanel extends Broadcaster
                     e.printStackTrace();
                 }
             }
-
+            
             Iterator<Point> itr = points.iterator();
             while(itr.hasNext())
             {
@@ -437,7 +478,7 @@ public class NewExtrinsicsPanel extends Broadcaster
                 }
             }
             
-            iterate = new IterateThread();
+            iterate = new IterateThread(config.getRoot().getChild("extrinsics").requireDouble("tag_size"));
             iterate.start();
             try
             {
@@ -448,6 +489,26 @@ public class NewExtrinsicsPanel extends Broadcaster
             }
             
             System.out.println("done iterating. results: ");
+            
+            for(Camera c : cameras)
+            {
+                System.out.println("Camera " + c.id);
+                for(double p : c.xyzrpy)
+                {
+                    System.out.print(p + "\t\t");
+                }
+                System.out.println("\n");
+            }
+            
+            for(Point p : points)
+            {
+                System.out.println("point " + p.id);
+                for(double a : p.xyz)
+                {
+                    System.out.print(a + "\t\t");
+                }
+                System.out.println("\n");
+            }
         }
         
         public void kill()

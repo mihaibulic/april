@@ -26,8 +26,8 @@ public class CameraDriver extends Thread
     private ImageSource isrc;
     private ImageSourceFormat ifmt;
     
-    private boolean newImage = false;
     private Object imageLock = new Object();
+    private volatile boolean newImage = false;
     private byte[] imageBuffer;
 
     private volatile boolean run = true;
@@ -113,28 +113,23 @@ public class CameraDriver extends Thread
     public void run()
     {
         isrc.start();
-        byte[] imageBuffer;
         
         while (run)
         {
-            imageBuffer = isrc.getFrame();
+            byte[] buffer = isrc.getFrame();
 
-            if(imageBuffer != null)
+            if(buffer != null)
             {
-                int status = SyncErrorDetector.SYNC_GOOD;
-                if(sync != null)
-                {
-                    sync.addTimePointGreyFrame(imageBuffer);
-                    status = sync.verify();
-                }
+                sync.addTimePointGreyFrame(buffer);
+                int status = sync.verify();
                 
                 if(status == SyncErrorDetector.SYNC_GOOD)
                 {
                     synchronized(imageLock)
                     {
+                        imageBuffer = buffer;
                         newImage = true;
-                        this.imageBuffer = imageBuffer;
-                        imageLock.notify();
+                        imageLock.notifyAll();
                     }
                 } 
                 else if (status == SyncErrorDetector.RECOMMEND_ACTION)

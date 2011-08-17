@@ -70,10 +70,6 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
     private IterateThread iterateThread;
     private Graph g;
     
-//    private String configPath;
-//    private Config config;
-//    private String url;
-    
     static class Status
     {
         static final int INITIAL = 1;
@@ -93,17 +89,21 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         double size;
     }
 
-    /**
-     * @param urlId - It's a little weird to send the index when the url could be sent just as easily.  
-     *                This is for consistency (urls always sent through go method)
-     */
     public IntrinsicsPanel(String id, String url) 
     {
         super(new BorderLayout());
         
         this.url = url;
         
-        initVis();
+        vw = new VisWorld();
+        vc = new VisCanvas(vw);
+        vc.getViewManager().interfaceMode = 1.0;
+        vc.setBackground(Color.BLACK);
+
+        vwImages = new VisWorld();
+        vcImages = new VisCanvas(vwImages);
+        vcImages.getViewManager().interfaceMode = 1.0;
+        vcImages.setBackground(Color.BLACK);
         
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BorderLayout());
@@ -131,20 +131,6 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
         goButton.setEnabled(false);
     }
 
-    private void initVis()
-    {
-        vw = new VisWorld();
-        vc = new VisCanvas(vw);
-
-        vwImages = new VisWorld();
-        vcImages = new VisCanvas(vwImages);
-        
-        vc.setBackground(Color.BLACK);
-        vc.getViewManager().interfaceMode = 1.0;
-        vcImages.setBackground(Color.BLACK);
-        vcImages.getViewManager().interfaceMode = 1.0;
-    }
-    
     private void initGraph()
     {
         g = new Graph();
@@ -577,24 +563,16 @@ public class IntrinsicsPanel extends Broadcaster implements ActionListener
     @Override
     public void kill()
     {
-        try
+        if(iterateThread != null)
         {
-            if(iterateThread != null)
-            {
-                iterateThread.run = false;
-                iterateThread.join();
-                iterateThread = null;
-            }
-            
-            if(captureThread != null)
-            {
-                captureThread.run = false;
-                captureThread.join();
-                captureThread = null;
-            }
-        } catch (InterruptedException e)
+            iterateThread.kill();
+            iterateThread = null;
+        }
+        
+        if(captureThread != null)
         {
-            e.printStackTrace();
+            captureThread.kill();
+            captureThread = null;
         }
     }
     

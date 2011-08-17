@@ -184,6 +184,19 @@ public class PointUtil
         return line;
     }
     
+    /**
+     * @return - the minimum distance from the point to the line segment from start to end 
+     */
+    public static double getDistance(double[] start, double[][] vector, double lineLength, double[] point)
+    {
+        double[] end = LinAlg.matrixToXyzrpy(LinAlg.matrixAB(LinAlg.xyzrpyToMatrix(start), vector));
+        double a = LinAlg.distance(point, end, 3), b = LinAlg.distance(point, start, 3), c = lineLength;
+        double s = (a+b+c)/2;
+        double area = Math.sqrt(s*(s-a)*(s-b)*(s-c));
+        
+        return 2*area/c;
+    }
+    
     public static void print(double[] point)
     {
         for(double p : point)
