@@ -12,19 +12,19 @@ import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 
 import april.util.GetOpt;
-import aprilO.jcam.ImageConvert;
-import aprilO.jcam.ImageSource;
-import aprilO.jcam.ImageSourceFormat;
-import aprilO.jmat.LinAlg;
-import aprilO.util.ParameterGUI;
-import aprilO.util.ParameterListener;
-import aprilO.vis.VisCanvas;
-import aprilO.vis.VisChain;
-import aprilO.vis.VisDataLineStyle;
-import aprilO.vis.VisImage;
-import aprilO.vis.VisRectangle;
-import aprilO.vis.VisTexture;
-import aprilO.vis.VisWorld;
+import april.jcam.ImageConvert;
+import april.jcam.ImageSource;
+import april.jcam.ImageSourceFormat;
+import april.jmat.LinAlg;
+import april.util.ParameterGUI;
+import april.util.ParameterListener;
+import april.vis.VisCanvas;
+import april.vis.VisChain;
+import april.vis.VisDataLineStyle;
+import april.vis.VisImage;
+import april.vis.VisRectangle;
+import april.vis.VisTexture;
+import april.vis.VisWorld;
 
 /**
  * This is a basic template to be able to read off images from the camera and display them in a GUI 

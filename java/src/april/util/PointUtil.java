@@ -1,10 +1,10 @@
 package april.util;
 
 import java.util.ArrayList;
-import aprilO.jmat.Function;
-import aprilO.jmat.LinAlg;
-import aprilO.jmat.Matrix;
-import aprilO.jmat.NumericalJacobian;
+import april.jmat.Function;
+import april.jmat.LinAlg;
+import april.jmat.Matrix;
+import april.jmat.NumericalJacobian;
 
 public class PointUtil
 {

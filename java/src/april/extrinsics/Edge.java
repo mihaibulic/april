@@ -1,13 +1,13 @@
 package april.extrinsics;
 
 import java.io.IOException;
-import aprilO.graph.GEdge;
-import aprilO.graph.GNode;
-import aprilO.graph.Graph;
-import aprilO.graph.Linearization;
-import aprilO.jmat.LinAlg;
-import aprilO.util.StructureReader;
-import aprilO.util.StructureWriter;
+import april.graph.GEdge;
+import april.graph.GNode;
+import april.graph.Graph;
+import april.graph.Linearization;
+import april.jmat.LinAlg;
+import april.util.StructureReader;
+import april.util.StructureWriter;
 
 public class Edge extends GEdge
 {

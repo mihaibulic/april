@@ -1,7 +1,7 @@
 package april.intrinsics;
 
-import aprilO.jmat.LinAlg;
-import aprilO.graph.GNode;
+import april.jmat.LinAlg;
+import april.graph.GNode;
 
 public class GExtrinsicsNode extends GNode
 {
@@ -35,5 +35,12 @@ public class GExtrinsicsNode extends GNode
         
         gn.attributes = attributes.copy();
         return gn;
+    }
+
+    @Override
+    public double[] toXyzRpy(double[] s)
+    {
+        // TODO
+        return null;
     }
 }

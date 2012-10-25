@@ -7,11 +7,11 @@ import javax.swing.JFrame;
 import lcm.lcm.LCM;
 import april.camera.CameraDriver;
 import april.util.GetOpt;
-import aprilO.jcam.ImageSource;
-import aprilO.vis.VisCanvas;
-import aprilO.vis.VisImage;
-import aprilO.vis.VisTexture;
-import aprilO.vis.VisWorld;
+import april.jcam.ImageSource;
+import april.vis.VisCanvas;
+import april.vis.VisImage;
+import april.vis.VisTexture;
+import april.vis.VisWorld;
 
 public class CameraExample
 {

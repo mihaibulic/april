@@ -1,6 +1,6 @@
 package april.tracker;
 
-import aprilO.jmat.LinAlg;
+import april.jmat.LinAlg;
 
 public class SpaceObjectDetection
 {

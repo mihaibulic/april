@@ -6,9 +6,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import lcm.lcm.LCM;
 import april.lcmtypes.image_path_t;
-import aprilO.jcam.ImageSource;
-import aprilO.jcam.ImageSourceFormat;
-import aprilO.util.TimeUtil;
+import april.jcam.ImageSource;
+import april.jcam.ImageSourceFormat;
+import april.util.TimeUtil;
 
 public class ImageSaverSimple extends Thread
 {

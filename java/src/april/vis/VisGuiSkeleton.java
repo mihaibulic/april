@@ -4,8 +4,8 @@ import java.awt.Color;
 import java.awt.Toolkit;
 import javax.swing.BoxLayout;
 import javax.swing.JFrame;
-import aprilO.vis.VisCanvas;
-import aprilO.vis.VisWorld;
+import april.vis.VisCanvas;
+import april.vis.VisWorld;
 
 public class VisGuiSkeleton extends JFrame
 {

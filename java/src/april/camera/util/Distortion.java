@@ -1,11 +1,11 @@
 package april.camera.util;
 
-import aprilO.image.Homography33;
-import aprilO.jmat.Function;
-import aprilO.jmat.LinAlg;
-import aprilO.jmat.Matrix;
-import aprilO.jmat.NumericalJacobian;
-import aprilO.tag.TagDetection;
+import april.image.Homography33;
+import april.jmat.Function;
+import april.jmat.LinAlg;
+import april.jmat.Matrix;
+import april.jmat.NumericalJacobian;
+import april.tag.TagDetection;
 
 public class Distortion
 {

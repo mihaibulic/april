@@ -4,10 +4,10 @@ import java.awt.Color;
 import java.util.Random;
 import april.util.PointUtil;
 import april.vis.VisGuiSkeleton;
-import aprilO.jmat.LinAlg;
-import aprilO.vis.VisChain;
-import aprilO.vis.VisCircle;
-import aprilO.vis.VisDataFillStyle;
+import april.jmat.LinAlg;
+import april.vis.VisChain;
+import april.vis.VisCircle;
+import april.vis.VisDataFillStyle;
 
 public class UVLocatorTest extends VisGuiSkeleton
 {

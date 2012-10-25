@@ -29,22 +29,22 @@ import april.tag.TagDetector;
 import april.tag.TagFamily;
 import april.util.ConfigException;
 import april.util.ConfigUtil2;
-import aprilO.graph.CholeskySolver;
-import aprilO.graph.GEdge;
-import aprilO.graph.Graph;
-import aprilO.graph.GraphSolver;
-import aprilO.image.Homography33b;
-import aprilO.jmat.ordering.MinimumDegreeOrdering;
-import aprilO.tag.CameraUtil;
-import aprilO.vis.VisCanvas;
-import aprilO.vis.VisChain;
-import aprilO.vis.VisData;
-import aprilO.vis.VisDataFillStyle;
-import aprilO.vis.VisDataLineStyle;
-import aprilO.vis.VisImage;
-import aprilO.vis.VisRectangle;
-import aprilO.vis.VisText;
-import aprilO.vis.VisWorld;
+import april.graph.CholeskySolver;
+import april.graph.GEdge;
+import april.graph.Graph;
+import april.graph.GraphSolver;
+import april.image.Homography33b;
+import april.jmat.ordering.MinimumDegreeOrdering;
+import april.tag.CameraUtil;
+import april.vis.VisCanvas;
+import april.vis.VisChain;
+import april.vis.VisData;
+import april.vis.VisDataFillStyle;
+import april.vis.VisDataLineStyle;
+import april.vis.VisImage;
+import april.vis.VisRectangle;
+import april.vis.VisText;
+import april.vis.VisWorld;
 
 public class IntrinsicsPanel extends Broadcaster implements ActionListener
 {

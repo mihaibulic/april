@@ -4,19 +4,19 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
-import aprilO.graph.GEdge;
-import aprilO.graph.GNode;
-import aprilO.graph.Graph;
-import aprilO.graph.Linearization;
-import aprilO.jmat.LinAlg;
-import aprilO.util.StructureReader;
-import aprilO.util.StructureWriter;
-import aprilO.vis.VisChain;
-import aprilO.vis.VisData;
-import aprilO.vis.VisDataLineStyle;
-import aprilO.vis.VisDataPointStyle;
-import aprilO.vis.VisImage;
-import aprilO.vis.VisWorld;
+import april.graph.GEdge;
+import april.graph.GNode;
+import april.graph.Graph;
+import april.graph.Linearization;
+import april.jmat.LinAlg;
+import april.util.StructureReader;
+import april.util.StructureWriter;
+import april.vis.VisChain;
+import april.vis.VisData;
+import april.vis.VisDataLineStyle;
+import april.vis.VisDataPointStyle;
+import april.vis.VisImage;
+import april.vis.VisWorld;
 
 public class GCalibrateEdge extends GEdge
 {

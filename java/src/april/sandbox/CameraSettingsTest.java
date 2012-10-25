@@ -4,10 +4,10 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import april.vis.VisGuiSkeleton;
-import aprilO.jcam.ImageConvert;
-import aprilO.jcam.ImageSource;
-import aprilO.jcam.ImageSourceFormat;
-import aprilO.vis.VisImage;
+import april.jcam.ImageConvert;
+import april.jcam.ImageSource;
+import april.jcam.ImageSourceFormat;
+import april.vis.VisImage;
 
 public class CameraSettingsTest extends VisGuiSkeleton
 {

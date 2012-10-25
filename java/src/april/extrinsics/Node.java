@@ -1,6 +1,6 @@
 package april.extrinsics;
 
-import aprilO.graph.GNode;
+import april.graph.GNode;
 
 public class Node extends GNode
 {
@@ -44,5 +44,12 @@ public class Node extends GNode
     public boolean equals(Object a)
     {
         return id.equals(((Node)a).id);
+    }
+
+    @Override
+    public double[] toXyzRpy(double[] s)
+    {
+        //TODO
+        return null;
     }
 }
